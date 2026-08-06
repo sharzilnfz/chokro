@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server';
 import { db, rateCardEntries, memoryStore } from '@chokro/db';
-import { verifyAuthHeader } from '../../../../lib/auth';
+import { requireAdmin } from '../../../../lib/auth';
+import { databaseOrTestStore, routeError } from '../../../../lib/database';
+import { CategoryEnum, ConditionEnum } from '@chokro/shared';
 import { z } from 'zod';
 import crypto from 'crypto';
 
 const RateCardSchema = z.object({
-  category: z.string(),
-  conditionBand: z.string(),
-  unit: z.enum(['kg', 'piece']),
+  category: CategoryEnum,
+  conditionBand: ConditionEnum,
   priceBdt: z.number().positive(),
 });
 
+const categoryUnit = (category: string): 'kg' | 'piece' =>
+  category === 'APPLIANCES' || category === 'E_WASTE' ? 'piece' : 'kg';
+
 export async function POST(req: Request) {
   try {
-    const payload = verifyAuthHeader(req);
-    const adminHeader = req.headers.get('x-user-id');
-    const updatedBy = payload?.userId || adminHeader || '99999999-9999-9999-9999-999999999999';
+    const auth = requireAdmin(req);
+    if (auth.response) return auth.response;
 
     const body = await req.json();
     const parsed = RateCardSchema.safeParse(body);
@@ -23,50 +26,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid rate card data', details: parsed.error.format() }, { status: 400 });
     }
 
-    const { category, conditionBand, unit, priceBdt } = parsed.data;
-    let entry: any;
-
-    try {
-      [entry] = await db
-        .insert(rateCardEntries)
-        .values({
+    const { category, conditionBand, priceBdt } = parsed.data;
+    const values = {
           category,
           condition_band: conditionBand,
-          unit,
+          unit: categoryUnit(category),
           price_bdt: priceBdt.toString(),
           effective_from: new Date(),
-          updated_by: updatedBy,
-        })
-        .returning();
-    } catch (dbErr) {
-      entry = {
+          updated_by: auth.user.userId,
+    };
+    const entry = await databaseOrTestStore(
+      async () => (await db.insert(rateCardEntries).values(values).returning())[0],
+      () => {
+        const rate = {
         id: crypto.randomUUID(),
-        category,
-        condition_band: conditionBand,
-        unit,
-        price_bdt: priceBdt.toString(),
-        effective_from: new Date().toISOString(),
-        updated_by: updatedBy,
-      };
-      memoryStore.rateCardEntries.push(entry);
-    }
+        ...values,
+        };
+        memoryStore.rateCardEntries.push(rate);
+        return rate;
+      },
+    );
 
     return NextResponse.json({ message: 'Rate card updated', entry }, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    let entries: any[];
-    try {
-      entries = await db.select().from(rateCardEntries);
-    } catch (dbErr) {
-      entries = memoryStore.rateCardEntries;
-    }
+    const auth = requireAdmin(req);
+    if (auth.response) return auth.response;
+    const entries = await databaseOrTestStore(
+      () => db.select().from(rateCardEntries),
+      () => [...memoryStore.rateCardEntries],
+    );
     return NextResponse.json({ entries });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }

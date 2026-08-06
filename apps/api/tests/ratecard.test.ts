@@ -1,41 +1,75 @@
+import { memoryStore } from '@chokro/db';
+import crypto from 'crypto';
 import { POST as createRate, GET as getAdminRates } from '../app/api/admin/rate-card/route';
 import { GET as getPublishedRates } from '../app/api/rate-card/published/route';
+import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
-describe('TC1: Admin Rate Card Console & Versioning', () => {
-  const dummyAdminId = '99999999-9999-9999-9999-999999999999';
+describe('rate card API', () => {
+  beforeEach(resetTestStore);
 
-  it('should create a new rate card entry for plastics with effective_from timestamp', async () => {
-    const req = new Request('http://localhost/api/admin/rate-card', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': dummyAdminId,
-      },
-      body: JSON.stringify({
-        category: 'PLASTICS',
-        conditionBand: 'GOOD',
-        unit: 'kg',
-        priceBdt: 50.0,
-      }),
-    });
-
-    const res = await createRate(req as any);
-    const data = await res.json();
-    expect(res.status).toBe(201);
-    expect(data.entry.category).toBe('PLASTICS');
-    expect(data.entry.price_bdt).toBe('50');
-    expect(data.entry.effective_from).toBeDefined();
+  it('returns 401 without auth and 403 for a non-admin', async () => {
+    const body = JSON.stringify({ category: 'PLASTICS', conditionBand: 'GOOD', priceBdt: 50 });
+    const missing = await createRate(new Request('http://localhost/api/admin/rate-card', { method: 'POST', body }));
+    const user = createTestUser();
+    const forbidden = await createRate(new Request('http://localhost/api/admin/rate-card', {
+      method: 'POST', headers: authHeaders(tokenFor(user)), body,
+    }));
+    expect(missing.status).toBe(401);
+    expect(forbidden.status).toBe(403);
   });
 
-  it('should return published rate card entries for the mobile app', async () => {
-    const req = new Request('http://localhost/api/rate-card/published', {
-      method: 'GET',
-    });
+  it('derives the unit from the category instead of accepting one', async () => {
+    const admin = createTestUser('ADMIN');
+    const token = tokenFor(admin);
+    const material = await createRate(new Request('http://localhost/api/admin/rate-card', {
+      method: 'POST', headers: authHeaders(token),
+      body: JSON.stringify({ category: 'PLASTICS', conditionBand: 'GOOD', priceBdt: 50 }),
+    }));
+    const eWaste = await createRate(new Request('http://localhost/api/admin/rate-card', {
+      method: 'POST', headers: authHeaders(token),
+      body: JSON.stringify({ category: 'E_WASTE', conditionBand: 'GOOD', priceBdt: 200 }),
+    }));
 
-    const res = await getPublishedRates();
-    const data = await res.json();
-    expect(res.status).toBe(200);
-    expect(Array.isArray(data.rates)).toBe(true);
-    expect(data.rates.length).toBeGreaterThan(0);
+    expect(material.status).toBe(201);
+    expect(eWaste.status).toBe(201);
+    expect((await material.json()).entry.unit).toBe('kg');
+    expect((await eWaste.json()).entry.unit).toBe('piece');
+  });
+
+  it('publishes only the latest effective rate per category, condition, and unit', async () => {
+    const admin = createTestUser('ADMIN');
+    const hour = 3_600_000;
+    const base = [
+      { price_bdt: '40', effective_from: new Date(Date.now() - 2 * hour) },
+      { price_bdt: '55', effective_from: new Date(Date.now() - hour) },
+      { price_bdt: '70', effective_from: new Date(Date.now() + hour) },
+    ];
+    for (const rate of base) {
+      memoryStore.rateCardEntries.push({
+        id: crypto.randomUUID(), category: 'PLASTICS', condition_band: 'GOOD', unit: 'kg',
+        price_bdt: rate.price_bdt, effective_from: rate.effective_from, updated_by: admin.id,
+      });
+    }
+
+    const published = await getPublishedRates();
+    const data = await published.json();
+
+    expect(published.status).toBe(200);
+    expect(data.rates).toHaveLength(1);
+    expect(data.rates[0]).toMatchObject({ price_bdt: '55', unit: 'kg' });
+  });
+
+  it('allows an admin to version rates and exposes stored published rates only', async () => {
+    const admin = createTestUser('ADMIN');
+    const token = tokenFor(admin);
+    const created = await createRate(new Request('http://localhost/api/admin/rate-card', {
+      method: 'POST', headers: authHeaders(token),
+      body: JSON.stringify({ category: 'PLASTICS', conditionBand: 'GOOD', priceBdt: 50 }),
+    }));
+    const adminRates = await getAdminRates(new Request('http://localhost/api/admin/rate-card', { headers: authHeaders(token) }));
+    const published = await getPublishedRates();
+    expect(created.status).toBe(201);
+    expect(adminRates.status).toBe(200);
+    expect((await published.json()).rates).toHaveLength(1);
   });
 });
