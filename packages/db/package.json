@@ -1,0 +1,22 @@
+{
+  "name": "@chokro/db",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chokro/shared": "workspace:*",
+    "drizzle-orm": "^0.30.0",
+    "dotenv": "^16.4.5",
+    "postgres": "^3.4.4"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.20.14",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.0"
+  }
+}
