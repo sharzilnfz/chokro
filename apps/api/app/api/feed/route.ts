@@ -1,64 +1,75 @@
 import { NextResponse } from 'next/server';
 import { db, listings, memoryStore } from '@chokro/db';
-import { eq, and } from 'drizzle-orm';
+import { and, desc, eq, lt, or } from 'drizzle-orm';
+import { CategoryEnum, ConditionEnum } from '@chokro/shared';
+import { databaseOrTestStore, routeError } from '../../../lib/database';
+import { z } from 'zod';
+
+type Cursor = { createdAt: string; id: string };
+
+function encodeCursor(item: { created_at: Date | string; id: string }) {
+  const createdAt = item.created_at instanceof Date ? item.created_at.toISOString() : new Date(item.created_at).toISOString();
+  return Buffer.from(JSON.stringify({ createdAt, id: item.id })).toString('base64url');
+}
+
+function parseCursor(value: string | null): Cursor | null | undefined {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString()) as Partial<Cursor>;
+    if (typeof parsed.createdAt !== 'string' || Number.isNaN(Date.parse(parsed.createdAt)) || typeof parsed.id !== 'string') {
+      return undefined;
+    }
+    return { createdAt: parsed.createdAt, id: parsed.id };
+  } catch {
+    return undefined;
+  }
+}
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const category = searchParams.get('category');
-    const condition = searchParams.get('condition');
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
-
-    let allItems: any[];
-
-    try {
-      if (category) {
-        allItems = await db.select().from(listings).where(and(eq(listings.status, 'ACTIVE'), eq(listings.category, category))).limit(limit);
-      } else {
-        allItems = await db.select().from(listings).where(eq(listings.status, 'ACTIVE')).limit(limit);
-      }
-    } catch (dbErr) {
-      allItems = memoryStore.listings.filter((l) => {
-        if (l.status !== 'ACTIVE') return false;
-        if (category && l.category !== category) return false;
-        if (condition && l.declared_condition !== condition) return false;
-        return true;
-      }).slice(0, limit);
+    const categoryResult = searchParams.get('category') ? CategoryEnum.safeParse(searchParams.get('category')) : null;
+    const conditionResult = searchParams.get('condition') ? ConditionEnum.safeParse(searchParams.get('condition')) : null;
+    const limitResult = z.coerce.number().int().min(1).max(50).safeParse(searchParams.get('limit') ?? 20);
+    const cursor = parseCursor(searchParams.get('cursor'));
+    if (categoryResult?.success === false || conditionResult?.success === false || !limitResult.success || cursor === undefined) {
+      return NextResponse.json({ error: 'Invalid feed query' }, { status: 400 });
+    }
+    const category = categoryResult?.data;
+    const condition = conditionResult?.data;
+    const limit = limitResult.data;
+    const filters = [eq(listings.status, 'ACTIVE')];
+    if (category) filters.push(eq(listings.category, category));
+    if (condition) filters.push(eq(listings.declared_condition, condition));
+    if (cursor) {
+      const createdAt = new Date(cursor.createdAt);
+      filters.push(or(
+        lt(listings.created_at, createdAt),
+        and(eq(listings.created_at, createdAt), lt(listings.id, cursor.id)),
+      )!);
     }
 
-    if (allItems.length === 0 && memoryStore.listings.length === 0) {
-      // Mock seed fallback for feed if empty
-      allItems = [
-        {
-          id: 'feed-1',
-          owner_id: 'owner-1',
-          category: 'PLASTICS',
-          unit: 'kg',
-          declared_weight: '10.0',
-          declared_condition: 'GOOD',
-          photos: ['https://example.com/plastic.jpg'],
-          status: 'ACTIVE',
-          created_at: new Date(),
-        },
-        {
-          id: 'feed-2',
-          owner_id: 'owner-2',
-          category: 'BOOKS',
-          unit: 'kg',
-          declared_weight: '5.0',
-          declared_condition: 'EXCELLENT',
-          photos: ['https://example.com/books.jpg'],
-          status: 'ACTIVE',
-          created_at: new Date(),
-        },
-      ].filter((l) => !category || l.category === category);
-    }
+    const allItems = await databaseOrTestStore(
+      () => db.select().from(listings).where(and(...filters)).orderBy(desc(listings.created_at), desc(listings.id)).limit(limit + 1),
+      () => memoryStore.listings
+        .filter((item) => {
+          if (item.status !== 'ACTIVE' || (category && item.category !== category) || (condition && item.declared_condition !== condition)) return false;
+          if (!cursor) return true;
+          const itemTime = new Date(item.created_at).getTime();
+          const cursorTime = new Date(cursor.createdAt).getTime();
+          return itemTime < cursorTime || (itemTime === cursorTime && item.id < cursor.id);
+        })
+        .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime() || right.id.localeCompare(left.id))
+        .slice(0, limit + 1),
+    );
+    const hasMore = allItems.length > limit;
+    const items = allItems.slice(0, limit);
 
     return NextResponse.json({
-      items: allItems,
-      nextCursor: allItems.length > 0 ? allItems[allItems.length - 1].id : null,
+      items,
+      nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }

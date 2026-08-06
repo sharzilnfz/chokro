@@ -1,33 +1,34 @@
 import { NextResponse } from 'next/server';
 import { db, listings, memoryStore } from '@chokro/db';
-import { verifyAuthHeader } from '../../../lib/auth';
+import { eq } from 'drizzle-orm';
+import { requireAuth } from '../../../lib/auth';
+import { databaseOrTestStore, routeError } from '../../../lib/database';
+import { CategoryEnum, ConditionEnum } from '@chokro/shared';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { eq } from 'drizzle-orm';
 
 const CreateListingSchema = z.object({
-  category: z.enum([
-    'CLOTHES',
-    'BOOKS',
-    'PLASTICS',
-    'PAPER',
-    'METAL',
-    'GLASS',
-    'FURNITURE',
-    'APPLIANCES',
-    'E_WASTE',
-  ]),
+  category: CategoryEnum,
   unit: z.enum(['kg', 'piece']),
-  declaredWeight: z.number().optional(),
-  declaredCondition: z.string(),
+  declaredWeight: z.number().positive().finite().optional(),
+  pieceCount: z.number().int().positive().optional(),
+  declaredCondition: ConditionEnum,
   photos: z.array(z.string()).default([]),
+  status: z.enum(['DRAFT', 'ACTIVE']).default('ACTIVE'),
+}).superRefine((listing, context) => {
+  const isPieceCategory = listing.category === 'APPLIANCES' || listing.category === 'E_WASTE';
+  if (isPieceCategory && (listing.unit !== 'piece' || listing.pieceCount === undefined || listing.declaredWeight !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'Appliances and e-waste require piece unit and pieceCount' });
+  }
+  if (!isPieceCategory && (listing.unit !== 'kg' || listing.declaredWeight === undefined || listing.pieceCount !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'This category requires kg unit and declaredWeight' });
+  }
 });
 
 export async function POST(req: Request) {
   try {
-    const payload = verifyAuthHeader(req);
-    const userIdHeader = req.headers.get('x-user-id');
-    const ownerId = payload?.userId || userIdHeader || '11111111-1111-1111-1111-111111111111';
+    const auth = requireAuth(req);
+    if (auth.response) return auth.response;
 
     const body = await req.json();
     const parsed = CreateListingSchema.safeParse(body);
@@ -35,54 +36,47 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid listing data', details: parsed.error.format() }, { status: 400 });
     }
 
-    const { category, unit, declaredWeight, declaredCondition, photos } = parsed.data;
-
-    let newListing: any;
-
-    try {
-      [newListing] = await db
-        .insert(listings)
-        .values({
-          owner_id: ownerId,
+    const { category, unit, declaredWeight, pieceCount, declaredCondition, photos, status } = parsed.data;
+    const values = {
+          owner_id: auth.user.userId,
           category,
           unit,
-          declared_weight: declaredWeight ? declaredWeight.toString() : null,
+          declared_weight: declaredWeight?.toString() ?? null,
+          piece_count: pieceCount ?? null,
           declared_condition: declaredCondition,
           photos,
-          status: 'ACTIVE',
-        })
-        .returning();
-    } catch (dbErr) {
-      newListing = {
+          status,
+    };
+    const newListing = await databaseOrTestStore(
+      async () => (await db.insert(listings).values(values).returning())[0],
+      () => {
+        const listing = {
         id: crypto.randomUUID(),
-        owner_id: ownerId,
-        category,
-        unit,
-        declared_weight: declaredWeight ? declaredWeight.toString() : null,
-        declared_condition: declaredCondition,
-        photos,
-        status: 'ACTIVE',
+        ...values,
         created_at: new Date(),
-      };
-      memoryStore.listings.push(newListing);
-    }
+        };
+        memoryStore.listings.push(listing);
+        return listing;
+      },
+    );
 
     return NextResponse.json({ message: 'Listing created', listing: newListing }, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }
 
 export async function GET(req: Request) {
   try {
-    let allListings: any[];
-    try {
-      allListings = await db.select().from(listings);
-    } catch (dbErr) {
-      allListings = memoryStore.listings;
-    }
-    return NextResponse.json({ listings: allListings });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const auth = requireAuth(req);
+    if (auth.response) return auth.response;
+
+    const myListings = await databaseOrTestStore(
+      () => db.select().from(listings).where(eq(listings.owner_id, auth.user.userId)),
+      () => memoryStore.listings.filter((item) => item.owner_id === auth.user.userId),
+    );
+    return NextResponse.json({ listings: myListings });
+  } catch (error) {
+    return routeError(error);
   }
 }
