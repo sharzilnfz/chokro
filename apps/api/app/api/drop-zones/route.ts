@@ -2,23 +2,22 @@ import { NextResponse } from 'next/server';
 import { db, dropZones, memoryStore } from '@chokro/db';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { requireAdmin } from '../../../lib/auth';
+import { databaseOrTestStore, routeError } from '../../../lib/database';
+import { createQrToken } from '../../../lib/qr';
+import { CategoryEnum } from '@chokro/shared';
 
 const CreateZoneSchema = z.object({
-  institutionId: z.string(),
-  name: z.string(),
-  acceptedCategories: z.array(z.string()),
+  institutionId: z.string().min(1),
+  name: z.string().min(1),
+  acceptedCategories: z.array(CategoryEnum).min(1),
   geoLocation: z.object({ lat: z.number(), lng: z.number() }).optional(),
 });
 
-function generateSignedQRToken(zoneId: string, institutionId: string): string {
-  const secret = process.env.QR_SECRET || 'chokro-qr-secret-key-2026';
-  const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(`${zoneId}:${institutionId}:${Date.now()}`);
-  return `CHOKRO-QR-${hmac.digest('hex').substring(0, 24).toUpperCase()}`;
-}
-
 export async function POST(req: Request) {
   try {
+    const auth = requireAdmin(req);
+    if (auth.response) return auth.response;
     const body = await req.json();
     const parsed = CreateZoneSchema.safeParse(body);
     if (!parsed.success) {
@@ -27,14 +26,8 @@ export async function POST(req: Request) {
 
     const { institutionId, name, acceptedCategories, geoLocation } = parsed.data;
     const tempId = crypto.randomUUID();
-    const qrToken = generateSignedQRToken(tempId, institutionId);
-
-    let zone: any;
-
-    try {
-      [zone] = await db
-        .insert(dropZones)
-        .values({
+    const qrToken = createQrToken();
+    const values = {
           id: tempId,
           institution_id: institutionId,
           name,
@@ -42,38 +35,35 @@ export async function POST(req: Request) {
           accepted_categories: acceptedCategories,
           geo_location: geoLocation || null,
           status: 'ACTIVE',
-        })
-        .returning();
-    } catch (dbErr) {
-      zone = {
-        id: tempId,
-        institution_id: institutionId,
-        name,
-        qr_token: qrToken,
-        accepted_categories: acceptedCategories,
-        geo_location: geoLocation || null,
-        status: 'ACTIVE',
+    };
+    const zone = await databaseOrTestStore(
+      async () => (await db.insert(dropZones).values(values).returning())[0],
+      () => {
+        const dropZone = {
+        ...values,
         created_at: new Date(),
-      };
-      memoryStore.dropZones.push(zone);
-    }
+        };
+        memoryStore.dropZones.push(dropZone);
+        return dropZone;
+      },
+    );
 
     return NextResponse.json({ message: 'Drop zone created', zone }, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    let zones: any[];
-    try {
-      zones = await db.select().from(dropZones);
-    } catch (dbErr) {
-      zones = memoryStore.dropZones;
-    }
+    const auth = requireAdmin(req);
+    if (auth.response) return auth.response;
+    const zones = await databaseOrTestStore(
+      () => db.select().from(dropZones),
+      () => [...memoryStore.dropZones],
+    );
     return NextResponse.json({ zones });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }
