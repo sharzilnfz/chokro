@@ -19,13 +19,16 @@ export type Category = z.infer<typeof CategoryEnum>;
 export const UnitEnum = z.enum(['kg', 'piece']);
 export type Unit = z.infer<typeof UnitEnum>;
 
+export const ConditionEnum = z.enum(['EXCELLENT', 'GOOD', 'FAIR', 'POOR']);
+export type Condition = z.infer<typeof ConditionEnum>;
+
 export const PathEnum = z.enum(['REUSE', 'DONATE', 'REPAIR', 'RESELL', 'RECYCLE']);
 export type Path = z.infer<typeof PathEnum>;
 
 export const PartnerStatusEnum = z.enum(['APPLIED', 'VERIFIED', 'REJECTED']);
 export type PartnerStatus = z.infer<typeof PartnerStatusEnum>;
 
-export const ListingStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'CANCELLED', 'MATCHED', 'EXPIRED']);
+export const ListingStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'CANCELLED']);
 export type ListingStatus = z.infer<typeof ListingStatusEnum>;
 
 export const CreditTxnKindEnum = z.enum(['EARN', 'REDEEM', 'ADJUST']);

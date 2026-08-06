@@ -4,9 +4,9 @@
 
 **Goal:** Build and verify Chokro Sprint 1 Walking Skeleton Demo: monorepo with Drizzle ORM PostgreSQL backend, Next.js API & Admin Web Console, Expo React Native mobile app, email auth/RBAC, listing CRUD, rate card console, append-only wallet ledger, and QR drop-zone poster generator.
 
-**Architecture:** Monorepo using npm workspaces & Turborepo (`apps/api`, `apps/mobile`, `packages/db`, `packages/shared`). Drizzle ORM handles database migrations and queries. API routes in Next.js serve both mobile app endpoints and admin web pages.
+**Architecture:** pnpm workspace monorepo with Turborepo (`apps/api`, `apps/mobile`, `packages/db`, `packages/shared`). Drizzle ORM handles database migrations and queries. Route Handlers in Next.js serve both mobile app endpoints and admin web pages.
 
-**Tech Stack:** Next.js 14+ (App Router), Expo React Native, Drizzle ORM, PostgreSQL (`postgres` driver), Zod, TypeScript, Jest/Vitest.
+**Tech Stack:** Node.js 22.13+, pnpm 11, Next.js 16.3 + React 19.2 + Turbopack, Expo SDK 57 + React Native 0.86, Drizzle ORM 0.45, PostgreSQL (`postgres` driver), Zod 4, TypeScript 6.0, Jest API contract harness.
 
 ## Global Constraints
 
@@ -15,6 +15,10 @@
 - **Drizzle ORM:** All database access must use Drizzle ORM in `packages/db`. No raw SQL strings without typed schema.
 - **Append-only Wallet Ledger:** Wallet balance is derived (`SUM(credit_txns)`). Balance mutations are forbidden.
 - **DoE License Gate:** Partners requesting `e_waste_licensed` MUST submit a `doe_license_doc`.
+- **Authentication:** OD-1 is ratified as email + password. Public signup always creates an `INDIVIDUAL`; partner/admin roles are granted only through controlled server workflows.
+- **Backend:** OD-2 is ratified as Next.js Route Handlers + PostgreSQL + Drizzle ORM.
+- **QR Scope:** Sprint 1 validates signed Drop Zone tokens and generates scannable posters. Deposit evidence and pending credits remain Sprint 2; no placeholder may claim a deposit succeeded.
+- **Compatibility:** Expo SDK-pinned native versions override generic `latest` versions. No canary/beta packages.
 - **Commit Author Attribution:** Commits for tickets must pass `--author="<Member Name> <<email>>"`.
 
 ---
@@ -130,7 +134,7 @@ Implement CRUD handlers with Zod validation in `apps/api/app/api/listings/route.
 
 - [ ] **Step 3: Implement Mobile Create Listing Screen**
 
-Create Expo React Native form screen with category selector, weight/piece inputs, and photo selection preview.
+Create Expo React Native form screen with category selector, category-derived weight/piece inputs, and photo selection preview.
 
 - [ ] **Step 4: Verify Listing tests pass**
 
@@ -233,19 +237,19 @@ git commit --author="Member D <member.d@chokro.org>" -m "feat(TD1): wallet appen
 
 **Interfaces:**
 - Consumes: `packages/db` (`dropZones`)
-- Produces: `POST /api/drop-zones`, `GET /api/drop-zones/[id]/poster` (returns printable poster HTML/PDF with signed QR token)
+- Produces: `POST /api/drop-zones`, `GET /api/drop-zones/resolve?token=...`, `GET /api/drop-zones/[id]/poster` (returns printable poster HTML with a scannable signed QR token)
 
 - [ ] **Step 1: Write failing Drop-Zone & QR tests**
 
-Write `apps/api/tests/dropzones.test.ts` testing zone creation, opaque signed token generation (Crypto HMAC), and poster layout endpoint.
+Write `apps/api/tests/dropzones.test.ts` testing admin-only zone creation, opaque signed token generation (Crypto HMAC), token resolution, tamper rejection, and poster layout endpoint.
 
 - [ ] **Step 2: Implement Drop-Zone APIs & Poster Route**
 
-Implement zone registration and HTML/PDF poster generation with embedded QR token in `apps/api/app/api/drop-zones/`.
+Implement zone registration, token resolution, and print-ready HTML poster generation with an embedded QR image in `apps/api/app/api/drop-zones/`.
 
 - [ ] **Step 3: Implement Mobile QR Scanner Screen**
 
-Create Expo React Native screen using `expo-camera` / `expo-barcode-scanner` for drop-zone QR scanning.
+Create an Expo Camera screen that scans a Drop Zone QR and shows the resolved zone name, status, and accepted categories. Do not create a Deposit or wallet credit in Sprint 1.
 
 - [ ] **Step 4: Verify Drop-Zone tests pass**
 

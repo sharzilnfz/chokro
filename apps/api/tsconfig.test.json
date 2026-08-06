@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": ["node", "jest"],
+    "paths": {
+      "@chokro/db": ["../../packages/db/src"],
+      "@chokro/shared": ["../../packages/shared/src"]
+    }
+  },
+  "include": [
+    "app/**/*.ts",
+    "lib/**/*.ts",
+    "tests/**/*.ts",
+    "../../packages/db/src/**/*.ts",
+    "../../packages/shared/src/**/*.ts"
+  ]
+}

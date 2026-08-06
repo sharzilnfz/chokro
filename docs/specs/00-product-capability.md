@@ -56,7 +56,7 @@ Chokro lets a user in Bangladesh photograph an unwanted item, receive a reasoned
 |---|---|---|
 | Mobile app (individual + partner) | React Native + Expo, TypeScript, Android-first | Expo Camera (photo evidence), Expo QR scanner, push notifications |
 | Admin console | Next.js web (same backend codebase) | Rate card, partner verification, Trust Gate queue, moderation, zone registry |
-| Backend API | Next.js API routes + PostgreSQL (Prisma) — **OD-2** | REST; JSON; server-side Trust Gate + Next-Life pipelines |
+| Backend API | Next.js 16 Route Handlers + PostgreSQL + Drizzle ORM — **OD-2 ratified** | REST; JSON; server-side Trust Gate + Next-Life pipelines |
 | Image storage | Hosted object storage (e.g., Cloudinary free tier) | Server-side EXIF strip on ingest |
 | Vision provider | Multimodal LLM API (Gemini Flash / GPT-4o-mini class) — **OD-4** | Budget: ≤2 calls per listing analysis |
 
@@ -166,8 +166,8 @@ adjust         → admin-only, reason required, appears in ledger
 
 | ID | Question | Recommendation | Blocks |
 |----|----------|----------------|--------|
-| OD-1 | Auth method | Email+password MVP (SMS OTP costs money) | Sprint 1 |
-| OD-2 | Backend stack | Next.js API + Prisma (single language/deploy) | Sprint 1 |
+| OD-1 | Auth method | **Ratified:** Email+password MVP (SMS OTP costs money) | Sprint 1 |
+| OD-2 | Backend stack | **Ratified:** Next.js 16 Route Handlers + PostgreSQL + Drizzle ORM | Sprint 1 |
 | OD-3 | UI language scope | English + Bangla key labels | Sprint 2 |
 | OD-4 | Vision provider | Gemini Flash / GPT-4o-mini class | Sprint 2 |
 | OD-5 | Pilot credit funding | Campus/sponsor budget (A8) | Sprint 3 |
@@ -185,7 +185,7 @@ adjust         → admin-only, reason required, appears in ledger
 
 ## 12. HANDOFF
 
-- **Ready for implementation** against specs 01–04 once OD-1 and OD-2 are ratified (Sprint 1, day 1).
+- **Ready for implementation** against specs 01–04. OD-1 and OD-2 were ratified for Sprint 1 on 2026-08-06.
 - Spec ownership: **Member A → spec 01** (Identity & Trust) · **Member B → spec 02** (Marketplace) · **Member C → spec 03** (Intelligence & Engagement) · **Member D → spec 04** (Collections & Wallet).
 - Execution order + tickets: `docs/sprint-plan.md`.
 - During build: use `tdd-workflow` per ticket; run `verification-loop` before every merge; V&V gates per sprint are defined in the sprint plan §6.
