@@ -142,7 +142,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 ## 11. Implementation Decisions (summary — normative detail in SPEC 00)
 
 - **Platform:** React Native + Expo + TypeScript, Android-first; Expo Camera/QR/push. Admin console = web, same backend codebase.
-- **Backend (OD-2, recommended):** Next.js API + PostgreSQL + Prisma; hosted image storage with server-side EXIF strip.
+- **Backend (OD-2, ratified for Sprint 1 on 2026-08-06):** Next.js Route Handlers + PostgreSQL + Drizzle ORM; hosted image storage with server-side EXIF strip.
 - **Vision provider (OD-4, recommended):** multimodal LLM API (Gemini Flash / GPT-4o-mini class); ≤2 calls/listing; monthly spend guard.
 - **Agent architecture:** vision call → category + suggested condition; **path decision from deterministic, auditable rules** over category/condition/value — the LLM may phrase the rationale but never makes the routing decision.
 - **Canonical state machines** (Listing, Deposit, PickupTask, CreditTxn, Redemption, Partner, Dispute, Offer) and the append-only-ledger + credit-traceability invariants are fixed in SPEC 00 §6/§2 and are binding on all code.
@@ -171,8 +171,8 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 
 | ID | Question | Recommendation | Blocks |
 |----|----------|----------------|--------|
-| OD-1 | Auth method | Email+password MVP | Sprint 1 |
-| OD-2 | Backend stack | Next.js API + Prisma | Sprint 1 |
+| OD-1 | Auth method | **Ratified:** Email+password MVP | Sprint 1 |
+| OD-2 | Backend stack | **Ratified:** Next.js Route Handlers + PostgreSQL + Drizzle ORM | Sprint 1 |
 | OD-3 | UI language scope | English + Bangla key labels | Sprint 2 |
 | OD-4 | Vision provider | Gemini Flash / GPT-4o-mini class | Sprint 2 |
 | OD-5 | Pilot credit funding | Campus/sponsor budget (A8) | Sprint 3 |

@@ -1,7 +1,7 @@
 # Design Spec: Chokro Sprint 1 (Walking Skeleton Demo)
 
 **Date:** 2026-08-06  
-**Status:** Approved (Revised: Drizzle ORM + Mobile-First Focus)  
+**Status:** Approved (Revised: Current Stable Stack + Drizzle ORM + Mobile-First Focus)
 **Target:** Sprint 1 Demo — Chokro Circular Economy Platform  
 **Orchestration:** Herdr + AGY Subagents with `Gemini 3.6 Flash · high`
 
@@ -10,7 +10,7 @@
 ## 1. Overview & Goal
 
 Sprint 1 delivers the **Walking Skeleton** for Chokro:
-- **Mobile App (Expo React Native)**: Android/iOS primary surface for Givers, Buyers, and Partners (Sign up/login, create listing, browse feed, scan QR).
+- **Mobile App (Expo React Native)**: Android/iOS primary surface for Givers, Buyers, and Partners (sign up/login, create listing, browse feed, recognize a Drop Zone QR).
 - **Backend API (Next.js)**: REST API powered by **Drizzle ORM** + PostgreSQL.
 - **Admin Console (Next.js Web)**: Rate Card management console, Partner verification queue, and Drop-Zone printable poster generator.
 - **Append-only Ledger**: Wallet transaction log (`CreditTxn`) maintaining derived balance invariants.
@@ -39,11 +39,23 @@ chokro/
 
 ## 3. Technology Stack
 
-- **Mobile App**: Expo React Native (TypeScript, Expo Camera, Expo BarCodeScanner/Camera, AsyncStore)
-- **Backend API**: Next.js API Routes (REST)
-- **Database & ORM**: PostgreSQL + **Drizzle ORM** (`drizzle-orm`, `drizzle-kit`, `postgres` / `pg`)
-- **Admin Console**: Next.js App Router + Tailwind CSS
-- **Testing**: Jest / Vitest + API test harness (`T0`)
+Versions below are the Sprint 1 compatibility baseline, verified against stable releases on 2026-08-06. Native package versions are installed through `expo install` and remain SDK-pinned rather than independently upgraded.
+
+- **Runtime and workspace**: Node.js 22.13+ LTS, pnpm 11, Turborepo 2.10.
+- **Mobile App**: Expo SDK 57, React Native 0.86, React 19.2, TypeScript 6.0, Expo Camera, Expo SecureStore, Expo Image Picker/Manipulator, and `@expo/vector-icons`.
+- **Backend API**: Next.js 16.3 App Router REST Route Handlers, React 19.2, and stable Turbopack for development and production builds.
+- **Database & ORM**: PostgreSQL + **Drizzle ORM 0.45** (`drizzle-orm`, `drizzle-kit`, `postgres`).
+- **Contracts and validation**: shared TypeScript domain contracts + Zod 4.
+- **Admin Console**: Next.js App Router with semantic CSS and shared design tokens. Tailwind is not required for Sprint 1.
+- **Testing**: Jest API contract tests for the existing harness. A Vitest migration is deferred until it provides a concrete benefit; do not run two test frameworks for the same seam.
+- **Package policy**: use latest stable mutually compatible versions, never canary/beta packages. Expo's SDK matrix wins when a generic registry `latest` tag conflicts with the native compatibility set.
+
+### 3.1 Ratified Sprint 1 decisions
+
+- **OD-1**: email + password authentication for MVP.
+- **OD-2**: Next.js Route Handlers + PostgreSQL + Drizzle ORM. The revised Sprint 1 decision supersedes older Prisma references in the PRD and SPEC 00.
+- **Package manager**: pnpm remains the single package manager. Bun is not introduced because it does not improve a Sprint 1 product capability and would create a second migration axis.
+- **QR scope boundary**: Sprint 1 recognizes and validates a signed opaque Drop Zone token and renders a scannable poster. Camera evidence, Deposit creation, and pending-credit issuance remain Sprint 2 work. Sprint 1 must never display a false deposit-success state.
 
 ---
 
@@ -51,7 +63,7 @@ chokro/
 
 - `users`: `id` (uuid), `email`, `password_hash`, `role` (`INDIVIDUAL` | `PARTNER` | `ADMIN`), `institution_id`, `created_at`
 - `partners`: `id` (uuid), `user_id`, `org_name`, `types` (jsonb), `e_waste_licensed` (boolean), `status` (`APPLIED` | `VERIFIED` | `REJECTED`), `doe_license_doc`
-- `listings`: `id` (uuid), `owner_id`, `category` (9 categories enum/text), `unit` (`kg` | `piece`), `declared_weight`, `declared_condition`, `photos` (jsonb), `status` (`DRAFT` | `ACTIVE` | `CANCELLED`)
+- `listings`: `id` (uuid), `owner_id`, `category` (9 categories enum/text), `unit` (`kg` | `piece`), `declared_weight`, `piece_count`, `declared_condition`, `photos` (jsonb), `status` (`DRAFT` | `ACTIVE` | `CANCELLED`)
 - `rate_card_entries`: `id` (uuid), `category`, `condition_band`, `unit`, `price_bdt`, `effective_from` (timestamp), `updated_by`
 - `drop_zones`: `id` (uuid), `institution_id`, `name`, `geo_location` (jsonb), `qr_token`, `accepted_categories` (jsonb), `status`
 - `credit_txns`: `id` (uuid), `user_id`, `amount`, `kind` (`EARN` | `REDEEM` | `ADJUST`), `status` (`PENDING` | `VERIFIED` | `REJECTED`), `source_id`, `created_at`
@@ -100,4 +112,7 @@ Subagents run in Herdr terminal panes using `agy` with Gemini 3.6 Flash (High):
 - Wallet balance equals `SUM(credit_txns)` — append-only invariant.
 - Partner `e_waste_licensed` flag requires DoE license document.
 - Mobile app connects to live local backend API.
-- QR payload is a signed opaque token.
+- Public signup always creates an `INDIVIDUAL`; privileged roles cannot be self-minted.
+- Protected APIs reject missing/invalid sessions and admin APIs return 403 for non-admin users.
+- Material listings require a positive kg weight; appliance/e-waste listings require a positive piece count.
+- QR payload is a signed opaque token, the poster contains a scannable QR, and the mobile app can recognize the zone without creating a Deposit.

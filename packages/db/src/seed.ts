@@ -1,43 +1,32 @@
 import { db, users, partners, rateCardEntries } from './index';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import { hash } from 'bcryptjs';
+
+// Local demo accounts only. Never reuse this password outside local development.
+const DEMO_PASSWORD = 'password123';
+
+async function upsertUser(email: string, role: 'INDIVIDUAL' | 'PARTNER' | 'ADMIN', passwordHash: string) {
+  const [user] = await db
+    .insert(users)
+    .values({ email, password_hash: passwordHash, role })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: { password_hash: passwordHash, role },
+    })
+    .returning();
+  return user;
+}
 
 async function seed() {
   console.log('Seeding Chokro database...');
+  const passwordHash = await hash(DEMO_PASSWORD, 10);
 
-  // Seed Admin user
-  const [adminUser] = await db
-    .insert(users)
-    .values({
-      email: 'admin@chokro.org',
-      password_hash: '$2b$10$e8w8Ylqj.5.e7gL.bJ2K.eW5e.e8w8Ylqj', // hash for "password123"
-      role: 'ADMIN',
-    })
-    .onConflictDoNothing()
-    .returning();
+  await upsertUser('admin@chokro.org', 'ADMIN', passwordHash);
+  await upsertUser('user@chokro.org', 'INDIVIDUAL', passwordHash);
+  const partnerUser = await upsertUser('partner@chokro.org', 'PARTNER', passwordHash);
 
-  // Seed Demo User
-  const [demoUser] = await db
-    .insert(users)
-    .values({
-      email: 'user@chokro.org',
-      password_hash: '$2b$10$e8w8Ylqj.5.e7gL.bJ2K.eW5e.e8w8Ylqj',
-      role: 'INDIVIDUAL',
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  // Seed Partner User
-  const [partnerUser] = await db
-    .insert(users)
-    .values({
-      email: 'partner@chokro.org',
-      password_hash: '$2b$10$e8w8Ylqj.5.e7gL.bJ2K.eW5e.e8w8Ylqj',
-      role: 'PARTNER',
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  if (partnerUser) {
+  const [existingPartner] = await db.select().from(partners).where(eq(partners.user_id, partnerUser.id));
+  if (!existingPartner) {
     await db.insert(partners).values({
       user_id: partnerUser.id,
       org_name: 'BanglaBin Recycling Ltd',
@@ -48,8 +37,7 @@ async function seed() {
     });
   }
 
-  // Seed Rate Card Entries (3 rows minimum as required by T0 acceptance criteria)
-  await db.insert(rateCardEntries).values([
+  const seedRates = [
     {
       category: 'PLASTICS',
       condition_band: 'GOOD',
@@ -68,7 +56,18 @@ async function seed() {
       unit: 'piece',
       price_bdt: '250.00',
     },
-  ]);
+  ] as const;
+
+  for (const rate of seedRates) {
+    const [existingRate] = await db.select().from(rateCardEntries).where(and(
+      eq(rateCardEntries.category, rate.category),
+      eq(rateCardEntries.condition_band, rate.condition_band),
+      eq(rateCardEntries.unit, rate.unit),
+    ));
+    if (!existingRate) {
+      await db.insert(rateCardEntries).values(rate);
+    }
+  }
 
   console.log('Seed completed successfully!');
   process.exit(0);

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, timestamp, boolean, decimal, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, varchar, timestamp, boolean, decimal, jsonb, integer } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -26,6 +26,7 @@ export const listings = pgTable('listings', {
   category: varchar('category', { length: 50 }).notNull(), // CLOTHES, BOOKS, PLASTICS, etc.
   unit: varchar('unit', { length: 20 }).notNull(), // kg, piece
   declared_weight: decimal('declared_weight', { precision: 10, scale: 2 }),
+  piece_count: integer('piece_count'),
   declared_condition: varchar('declared_condition', { length: 50 }).notNull(),
   photos: jsonb('photos').default([]).notNull(),
   status: varchar('status', { length: 50 }).default('ACTIVE').notNull(), // DRAFT, ACTIVE, CANCELLED

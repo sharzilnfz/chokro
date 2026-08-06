@@ -13,15 +13,20 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "db:push": "pnpm --filter @chokro/db db:push",
-    "db:seed": "pnpm --filter @chokro/db db:seed"
+    "db:migrate": "pnpm --filter @chokro/db db:migrate",
+    "db:seed": "pnpm --filter @chokro/db db:seed",
+    "db:setup": "pnpm db:push && pnpm db:migrate && pnpm db:seed",
+    "expo:doctor": "pnpm --filter @chokro/mobile run doctor"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
+  "engines": {
+    "node": ">=22.13.0"
   },
+  "packageManager": "pnpm@11.18.0",
+  "onlyBuiltDependencies": [
+    "esbuild"
+  ],
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "typescript": "^5.4.0"
+    "turbo": "^2.10.8",
+    "typescript": "~6.0.3"
   }
 }

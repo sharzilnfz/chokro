@@ -5,18 +5,20 @@
   "types": "src/index.ts",
   "scripts": {
     "db:push": "drizzle-kit push",
+    "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@chokro/shared": "workspace:*",
-    "drizzle-orm": "^0.30.0",
-    "dotenv": "^16.4.5",
-    "postgres": "^3.4.4"
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.2",
+    "dotenv": "^17.4.2",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.20.14",
-    "tsx": "^4.7.1",
-    "typescript": "^5.4.0"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.9",
+    "typescript": "~6.0.3"
   }
 }

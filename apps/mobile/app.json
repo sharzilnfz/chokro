@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Chokro",
+    "slug": "chokro-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "org.chokro.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "org.chokro.mobile"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Chokro to scan signed Drop Zone QR codes."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Chokro to attach an item photo to your listing."
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    }
+  }
+}

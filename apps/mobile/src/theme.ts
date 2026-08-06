@@ -1,0 +1,33 @@
+export const colors = {
+  background: '#F3F5EF',
+  surface: '#FFFFFF',
+  surfaceMuted: '#E8ECE4',
+  ink: '#17231D',
+  muted: '#5E6D64',
+  border: '#D4DBD2',
+  leaf: '#2F6B4F',
+  leafDark: '#1D4D37',
+  leafSoft: '#DCEADF',
+  amber: '#9A5B10',
+  amberSoft: '#F6E8CF',
+  danger: '#A33737',
+  dangerSoft: '#F5DEDE',
+  overlay: 'rgba(10, 22, 15, 0.55)',
+} as const;
+
+export const radii = {
+  small: 10,
+  medium: 16,
+  large: 24,
+  pill: 999,
+} as const;
+
+export const shadows = {
+  card: {
+    shadowColor: '#17231D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+} as const;
