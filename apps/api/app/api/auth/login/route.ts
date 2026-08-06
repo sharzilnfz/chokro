@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db, users, memoryStore } from '@chokro/db';
 import { comparePassword, signToken } from '../../../../lib/auth';
+import { databaseOrTestStore, routeError } from '../../../../lib/database';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -14,25 +15,22 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = LoginSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const { email, password } = parsed.data;
-    let user: any;
-
-    try {
-      [user] = await db.select().from(users).where(eq(users.email, email));
-    } catch (dbErr) {
-      user = memoryStore.users.find((u) => u.email === email);
-    }
+    const user = await databaseOrTestStore(
+      async () => (await db.select().from(users).where(eq(users.email, email)))[0],
+      () => memoryStore.users.find((candidate) => candidate.email === email),
+    );
 
     if (!user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const isValid = comparePassword(password, user.password_hash);
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const token = signToken({
@@ -51,7 +49,7 @@ export async function POST(req: Request) {
       },
       token,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    return routeError(error);
   }
 }

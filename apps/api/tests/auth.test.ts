@@ -1,68 +1,96 @@
-import { POST as signupHandler } from '../app/api/auth/signup/route';
-import { POST as loginHandler } from '../app/api/auth/login/route';
-import { GET as meHandler } from '../app/api/auth/me/route';
-import { db, users } from '@chokro/db';
-import { eq } from 'drizzle-orm';
+import { POST as signup } from '../app/api/auth/signup/route';
+import { POST as login } from '../app/api/auth/login/route';
+import { GET as me } from '../app/api/auth/me/route';
+import { memoryStore } from '@chokro/db';
+import { signToken } from '../lib/auth';
+import { resetTestStore } from './test-utils';
 
-describe('TA1: Auth & RBAC API', () => {
-  const testEmail = `test_${Date.now()}@chokro.org`;
-  const testPassword = 'password123';
-  let authToken = '';
+describe('auth API', () => {
+  beforeEach(resetTestStore);
 
-  it('should register a new user via signup route', async () => {
-    const req = new Request('http://localhost/api/auth/signup', {
+  it('always creates an individual even when a privileged role is submitted', async () => {
+    const response = await signup(new Request('http://localhost/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({
-        email: testEmail,
-        password: testPassword,
-        role: 'INDIVIDUAL',
-      }),
-    });
+      body: JSON.stringify({ email: 'privileged@test.chokro.org', password: 'password123', role: 'ADMIN' }),
+    }));
+    const data = await response.json();
 
-    const res = await signupHandler(req as any);
-    const data = await res.json();
-    expect(res.status).toBe(201);
-    expect(data.user.email).toBe(testEmail);
+    expect(response.status).toBe(201);
     expect(data.user.role).toBe('INDIVIDUAL');
-    expect(data.token).toBeDefined();
+    expect(data.token).toEqual(expect.any(String));
   });
 
-  it('should login an existing user and return a valid JWT token', async () => {
-    const req = new Request('http://localhost/api/auth/login', {
+  it('logs in and returns the authenticated profile', async () => {
+    await signup(new Request('http://localhost/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({
-        email: testEmail,
-        password: testPassword,
-      }),
-    });
+      body: JSON.stringify({ email: 'user@test.chokro.org', password: 'password123' }),
+    }));
+    const loginResponse = await login(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'user@test.chokro.org', password: 'password123' }),
+    }));
+    const loginData = await loginResponse.json();
+    const meResponse = await me(new Request('http://localhost/api/auth/me', {
+      headers: { Authorization: `Bearer ${loginData.token}` },
+    }));
+    const meData = await meResponse.json();
 
-    const res = await loginHandler(req as any);
-    const data = await res.json();
-    expect(res.status).toBe(200);
-    expect(data.token).toBeDefined();
-    authToken = data.token;
+    expect(loginResponse.status).toBe(200);
+    expect(meResponse.status).toBe(200);
+    expect(meData.user.email).toBe('user@test.chokro.org');
   });
 
-  it('should retrieve current user profile with valid JWT header', async () => {
-    const req = new Request('http://localhost/api/auth/me', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
+  it('uses the same generic error for unknown users and wrong passwords', async () => {
+    await signup(new Request('http://localhost/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'known@test.chokro.org', password: 'password123' }),
+    }));
+    const unknown = await login(new Request('http://localhost/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ email: 'unknown@test.chokro.org', password: 'wrong' }),
+    }));
+    const wrong = await login(new Request('http://localhost/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ email: 'known@test.chokro.org', password: 'wrong' }),
+    }));
 
-    const res = await meHandler(req as any);
-    const data = await res.json();
-    expect(res.status).toBe(200);
-    expect(data.user.email).toBe(testEmail);
+    expect(unknown.status).toBe(401);
+    expect(wrong.status).toBe(401);
+    expect(await unknown.json()).toEqual(await wrong.json());
   });
 
-  it('should reject unauthenticated request to /api/auth/me with 401', async () => {
-    const req = new Request('http://localhost/api/auth/me', {
-      method: 'GET',
-    });
+  it('rejects missing and invalid bearer tokens', async () => {
+    const missing = await me(new Request('http://localhost/api/auth/me'));
+    const invalid = await me(new Request('http://localhost/api/auth/me', { headers: { Authorization: 'Bearer invalid' } }));
+    expect(missing.status).toBe(401);
+    expect(invalid.status).toBe(401);
+  });
 
-    const res = await meHandler(req as any);
-    expect(res.status).toBe(401);
+  it('requires JWT_SECRET in production', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalSecret = process.env.JWT_SECRET;
+    Object.assign(process.env, { NODE_ENV: 'production' });
+    delete process.env.JWT_SECRET;
+    try {
+      expect(() => signToken({ userId: 'user', email: 'user@test.chokro.org', role: 'INDIVIDUAL' }))
+        .toThrow('JWT_SECRET is required in production');
+    } finally {
+      Object.assign(process.env, { NODE_ENV: originalNodeEnv });
+      if (originalSecret === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = originalSecret;
+    }
+  });
+
+  it('returns 503 instead of a memory success when the database fails outside tests', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    Object.assign(process.env, { NODE_ENV: 'development' });
+    try {
+      const response = await signup(new Request('http://localhost/api/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'no-db@test.chokro.org', password: 'password123' }),
+      }));
+      expect(response.status).toBe(503);
+      expect(memoryStore.users).toHaveLength(0);
+    } finally {
+      Object.assign(process.env, { NODE_ENV: originalNodeEnv });
+    }
   });
 });

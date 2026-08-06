@@ -1,65 +1,66 @@
 import { POST as applyPartner } from '../app/api/partners/apply/route';
-import { POST as verifyPartner, GET as getAdminPartners } from '../app/api/admin/partners/route';
+import { POST as verifyPartner, GET as listPartners } from '../app/api/admin/partners/route';
+import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
-describe('TA2: Partner Application & DoE License Gate', () => {
-  const partnerUserId = '33333333-3333-3333-3333-333333333333';
-  let partnerId = '';
+describe('partner API', () => {
+  beforeEach(resetTestStore);
 
-  it('should reject e-waste licensing without an uploaded DoE license document', async () => {
-    const req = new Request('http://localhost/api/partners/apply', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': partnerUserId,
-      },
-      body: JSON.stringify({
-        orgName: 'Illegal Recyclers Corp',
-        types: ['RECYCLER'],
-        eWasteLicensed: true,
-        doeLicenseDoc: null,
-      }),
-    });
-
-    const res = await applyPartner(req as any);
-    expect(res.status).toBe(400);
+  it('requires authentication and enforces the DoE gate on application', async () => {
+    const body = { orgName: 'Green Tech', types: ['RECYCLER'], eWasteLicensed: true };
+    const missingAuth = await applyPartner(new Request('http://localhost/api/partners/apply', {
+      method: 'POST', body: JSON.stringify(body),
+    }));
+    const authenticated = await applyPartner(new Request('http://localhost/api/partners/apply', {
+      method: 'POST', headers: authHeaders(tokenFor(createTestUser())), body: JSON.stringify(body),
+    }));
+    expect(missingAuth.status).toBe(401);
+    expect(authenticated.status).toBe(400);
   });
 
-  it('should successfully submit a partner application with valid DoE document', async () => {
-    const req = new Request('http://localhost/api/partners/apply', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': partnerUserId,
-      },
-      body: JSON.stringify({
-        orgName: 'Green Tech Recycling BD',
-        types: ['RECYCLER', 'COLLECTOR'],
-        eWasteLicensed: true,
-        doeLicenseDoc: 'DOE-LICENSE-2026-DHAKA.pdf',
-      }),
-    });
+  it('requires admin and grants the e-waste capability only at verification with a DoE document', async () => {
+    const user = createTestUser();
+    const admin = createTestUser('ADMIN');
+    const applied = await applyPartner(new Request('http://localhost/api/partners/apply', {
+      method: 'POST', headers: authHeaders(tokenFor(user)),
+      body: JSON.stringify({ orgName: 'Green Tech', types: ['RECYCLER'], eWasteLicensed: true, doeLicenseDoc: 'doe-ref-42' }),
+    }));
+    const { partner } = await applied.json();
 
-    const res = await applyPartner(req as any);
-    const data = await res.json();
-    expect(res.status).toBe(201);
-    expect(data.partner.status).toBe('APPLIED');
-    expect(data.partner.e_waste_licensed).toBe(true);
-    partnerId = data.partner.id;
+    const unauthenticated = await verifyPartner(new Request('http://localhost/api/admin/partners', {
+      method: 'POST', body: JSON.stringify({ partnerId: partner.id, status: 'VERIFIED' }),
+    }));
+    const nonAdmin = await verifyPartner(new Request('http://localhost/api/admin/partners', {
+      method: 'POST', headers: authHeaders(tokenFor(user)), body: JSON.stringify({ partnerId: partner.id, status: 'VERIFIED' }),
+    }));
+    const adminResponse = await verifyPartner(new Request('http://localhost/api/admin/partners', {
+      method: 'POST', headers: authHeaders(tokenFor(admin)), body: JSON.stringify({ partnerId: partner.id, status: 'VERIFIED' }),
+    }));
+    const queue = await listPartners(new Request('http://localhost/api/admin/partners', { headers: authHeaders(tokenFor(admin)) }));
+    const verified = (await queue.json()).partners[0];
+
+    expect(applied.status).toBe(201);
+    expect(partner.e_waste_licensed).toBe(false);
+    expect(unauthenticated.status).toBe(401);
+    expect(nonAdmin.status).toBe(403);
+    expect(adminResponse.status).toBe(200);
+    expect(verified.status).toBe('VERIFIED');
+    expect(verified.e_waste_licensed).toBe(true);
   });
 
-  it('should allow admin to verify partner application', async () => {
-    const req = new Request('http://localhost/api/admin/partners', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        partnerId,
-        status: 'VERIFIED',
-      }),
-    });
+  it('never grants the e-waste capability without a DoE document on file', async () => {
+    const user = createTestUser();
+    const admin = createTestUser('ADMIN');
+    const applied = await applyPartner(new Request('http://localhost/api/partners/apply', {
+      method: 'POST', headers: authHeaders(tokenFor(user)),
+      body: JSON.stringify({ orgName: 'Plain Recycler', types: ['RECYCLER'] }),
+    }));
+    const { partner } = await applied.json();
+    const adminResponse = await verifyPartner(new Request('http://localhost/api/admin/partners', {
+      method: 'POST', headers: authHeaders(tokenFor(admin)), body: JSON.stringify({ partnerId: partner.id, status: 'VERIFIED' }),
+    }));
+    const verified = (await adminResponse.json()).partner;
 
-    const res = await verifyPartner(req as any);
-    const data = await res.json();
-    expect(res.status).toBe(200);
-    expect(data.partner.status).toBe('VERIFIED');
+    expect(adminResponse.status).toBe(200);
+    expect(verified.e_waste_licensed).toBe(false);
   });
 });
