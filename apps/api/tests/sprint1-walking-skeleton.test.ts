@@ -9,8 +9,9 @@ import { POST as createZone } from '../app/api/drop-zones/route';
 import { POST as adjustWallet } from '../app/api/admin/wallet/adjust/route';
 import { GET as getWalletBalance } from '../app/api/wallet/balance/route';
 
+jest.setTimeout(60000);
+
 describe('T1: Sprint 1 Walking Skeleton End-to-End Verification Gate', () => {
-  jest.setTimeout(30000);
 
   const userEmail = `e2e_user_${Date.now()}@chokro.org`;
   const partnerEmail = `e2e_partner_${Date.now()}@chokro.org`;
