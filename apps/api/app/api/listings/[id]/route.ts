@@ -1,49 +1,75 @@
 import { NextResponse } from 'next/server';
 import { db, listings, memoryStore } from '@chokro/db';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { requireAuth } from '../../../../lib/auth';
+import { databaseOrTestStore, routeError } from '../../../../lib/database';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
-  let listing: any;
+const UpdateListingSchema = z.object({ status: z.enum(['DRAFT', 'ACTIVE', 'CANCELLED']) });
+const transitions: Record<string, string[]> = {
+  DRAFT: ['ACTIVE', 'CANCELLED'],
+  ACTIVE: ['CANCELLED'],
+  CANCELLED: [],
+};
 
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    [listing] = await db.select().from(listings).where(eq(listings.id, id));
-  } catch (dbErr) {
-    listing = memoryStore.listings.find((l) => l.id === id);
-  }
+    const auth = requireAuth(req);
+    if (auth.response) return auth.response;
+    const { id } = await params;
+    const listing = await databaseOrTestStore(
+      async () => (await db.select().from(listings).where(eq(listings.id, id)))[0],
+      () => memoryStore.listings.find((item) => item.id === id),
+    );
 
-  if (!listing) {
-    return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
-  }
+    if (!listing) {
+      return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
+    }
 
-  return NextResponse.json({ listing });
+    if (listing.owner_id !== auth.user.userId && auth.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    return NextResponse.json({ listing });
+  } catch (error) {
+    return routeError(error);
+  }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
-  const body = await req.json();
-
-  let updatedListing: any;
-
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    [updatedListing] = await db
-      .update(listings)
-      .set({
-        ...(body.status && { status: body.status }),
-      })
-      .where(eq(listings.id, id))
-      .returning();
-  } catch (dbErr) {
-    const item = memoryStore.listings.find((l) => l.id === id);
-    if (item) {
-      if (body.status) item.status = body.status;
-      updatedListing = item;
+    const auth = requireAuth(req);
+    if (auth.response) return auth.response;
+    const { id } = await params;
+    const parsed = UpdateListingSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid listing update' }, { status: 400 });
     }
-  }
 
-  if (!updatedListing) {
-    return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
-  }
+    const existing = await databaseOrTestStore(
+      async () => (await db.select().from(listings).where(eq(listings.id, id)))[0],
+      () => memoryStore.listings.find((item) => item.id === id),
+    );
+    if (!existing) {
+      return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
+    }
+    if (existing.owner_id !== auth.user.userId && auth.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!transitions[existing.status]?.includes(parsed.data.status)) {
+      return NextResponse.json({ error: 'Invalid listing status transition' }, { status: 400 });
+    }
 
-  return NextResponse.json({ message: 'Listing updated', listing: updatedListing });
+    const updatedListing = await databaseOrTestStore(
+      async () => (await db.update(listings).set({ status: parsed.data.status }).where(eq(listings.id, id)).returning())[0],
+      () => {
+        existing.status = parsed.data.status;
+        return existing;
+      },
+    );
+
+    return NextResponse.json({ message: 'Listing updated', listing: updatedListing });
+  } catch (error) {
+    return routeError(error);
+  }
 }
