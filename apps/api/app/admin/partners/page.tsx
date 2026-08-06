@@ -1,148 +1,250 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { useAdminSession } from '../admin-console';
+
+const FILTERS = ['ALL', 'APPLIED', 'VERIFIED', 'REJECTED'] as const;
+
+type PartnerStatus = Exclude<(typeof FILTERS)[number], 'ALL'>;
+type Filter = (typeof FILTERS)[number];
+
+type Partner = {
+  id: string;
+  org_name: string;
+  types: string[] | string;
+  e_waste_licensed: boolean;
+  doe_license_doc: string | null;
+  status: PartnerStatus;
+};
+
+type Notice = { tone: 'success' | 'error'; text: string } | null;
+
+function label(value: string) {
+  return value.replaceAll('_', ' ').toLowerCase().replace(/^./, (character) => character.toUpperCase());
+}
+
+async function apiError(response: Response, fallback: string) {
+  try {
+    const body = (await response.json()) as { error?: string };
+    return body.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function AdminPartnersPage() {
-  const [partnerList, setPartnerList] = useState<any[]>([]);
-  const [filter, setFilter] = useState<'ALL' | 'APPLIED' | 'VERIFIED' | 'REJECTED'>('ALL');
+  const { request } = useAdminSession();
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [filter, setFilter] = useState<Filter>('ALL');
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice>(null);
 
-  const fetchPartners = async () => {
+  const fetchPartners = useCallback(async () => {
+    setLoading(true);
+    setNotice(null);
     try {
-      const res = await fetch('/api/admin/partners');
-      const data = await res.json();
-      if (data.partners) setPartnerList(data.partners);
-    } catch (err) {
-      console.error(err);
+      const response = await request('/api/admin/partners');
+      if (!response.ok) {
+        setNotice({ tone: 'error', text: await apiError(response, 'Partner applications could not be loaded.') });
+        return;
+      }
+      const body = (await response.json()) as { partners?: Partner[] };
+      setPartners(Array.isArray(body.partners) ? body.partners : []);
+    } catch {
+      setNotice({ tone: 'error', text: 'Partner applications could not be loaded. Check the service and try again.' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [request]);
 
   useEffect(() => {
-    fetchPartners();
-  }, []);
+    const timeout = window.setTimeout(() => void fetchPartners(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [fetchPartners]);
 
-  const handleVerify = async (partnerId: string, status: 'VERIFIED' | 'REJECTED') => {
+  async function updatePartner(partner: Partner, status: 'VERIFIED' | 'REJECTED') {
+    setUpdatingId(partner.id);
+    setNotice(null);
+
     try {
-      const res = await fetch('/api/admin/partners', {
+      const response = await request('/api/admin/partners', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId, status }),
+        body: JSON.stringify({ partnerId: partner.id, status }),
       });
-      if (res.ok) fetchPartners();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
-  const filteredPartners = partnerList.filter((p) => (filter === 'ALL' ? true : p.status === filter));
+      if (!response.ok) {
+        setNotice({ tone: 'error', text: await apiError(response, `${partner.org_name} could not be updated.`) });
+        return;
+      }
+
+      const body = (await response.json()) as { partner?: Partner };
+      setPartners((current) => current.map((item) => (
+        item.id === partner.id ? (body.partner || { ...item, status }) : item
+      )));
+      setNotice({
+        tone: 'success',
+        text: status === 'VERIFIED'
+          ? `${partner.org_name} approved and moved to Verified.`
+          : `${partner.org_name} rejected and moved to Rejected.`,
+      });
+    } catch {
+      setNotice({ tone: 'error', text: `${partner.org_name} could not be updated. Check the service and try again.` });
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  const filteredPartners = partners.filter((partner) => filter === 'ALL' || partner.status === filter);
 
   return (
-    <div style={{ padding: 32, fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: '#090D16', color: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, borderBottom: '1px solid #1E293B', paddingBottom: 20 }}>
+    <>
+      <header className="admin-page-header">
         <div>
-          <Link href="/admin" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 13, display: 'inline-block', marginBottom: 4 }}>
-            ← Back to Admin Portal
-          </Link>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#38BDF8' }}>Partner Verification Queue</h1>
+          <p className="admin-page-kicker">Network operations</p>
+          <h1 className="admin-page-title">Partner queue</h1>
+          <p className="admin-page-description">
+            Review each organization&apos;s capabilities, DoE status, and submitted document before recording a decision.
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, background: '#131C2E', padding: 4, borderRadius: 10, border: '1px solid #1E293B' }}>
-          {(['ALL', 'APPLIED', 'VERIFIED', 'REJECTED'] as const).map((tab) => (
+
+        <div className="admin-filter-bar" aria-label="Filter partner applications">
+          {FILTERS.map((value) => (
             <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: 'none',
-                background: filter === tab ? '#38BDF8' : 'transparent',
-                color: filter === tab ? '#090D16' : '#94A3B8',
-                fontWeight: 600,
-                fontSize: 12,
-                cursor: 'pointer',
-              }}
+              className="admin-filter-button"
+              type="button"
+              key={value}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
             >
-              {tab}
+              {label(value)}
             </button>
           ))}
         </div>
       </header>
 
-      {/* Table Container */}
-      <div style={{ backgroundColor: '#131C2E', border: '1px solid #1E293B', borderRadius: 16, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #1E293B', color: '#64748B', background: '#090D16' }}>
-              <th style={{ padding: '16px 24px' }}>Organization</th>
-              <th style={{ padding: '16px 24px' }}>Capabilities</th>
-              <th style={{ padding: '16px 24px' }}>DoE E-Waste License</th>
-              <th style={{ padding: '16px 24px' }}>License Reference</th>
-              <th style={{ padding: '16px 24px' }}>Status</th>
-              <th style={{ padding: '16px 24px' }}>Verification Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPartners.map((p) => (
-              <tr key={p.id} style={{ borderBottom: '1px solid #1E293B' }}>
-                <td style={{ padding: '20px 24px', fontWeight: 600, color: '#F8FAFC' }}>{p.org_name}</td>
-                <td style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {(Array.isArray(p.types) ? p.types : [p.types]).map((t: string) => (
-                      <span key={t} style={{ background: '#090D16', color: '#38BDF8', border: '1px solid #1E293B', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td style={{ padding: '20px 24px' }}>
-                  {p.e_waste_licensed ? (
-                    <span style={{ color: '#10B981', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      ✓ Licensed
-                    </span>
-                  ) : (
-                    <span style={{ color: '#64748B', fontSize: 13 }}>Standard Only</span>
-                  )}
-                </td>
-                <td style={{ padding: '20px 24px', color: '#94A3B8', fontFamily: 'monospace', fontSize: 12 }}>
-                  {p.doe_license_doc || '—'}
-                </td>
-                <td style={{ padding: '20px 24px' }}>
-                  <span
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      background: p.status === 'VERIFIED' ? 'rgba(16, 185, 129, 0.15)' : p.status === 'REJECTED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                      color: p.status === 'VERIFIED' ? '#10B981' : p.status === 'REJECTED' ? '#EF4444' : '#F59E0B',
-                    }}
-                  >
-                    {p.status}
-                  </span>
-                </td>
-                <td style={{ padding: '20px 24px' }}>
-                  {p.status === 'APPLIED' && (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => handleVerify(p.id, 'VERIFIED')}
-                        style={{ background: '#10B981', color: '#090D16', padding: '8px 16px', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleVerify(p.id, 'REJECTED')}
-                        style={{ background: '#1E293B', color: '#EF4444', border: '1px solid #334155', padding: '8px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {notice && (
+        <p className="admin-status-message" data-tone={notice.tone} role={notice.tone === 'error' ? 'alert' : 'status'}>
+          {notice.text}
+        </p>
+      )}
+
+      <section className="admin-panel" aria-labelledby="partner-list-title">
+        <div className="admin-panel-header">
+          <div>
+            <h2 className="admin-section-heading" id="partner-list-title">Applications</h2>
+            <p className="admin-section-copy">Approval and rejection outcomes are recorded immediately.</p>
+          </div>
+          {!loading && <span className="admin-panel-count">{filteredPartners.length} shown</span>}
+        </div>
+
+        {loading ? (
+          <LoadingRows />
+        ) : notice?.tone === 'error' && partners.length === 0 ? (
+          <div className="admin-state">
+            <div className="admin-state-content">
+              <h3 className="admin-state-title">Partner queue unavailable</h3>
+              <p className="admin-state-copy">Retry the request when the admin API is available.</p>
+              <button className="admin-button admin-button-secondary" type="button" onClick={() => void fetchPartners()}>
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : filteredPartners.length === 0 ? (
+          <div className="admin-state">
+            <div className="admin-state-content">
+              <h3 className="admin-state-title">No matching applications</h3>
+              <p className="admin-state-copy">
+                {partners.length === 0 ? 'No partner applications have been submitted.' : `No applications currently have ${label(filter).toLowerCase()} status.`}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="admin-table-wrap admin-table-responsive">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th scope="col">Organization</th>
+                  <th scope="col">Capabilities</th>
+                  <th scope="col">DoE status</th>
+                  <th scope="col">DoE document</th>
+                  <th scope="col">Application</th>
+                  <th scope="col">Decision</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPartners.map((partner) => {
+                  const types = Array.isArray(partner.types) ? partner.types : [partner.types];
+                  const isUpdating = updatingId === partner.id;
+                  return (
+                    <tr key={partner.id}>
+                      <td data-label="Organization"><span className="admin-cell-primary">{partner.org_name}</span></td>
+                      <td data-label="Capabilities">
+                        <div className="admin-capabilities">
+                          {types.filter(Boolean).map((type) => <span className="admin-badge" key={type}>{label(type)}</span>)}
+                        </div>
+                      </td>
+                      <td data-label="DoE status">
+                        <span className="admin-badge" data-status={partner.e_waste_licensed ? 'LICENSED' : 'MISSING'}>
+                          {partner.e_waste_licensed ? 'Licensed' : 'Not licensed'}
+                        </span>
+                      </td>
+                      <td data-label="DoE document">
+                        <div className="admin-document">
+                          <span className="admin-document-name">{partner.doe_license_doc || 'No document submitted'}</span>
+                          <span className="admin-document-note">
+                            {partner.doe_license_doc ? 'Submitted reference' : 'Document unavailable'}
+                          </span>
+                        </div>
+                      </td>
+                      <td data-label="Application">
+                        <span className="admin-badge" data-status={partner.status}>{label(partner.status)}</span>
+                      </td>
+                      <td data-label="Decision">
+                        {partner.status === 'APPLIED' ? (
+                          <div className="admin-actions">
+                            <button
+                              className="admin-button admin-button-primary"
+                              type="button"
+                              disabled={updatingId !== null}
+                              onClick={() => void updatePartner(partner, 'VERIFIED')}
+                            >
+                              {isUpdating ? 'Saving...' : 'Approve'}
+                            </button>
+                            <button
+                              className="admin-button admin-button-danger"
+                              type="button"
+                              disabled={updatingId !== null}
+                              onClick={() => void updatePartner(partner, 'REJECTED')}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span>{partner.status === 'VERIFIED' ? 'Approved' : 'Rejected'}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+function LoadingRows() {
+  return (
+    <div className="admin-skeleton-list" role="status" aria-label="Loading partner applications">
+      {[0, 1, 2, 3].map((row) => (
+        <div className="admin-skeleton-row" key={row} aria-hidden="true">
+          {[0, 1, 2, 3, 4].map((column) => <span className="admin-skeleton-line" key={column} />)}
+        </div>
+      ))}
     </div>
   );
 }
