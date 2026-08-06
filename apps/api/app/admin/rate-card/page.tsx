@@ -1,185 +1,298 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useAdminSession } from '../admin-console';
+
+const CATEGORIES = [
+  'CLOTHES',
+  'BOOKS',
+  'PLASTICS',
+  'PAPER',
+  'METAL',
+  'GLASS',
+  'FURNITURE',
+  'APPLIANCES',
+  'E_WASTE',
+] as const;
+
+const CONDITION_BANDS = ['EXCELLENT', 'GOOD', 'FAIR', 'SCRAP'] as const;
+
+type Category = (typeof CATEGORIES)[number];
+type ConditionBand = (typeof CONDITION_BANDS)[number];
+type Unit = 'kg' | 'piece';
+
+type RateEntry = {
+  id: string;
+  category: string;
+  condition_band: string;
+  unit: Unit;
+  price_bdt: string | number;
+  effective_from: string;
+};
+
+type Notice = { tone: 'success' | 'error'; text: string } | null;
+
+function unitForCategory(category: Category): Unit {
+  return category === 'E_WASTE' || category === 'APPLIANCES' ? 'piece' : 'kg';
+}
+
+function label(value: string) {
+  return value.replaceAll('_', ' ').toLowerCase().replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatPrice(value: string | number) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return String(value);
+  return `৳${new Intl.NumberFormat('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numericValue)}`;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+  return new Intl.DateTimeFormat('en-BD', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+async function apiError(response: Response, fallback: string) {
+  try {
+    const body = (await response.json()) as { error?: string };
+    return body.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function AdminRateCardPage() {
-  const [rates, setRates] = useState<any[]>([]);
-  const [category, setCategory] = useState('PLASTICS');
-  const [conditionBand, setConditionBand] = useState('GOOD');
-  const [unit, setUnit] = useState<'kg' | 'piece'>('kg');
+  const { request } = useAdminSession();
+  const [rates, setRates] = useState<RateEntry[]>([]);
+  const [category, setCategory] = useState<Category>('PLASTICS');
+  const [conditionBand, setConditionBand] = useState<ConditionBand>('GOOD');
   const [priceBdt, setPriceBdt] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
+  const unit = unitForCategory(category);
 
-  const fetchRates = async () => {
+  const fetchRates = useCallback(async () => {
+    setLoading(true);
+    setNotice(null);
     try {
-      const res = await fetch('/api/admin/rate-card');
-      const data = await res.json();
-      if (data.entries) setRates(data.entries);
-    } catch (err) {
-      console.error(err);
+      const response = await request('/api/admin/rate-card');
+      if (!response.ok) {
+        setNotice({ tone: 'error', text: await apiError(response, 'Rate history could not be loaded.') });
+        return;
+      }
+      const body = (await response.json()) as { entries?: RateEntry[] };
+      setRates(Array.isArray(body.entries) ? body.entries : []);
+    } catch {
+      setNotice({ tone: 'error', text: 'Rate history could not be loaded. Check the service and try again.' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [request]);
 
   useEffect(() => {
-    fetchRates();
-  }, []);
+    const timeout = window.setTimeout(() => void fetchRates(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [fetchRates]);
 
-  const handleAddRate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!priceBdt) return;
+  async function handlePublish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setNotice(null);
 
-    setLoading(true);
     try {
-      const res = await fetch('/api/admin/rate-card', {
+      const response = await request('/api/admin/rate-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           category,
           conditionBand,
           unit,
-          priceBdt: parseFloat(priceBdt),
+          priceBdt: Number(priceBdt),
         }),
       });
-      if (res.ok) {
-        setPriceBdt('');
-        fetchRates();
+
+      if (!response.ok) {
+        setNotice({ tone: 'error', text: await apiError(response, 'The rate entry could not be published.') });
+        return;
       }
-    } catch (err) {
-      console.error(err);
+
+      const body = (await response.json()) as { entry?: RateEntry };
+      if (body.entry) {
+        setRates((current) => [body.entry as RateEntry, ...current]);
+      } else {
+        await fetchRates();
+      }
+      setPriceBdt('');
+      setNotice({ tone: 'success', text: `${label(category)} ${label(conditionBand)} rate published at ${formatPrice(priceBdt)} per ${unit}.` });
+    } catch {
+      setNotice({ tone: 'error', text: 'The rate entry could not be published. Check the service and try again.' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  };
+  }
+
+  const sortedRates = [...rates].sort((first, second) => {
+    return new Date(second.effective_from).getTime() - new Date(first.effective_from).getTime();
+  });
+  const currentKeys = new Set<string>();
 
   return (
-    <div style={{ padding: 32, fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: '#090D16', color: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Top Header Nav */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, borderBottom: '1px solid #1E293B', paddingBottom: 20 }}>
+    <>
+      <header className="admin-page-header">
         <div>
-          <Link href="/admin" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 13, display: 'inline-block', marginBottom: 4 }}>
-            ← Back to Admin Portal
-          </Link>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#10B981' }}>Rate Card Console</h1>
-        </div>
-        <div style={{ background: '#131C2E', padding: '8px 16px', borderRadius: 20, border: '1px solid #1E293B', fontSize: 12, color: '#94A3B8' }}>
-          Effective Pricing Version Live
+          <p className="admin-page-kicker">Pricing operations</p>
+          <h1 className="admin-page-title">Rate card</h1>
+          <p className="admin-page-description">
+            Add an effective rate for a category and condition. Materials use kilograms; appliances and e-waste use pieces.
+          </p>
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 32, alignItems: 'start' }}>
-        {/* Form Container */}
-        <form onSubmit={handleAddRate} style={{ backgroundColor: '#131C2E', border: '1px solid #1E293B', padding: 24, borderRadius: 16 }}>
-          <h2 style={{ fontSize: 18, margin: '0 0 20px 0', color: '#F8FAFC' }}>Update Category Rate</h2>
+      {notice && (
+        <p className="admin-status-message" data-tone={notice.tone} role={notice.tone === 'error' ? 'alert' : 'status'}>
+          {notice.text}
+        </p>
+      )}
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, color: '#94A3B8', marginBottom: 6, fontWeight: 600 }}>Category</label>
-            <select
-              value={category}
-              onChange={(e) => {
-                const val = e.target.value;
-                setCategory(val);
-                if (val === 'E_WASTE' || val === 'APPLIANCES') setUnit('piece');
-              }}
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, background: '#090D16', border: '1px solid #334155', color: '#F8FAFC', outline: 'none' }}
-            >
-              {['CLOTHES', 'BOOKS', 'PLASTICS', 'PAPER', 'METAL', 'GLASS', 'FURNITURE', 'APPLIANCES', 'E_WASTE'].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+      <div className="admin-workspace-grid">
+        <section className="admin-panel admin-form-panel" aria-labelledby="publish-rate-title">
+          <h2 className="admin-section-heading" id="publish-rate-title">Publish a rate</h2>
+          <p className="admin-section-copy">A new entry preserves the earlier rate in history.</p>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, color: '#94A3B8', marginBottom: 6, fontWeight: 600 }}>Condition Band</label>
-            <select
-              value={conditionBand}
-              onChange={(e) => setConditionBand(e.target.value)}
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, background: '#090D16', border: '1px solid #334155', color: '#F8FAFC', outline: 'none' }}
-            >
-              {['EXCELLENT', 'GOOD', 'FAIR', 'SCRAP'].map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, color: '#94A3B8', marginBottom: 6, fontWeight: 600 }}>Pricing Unit</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setUnit('kg')}
-                style={{ flex: 1, padding: 10, borderRadius: 6, border: '1px solid #334155', background: unit === 'kg' ? '#10B981' : '#090D16', color: unit === 'kg' ? '#090D16' : '#94A3B8', fontWeight: 600, cursor: 'pointer' }}
+          <form className="admin-form" onSubmit={handlePublish}>
+            <div className="admin-field">
+              <label className="admin-label" htmlFor="rate-category">Category</label>
+              <select
+                className="admin-select"
+                id="rate-category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value as Category)}
               >
-                Per kg
-              </button>
-              <button
-                type="button"
-                onClick={() => setUnit('piece')}
-                style={{ flex: 1, padding: 10, borderRadius: 6, border: '1px solid #334155', background: unit === 'piece' ? '#10B981' : '#090D16', color: unit === 'piece' ? '#090D16' : '#94A3B8', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Per piece
-              </button>
+                {CATEGORIES.map((value) => <option key={value} value={value}>{label(value)}</option>)}
+              </select>
             </div>
+
+            <div className="admin-field">
+              <label className="admin-label" htmlFor="rate-condition">Condition band</label>
+              <select
+                className="admin-select"
+                id="rate-condition"
+                value={conditionBand}
+                onChange={(event) => setConditionBand(event.target.value as ConditionBand)}
+              >
+                {CONDITION_BANDS.map((value) => <option key={value} value={value}>{label(value)}</option>)}
+              </select>
+            </div>
+
+            <div className="admin-field">
+              <span className="admin-label">Pricing unit</span>
+              <div className="admin-derived-value" aria-live="polite">
+                <span>Per {unit}</span>
+                <span className="admin-derived-note">Derived from category</span>
+              </div>
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label" htmlFor="rate-price">Price in BDT</label>
+              <input
+                className="admin-input"
+                id="rate-price"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                placeholder="45.00"
+                value={priceBdt}
+                onChange={(event) => setPriceBdt(event.target.value)}
+                required
+              />
+              <p className="admin-field-hint">Enter a positive amount with up to two decimal places.</p>
+            </div>
+
+            <button className="admin-button admin-button-primary admin-button-block" type="submit" disabled={submitting}>
+              {submitting ? 'Publishing rate...' : 'Publish rate'}
+            </button>
+          </form>
+        </section>
+
+        <section className="admin-panel" aria-labelledby="rate-history-title">
+          <div className="admin-panel-header">
+            <div>
+              <h2 className="admin-section-heading" id="rate-history-title">Version history</h2>
+              <p className="admin-section-copy">Newest entry for each category and condition is current.</p>
+            </div>
+            {!loading && <span className="admin-panel-count">{rates.length} {rates.length === 1 ? 'entry' : 'entries'}</span>}
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 12, color: '#94A3B8', marginBottom: 6, fontWeight: 600 }}>Price Rate (BDT ৳)</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="e.g. 45.00"
-              value={priceBdt}
-              onChange={(e) => setPriceBdt(e.target.value)}
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, background: '#090D16', border: '1px solid #334155', color: '#F8FAFC', fontSize: 16, outline: 'none' }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ width: '100%', backgroundColor: '#10B981', color: '#090D16', padding: 14, border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'all 0.2s ease' }}
-          >
-            {loading ? 'Publishing...' : 'Publish Rate Entry'}
-          </button>
-        </form>
-
-        {/* Table Container */}
-        <div style={{ backgroundColor: '#131C2E', border: '1px solid #1E293B', borderRadius: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #1E293B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: 18, margin: 0, color: '#F8FAFC' }}>Active & Historical Rate Table</h2>
-            <span style={{ fontSize: 12, color: '#64748B' }}>{rates.length} entries</span>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #1E293B', color: '#64748B', background: '#090D16' }}>
-                <th style={{ padding: '14px 24px' }}>Category</th>
-                <th style={{ padding: '14px 24px' }}>Condition Band</th>
-                <th style={{ padding: '14px 24px' }}>Unit</th>
-                <th style={{ padding: '14px 24px' }}>Rate (BDT)</th>
-                <th style={{ padding: '14px 24px' }}>Effective From</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rates.map((r, idx) => (
-                <tr key={r.id || idx} style={{ borderBottom: '1px solid #1E293B' }}>
-                  <td style={{ padding: '16px 24px', fontWeight: 600, color: '#F8FAFC' }}>{r.category}</td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span style={{ background: '#1E293B', color: '#94A3B8', padding: '4px 10px', borderRadius: 12, fontSize: 12 }}>
-                      {r.condition_band}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px', color: '#94A3B8' }}>{r.unit}</td>
-                  <td style={{ padding: '16px 24px', fontWeight: 700, color: '#10B981', fontSize: 16 }}>৳{r.price_bdt}</td>
-                  <td style={{ padding: '16px 24px', color: '#64748B', fontSize: 13 }}>
-                    {r.effective_from ? new Date(r.effective_from).toLocaleDateString() : 'Active'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          {loading ? (
+            <LoadingRows />
+          ) : notice?.tone === 'error' && rates.length === 0 ? (
+            <div className="admin-state">
+              <div className="admin-state-content">
+                <h3 className="admin-state-title">Rate history unavailable</h3>
+                <p className="admin-state-copy">Retry the request when the admin API is available.</p>
+                <button className="admin-button admin-button-secondary" type="button" onClick={() => void fetchRates()}>
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : sortedRates.length === 0 ? (
+            <div className="admin-state">
+              <div className="admin-state-content">
+                <h3 className="admin-state-title">No rate entries yet</h3>
+                <p className="admin-state-copy">Publish the first rate to start the version history.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="admin-table-wrap admin-table-responsive">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Category</th>
+                    <th scope="col">Condition</th>
+                    <th scope="col">Rate</th>
+                    <th scope="col">Version</th>
+                    <th scope="col">Effective from</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedRates.map((rate) => {
+                    const key = `${rate.category}:${rate.condition_band}`;
+                    const isCurrent = !currentKeys.has(key);
+                    currentKeys.add(key);
+                    return (
+                      <tr key={rate.id}>
+                        <td data-label="Category"><span className="admin-cell-primary">{label(rate.category)}</span></td>
+                        <td data-label="Condition">{label(rate.condition_band)}</td>
+                        <td data-label="Rate"><span className="admin-cell-number">{formatPrice(rate.price_bdt)} / {rate.unit}</span></td>
+                        <td data-label="Version">
+                          <span className="admin-badge" data-status={isCurrent ? 'CURRENT' : 'HISTORICAL'}>
+                            {isCurrent ? 'Current' : 'Previous'}
+                          </span>
+                        </td>
+                        <td data-label="Effective from">{formatDate(rate.effective_from)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
+    </>
+  );
+}
+
+function LoadingRows() {
+  return (
+    <div className="admin-skeleton-list" role="status" aria-label="Loading rate history">
+      {[0, 1, 2, 3].map((row) => (
+        <div className="admin-skeleton-row" key={row} aria-hidden="true">
+          {[0, 1, 2, 3, 4].map((column) => <span className="admin-skeleton-line" key={column} />)}
+        </div>
+      ))}
     </div>
   );
 }
