@@ -199,7 +199,8 @@ footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-siz
   <a href="#part-5">5 · The Ledger (Rates + Wallet)</a>
   <a href="#part-6">6 · Signed QR Drop Zones</a>
   <a href="#part-7">7 · The Clients (Mobile + Admin)</a>
-  <a href="#reference">📌 Reference</a>
+  <a href="#part-8">8 · Deploying (Docker)</a>
+   <a href="#reference">📌 Reference</a>
 </nav>
 <main>
   <div class="hero">
@@ -564,17 +565,35 @@ isValidQrToken(token) =&gt; recompute signature and <b>timingSafeEqual</b>  <spa
       <div class="tab-panel" id="w7-detail"></div>
       <div class="tile" style="margin-top:16px;cursor:default;">
         <div class="t-name">Boot sequence (before any tab shows)</div>
-        <div class="t-sub">restoreSession() → read the JWT from expo-secure-store → GET /api/auth/me → <b>ready</b>. If the token is stale (401/404), it's deleted and the login screen shows. This is why the app "remembers" you across restarts — the token lives in the phone keychain.</div>
+        <div class="t-sub">restoreSession() → read the JWT via <code>src/storage.ts</code> → GET /api/auth/me → <b>ready</b>. If the token is stale (401/404), it's deleted and the login screen shows. This is why the app "remembers" you across restarts — the token lives in the keychain on native, localStorage on web.</div>
+      </div>
+    </div>
+
+    <h3>Sprint-2 round-up: web, NativeWind, and platform-safe storage</h3>
+    <div class="tile-grid">
+      <div class="tile">
+        <div class="t-name">🎨 NativeWind (Tailwind for RN)</div>
+        <div class="t-sub">Styles used to be hand-written <code>StyleSheet.create({...})</code> objects in every screen. The whole app was migrated to <b>NativeWind v4</b> (<code>nativewind@4.2</code> + <code>react-native-css-interop</code> + <code>tailwindcss@3.4</code>): screens now use utility classNames (<code>className="bg-surface p-4 rounded-xl"</code>) and shared tokens come from <code>tailwind.config.js</code> / <code>global.css</code>. One design language, and it compiles to real RN styles — plus it's the reason the app can now target web.</div>
+      </div>
+      <div class="tile">
+        <div class="t-name">💾 storage.ts — one token store, three platforms</div>
+        <div class="t-sub"><code>expo-secure-store</code> doesn't exist on web. <code>src/storage.ts</code> wraps it: on <b>iOS/Android</b> it uses the secure keychain/keystore; on <b>web</b> it falls back to <code>localStorage</code>; everywhere it swallows failures gracefully (returns null instead of throwing). Same API everywhere — <code>storage.getItem('jwt')</code> works on all three.</div>
+      </div>
+      <div class="tile">
+        <div class="t-name">🔀 API URL resolution got smart</div>
+        <div class="t-sub">On a physical phone, <code>localhost</code> means the phone itself, so dev uses a LAN IP. But that same LAN-IP config breaks <em>web</em> served on the laptop. <code>src/api.ts</code> now detects <code>Platform.OS === 'web' &&amp; hostname === 'localhost'</code> and rewrites a LAN-IP base to <code>http://localhost:3000</code> automatically — one config value works for both phone and web.</div>
       </div>
     </div>
 
     <pre><code><span class="cm">// src/api.ts — the tiny HTTP client every screen uses</span>
-const API_URL = EXPO_PUBLIC_API_URL || expoConfig.extra?.apiUrl || "http://localhost:3000";
+const configuredUrl = EXPO_PUBLIC_API_URL || expoConfig.extra?.apiUrl;   <span class="cm">// may be a LAN IP for phones</span>
+const API_URL = String(configuredUrl || "http://localhost:3000").replace(/\/$/, '');
+<span class="cm">//   └─ on web + localhost: a 192.168.x / 10.x base is rewritten to localhost:3000</span>
 apiRequest(path, { token, ... }) =&gt; fetch(`${API_URL}${path}`, { headers: {
   Accept, 'Content-Type' (only when there's a body), Authorization: `Bearer ${token}` }});
 <span class="cm">// any non-2xx → throw ApiError(message, status); each screen turns it into a friendly line</span></code></pre>
 
-    <div class="note"><b>Mode switch:</b> <code>apps/mobile/.env.local</code> currently points <code>EXPO_PUBLIC_API_URL</code> at a LAN IP (e.g. <code>http://192.168.1.200:3000</code>). On a physical phone that must be your dev machine's LAN address on the same Wi-Fi; on emulators you can use <code>http://localhost:3000</code>.</div>
+    <div class="note"><b>Mode switch:</b> <code>apps/mobile/.env.local</code> currently points <code>EXPO_PUBLIC_API_URL</code> at a LAN IP (e.g. <code>http://192.168.1.200:3000</code>). On a physical phone that must be your dev machine's LAN address on the same Wi-Fi; on emulators and (now) web you can use <code>http://localhost:3000</code> — and the web case is automatic thanks to the resolver above. The web pages hitting that URL need the <b>CORS headers from Part 2.5</b>.</div>
 
     <h3>2 · The admin console (web)</h3>
     <p>Three tools: the partner verification queue (<code>fetchPartners</code> / <code>handleVerify</code> → <code>POST /api/admin/partners</code>), the rate-card editor (<code>POST /api/admin/rate-card</code>), and the drop-zone registry — in <span class="mono">apps/api/app/admin/*/page.tsx</span>. All are guarded server-side by <code>requireAdmin</code>, so loading them as a non-admin answers <code>403</code>.</p>
@@ -582,6 +601,40 @@ apiRequest(path, { token, ... }) =&gt; fetch(`${API_URL}${path}`, { headers: {
     <div class="qa">
       <div class="q">Self-test: why can the admin web page (Next.js) live in the same package as the API, but the phone app cannot?</div>
       <details><summary>Reveal</summary><p>The admin pages are rendered by the same Next.js server that exposes <code>/api/*</code> — same repo, same process, can import <code>@chokro/db</code> directly. The phone is a separate process (React Native runtime), so it can only communicate over HTTP through the API URL. That's the whole "clients vs. server" boundary in the repo.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-8" class="part-head">
+    <div class="part-label">Part 8</div>
+    <h2>🐳 Deploying — Docker &amp; Compose</h2>
+
+    <p>Sprint 2 also taught the app to leave the laptop. Two files do it: a repo-root multi-stage <b><code>Dockerfile</code></b> that turns <code>apps/api</code> into a tiny self-contained image, and <b><code>compose.yaml</code></b> that wires the API to Postgres.</p>
+
+    <h3>1 · The Dockerfile (4 stages)</h3>
+    <div class="tile-grid">
+      <div class="tile"><div class="t-name">base</div><div class="t-sub"><code>node:22-alpine</code> + corepack → pnpm. The common ancestor for every stage, so the lockfile + Node version are identical everywhere.</div></div>
+      <div class="tile"><div class="t-name">deps</div><div class="t-sub">Copies only <code>package.json</code> / <code>pnpm-lock.yaml</code> / <code>pnpm-workspace.yaml</code> and every workspace's <code>package.json</code>, then <code>pnpm install --frozen-lockfile</code> into a cached mount. Changing source code does <em>not</em> bust this layer's cache.</div></div>
+      <div class="tile"><div class="t-name">builder</div><div class="t-sub">Copies <code>node_modules</code> + source, runs <code>pnpm turbo run build --filter=@chokro/api</code>. Produces <code>apps/api/.next/standalone</code> — Next.js' self-contained server bundle (no separate <code>node_modules</code> needed).</div></div>
+      <div class="tile"><div class="t-name">runner</div><div class="t-sub">Fresh image, <code>NODE_ENV=production</code>, non-root <code>nextjs</code> user, copies only the <code>standalone</code> output + static assets, then <code>CMD ["node", "apps/api/server.js"]</code> on port 3000. Security + tiny footprint.</div></div>
+    </div>
+
+    <h3>2 · docker compose — three services</h3>
+    <pre><code><span class="cm"># compose.yaml</span>
+<b>postgres</b>   postgres:17-alpine · healthcheck <code>pg_isready</code> · persisted volume <code>chokro-postgres</code>
+              └─ capped at 384M RAM / 1.0 CPU (low-memory tuning)
+<b>api</b>        builds the Dockerfile · waits on postgres being <i>healthy</i> (not just up)
+              └─ env: DATABASE_URL → postgres:5432/chokro, JWT_SECRET, QR_SECRET
+<b>db-setup</b>   one-shot, on the <code>setup</code> profile: <code>db:push &amp;&amp; db:migrate &amp;&amp; db:seed</code>
+              └─ opt-in — only runs with <code>docker compose --profile setup up</code></code></pre>
+
+    <div class="note"><b>Two things worth stealing from this file:</b> (1) <code>depends_on: condition: service_healthy</code> means the API never races a half-booted Postgres. (2) The <code>setup</code> <em>profile</em> keeps the seeding service out of normal <code>up</code> — you bring it up once to hydrate the DB, then forget it.</div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 8.1</span><b>CORS is what makes a containerized web app work.</b> When the Expo app is served from one host/port and the API runs in Docker on <code>:3000</code>, they are different origins — without the Part 2.5 headers the web app sees nothing. The Dockerfile and the CORS layer were added together for exactly this reason.</div>
+
+    <div class="qa">
+      <div class="q">Self-test: you run plain <code>docker compose up -d</code> and the API is up, but login fails with "no rows". What's missing?</div>
+      <details><summary>Reveal</summary><p>Database seeding is behind the <code>setup</code> profile, which normal <code>up</code> doesn't run. Run <code>docker compose --profile setup up db-setup</code> once (or <code>pnpm db:setup</code> against the exposed <code>:5432</code>) to create the schema and the demo accounts.</p></details>
     </div>
   </section>
 
@@ -596,8 +649,10 @@ admin@chokro.org / user@chokro.org / partner@chokro.org  —  password: password
 
 ## Useful commands #######################################################################
 docker compose up -d          # Postgres 17 on :5432 (db = chokro)
-pnpm db:setup                 # = db:push + db:migrate + db:seed
+docker compose --profile setup up db-setup   # one-shot: push + migrate + seed inside Docker
+pnpm db:setup                 # = db:push + db:migrate + db:seed (host → running Postgres)
 pnpm dev                      # turbo → API on :3000 + Expo
+docker build -t chokro . && docker run -p 3000:3000 chokro   # standalone API image (Dockerfile)
 pnpm test | lint | typecheck | build
 pnpm --filter @chokro/mobile start   # start the Expo app
 
@@ -612,7 +667,7 @@ credit_txns       user_id→users · amount · kind(EARN|REDEEM|ADJUST) · statu
 ## Auth pipeline ##########################################################################
 signup → bcrypt hash → insert users(role=INDIVIDUAL) → signToken({userId,email,role}, 7d)
 login  → find by email → comparePassword → signToken
-every route → requireAuth / requireAdmin → zod safeParse → databaseOrTestStore → NextResponse
+every route → safeRoute(CORS+errors) → requireAuth/requireAdmin → zod safeParse → repo.find*/create (DB or memoryStore) → apiSuccess/apiData/apiError
 
 ## Where things live ######################################################################
 Identity:    apps/api/app/api/auth/*  ·  apps/api/app/api/partners/apply
