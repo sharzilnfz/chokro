@@ -1,9 +1,7 @@
-import { NextResponse } from 'next/server';
-import { db, dropZones, memoryStore } from '@chokro/db';
-import { eq } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import { requireAdmin } from '../../../../../lib/auth';
-import { databaseOrTestStore, routeError } from '../../../../../lib/database';
+import { apiError, safeRoute } from '../../../../../lib/http';
+import { dropZoneRepo } from '../../../../../lib/repos/dropZones';
 
 function escapeHtml(value: unknown) {
   return String(value)
@@ -14,26 +12,22 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", '&#039;');
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const auth = requireAdmin(req);
-    if (auth.response) return auth.response;
-    const { id } = await params;
-    const zone = await databaseOrTestStore(
-      async () => (await db.select().from(dropZones).where(eq(dropZones.id, id)))[0],
-      () => memoryStore.dropZones.find((candidate) => candidate.id === id),
-    );
+export const GET = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+  const auth = requireAdmin(req);
+  if (auth.response) return auth.response;
+  const { id } = await params;
+  const zone = await dropZoneRepo.findById(id);
 
-    if (!zone) {
-      return NextResponse.json({ error: 'Drop zone not found' }, { status: 404 });
-    }
+  if (!zone) {
+    return apiError('Drop zone not found', 404);
+  }
 
-    const qrSvg = await QRCode.toString(zone.qr_token, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 });
-    const zoneName = escapeHtml(zone.name);
-    const institutionId = escapeHtml(zone.institution_id);
-    const categories: unknown[] = Array.isArray(zone.accepted_categories) ? zone.accepted_categories : [];
+  const qrSvg = await QRCode.toString(zone.qr_token, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 });
+  const zoneName = escapeHtml(zone.name);
+  const institutionId = escapeHtml(zone.institution_id);
+  const categories: unknown[] = Array.isArray(zone.accepted_categories) ? zone.accepted_categories : [];
 
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
       <head>
@@ -70,10 +64,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     </html>
   `;
 
-    return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  } catch (error) {
-    return routeError(error);
-  }
-}
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+});
+

@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { db, listings, memoryStore } from '@chokro/db';
-import { eq } from 'drizzle-orm';
+import { listingRepo } from '../../../lib/repos/listings';
 import { requireAuth } from '../../../lib/auth';
-import { databaseOrTestStore, routeError } from '../../../lib/database';
+import { apiError, safeRoute } from '../../../lib/http';
 import { CategoryEnum, ConditionEnum } from '@chokro/shared';
 import { z } from 'zod';
-import crypto from 'crypto';
 
 const CreateListingSchema = z.object({
   category: CategoryEnum,
@@ -25,58 +23,36 @@ const CreateListingSchema = z.object({
   }
 });
 
-export async function POST(req: Request) {
-  try {
-    const auth = requireAuth(req);
-    if (auth.response) return auth.response;
+export const POST = safeRoute(async (req: Request) => {
+  const auth = requireAuth(req);
+  if (auth.response) return auth.response;
 
-    const body = await req.json();
-    const parsed = CreateListingSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid listing data', details: parsed.error.format() }, { status: 400 });
-    }
-
-    const { category, unit, declaredWeight, pieceCount, declaredCondition, photos, status } = parsed.data;
-    const values = {
-          owner_id: auth.user.userId,
-          category,
-          unit,
-          declared_weight: declaredWeight?.toString() ?? null,
-          piece_count: pieceCount ?? null,
-          declared_condition: declaredCondition,
-          photos,
-          status,
-    };
-    const newListing = await databaseOrTestStore(
-      async () => (await db.insert(listings).values(values).returning())[0],
-      () => {
-        const listing = {
-        id: crypto.randomUUID(),
-        ...values,
-        created_at: new Date(),
-        };
-        memoryStore.listings.push(listing);
-        return listing;
-      },
-    );
-
-    return NextResponse.json({ message: 'Listing created', listing: newListing }, { status: 201 });
-  } catch (error) {
-    return routeError(error);
+  const body = await req.json();
+  const parsed = CreateListingSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError('Invalid listing data', 400, parsed.error.format());
   }
-}
 
-export async function GET(req: Request) {
-  try {
-    const auth = requireAuth(req);
-    if (auth.response) return auth.response;
+  const { category, unit, declaredWeight, pieceCount, declaredCondition, photos, status } = parsed.data;
+  const values = {
+    owner_id: auth.user.userId,
+    category,
+    unit,
+    declared_weight: declaredWeight?.toString() ?? null,
+    piece_count: pieceCount ?? null,
+    declared_condition: declaredCondition,
+    photos,
+    status,
+  };
+  const newListing = await listingRepo.create(values);
 
-    const myListings = await databaseOrTestStore(
-      () => db.select().from(listings).where(eq(listings.owner_id, auth.user.userId)),
-      () => memoryStore.listings.filter((item) => item.owner_id === auth.user.userId),
-    );
-    return NextResponse.json({ listings: myListings });
-  } catch (error) {
-    return routeError(error);
-  }
-}
+  return NextResponse.json({ message: 'Listing created', listing: newListing }, { status: 201 });
+});
+
+export const GET = safeRoute(async (req: Request) => {
+  const auth = requireAuth(req);
+  if (auth.response) return auth.response;
+
+  const myListings = await listingRepo.findByOwnerId(auth.user.userId);
+  return NextResponse.json({ listings: myListings });
+});
