@@ -67,7 +67,7 @@ export const dropZoneRepo = {
       async () => {
         const zones = await db.select().from(dropZones);
         return (
-          zones.find((z) => {
+          zones.find((z: typeof dropZones.$inferSelect) => {
             const geo = z.geo_location as { lat: number; lng: number } | null;
             return geo && Math.abs(geo.lat - lat) < 0.0001 && Math.abs(geo.lng - lng) < 0.0001;
           }) || null
