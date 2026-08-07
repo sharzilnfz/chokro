@@ -16,6 +16,12 @@ function resolveApiUrl(): string {
 
 export const API_URL = resolveApiUrl();
 
+/** Called by AuthContext to register a global handler for 401 responses. */
+let onUnauthorized: (() => void) | null = null;
+export function setOnUnauthorized(cb: (() => void) | null) {
+  onUnauthorized = cb;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -60,6 +66,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       typeof data === 'object' && data && 'error' in data && typeof data.error === 'string'
         ? data.error
         : `Request failed (${response.status}).`;
+    if (response.status === 401 && onUnauthorized) {
+      onUnauthorized();
+    }
     throw new ApiError(message, response.status);
   }
 

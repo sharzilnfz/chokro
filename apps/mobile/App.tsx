@@ -1,5 +1,5 @@
 import "./global.css";
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,10 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { storage } from './src/storage';
-import { apiRequest, ApiError, getErrorMessage } from './src/api';
 import { colors } from './src/theme';
-import type { AuthSession, User } from './src/types';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FeedScreen } from './src/screens/FeedScreen';
 import { CreateListingScreen } from './src/screens/CreateListingScreen';
 import { WalletScreen } from './src/screens/WalletScreen';
@@ -21,11 +19,7 @@ import { RateCardScreen } from './src/screens/RateCardScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SignupScreen } from './src/screens/SignupScreen';
 
-const TOKEN_KEY = 'chokro.authToken';
-
 type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan';
-type AuthMode = 'login' | 'signup';
-type RestoreState = 'loading' | 'ready' | 'error';
 
 const TABS: Array<{
   key: Tab;
@@ -41,61 +35,16 @@ const TABS: Array<{
 ];
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
+  );
+}
+
+function AppShell() {
+  const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
-  const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [restoreState, setRestoreState] = useState<RestoreState>('loading');
-  const [restoreError, setRestoreError] = useState('');
-
-  const restoreSession = async () => {
-    setRestoreState('loading');
-    setRestoreError('');
-
-    try {
-      const token = await storage.getItem(TOKEN_KEY);
-      if (!token) {
-        setSession(null);
-        setRestoreState('ready');
-        return;
-      }
-
-      const data = await apiRequest<{ user: User }>('/api/auth/me', { token });
-      setSession({ token, user: data.user });
-      setRestoreState('ready');
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
-        try {
-          await storage.deleteItem(TOKEN_KEY);
-        } catch {
-          // The rejected token remains unusable even if device storage cannot be updated.
-        }
-        setSession(null);
-        setRestoreState('ready');
-        return;
-      }
-      setRestoreError(getErrorMessage(error, 'Could not restore your session.'));
-      setRestoreState('error');
-    }
-  };
-
-  useEffect(() => {
-    void restoreSession();
-  }, []);
-
-  const handleAuthenticated = async (nextSession: AuthSession) => {
-    await storage.setItem(TOKEN_KEY, nextSession.token);
-    setSession(nextSession);
-    setActiveTab('browse');
-  };
-
-  const handleLogout = async () => {
-    try {
-      await storage.deleteItem(TOKEN_KEY);
-    } finally {
-      setSession(null);
-      setAuthMode('login');
-    }
-  };
 
   if (restoreState === 'loading') {
     return (
@@ -122,7 +71,7 @@ export default function App() {
             accessibilityRole="button"
             accessibilityLabel="Retry session restoration"
             className="min-h-[50px] w-full rounded-[14px] bg-leaf items-center justify-center active:opacity-[0.72]"
-            onPress={() => void restoreSession()}
+            onPress={retryRestore}
           >
             <Text className="text-surface text-base font-extrabold">Try again</Text>
           </Pressable>
@@ -130,11 +79,7 @@ export default function App() {
             accessibilityRole="button"
             accessibilityLabel="Clear saved session and sign in"
             className="min-h-[48px] items-center justify-center mt-1.5 active:opacity-[0.72]"
-            onPress={async () => {
-              await storage.deleteItem(TOKEN_KEY);
-              setSession(null);
-              setRestoreState('ready');
-            }}
+            onPress={clearAndRestart}
           >
             <Text className="text-leaf-dark text-[15px] font-bold">Use another account</Text>
           </Pressable>
@@ -146,9 +91,9 @@ export default function App() {
 
   if (!session) {
     return authMode === 'login' ? (
-      <LoginScreen onLoginSuccess={handleAuthenticated} onShowSignup={() => setAuthMode('signup')} />
+      <LoginScreen onShowSignup={() => setAuthMode('signup')} />
     ) : (
-      <SignupScreen onSignupSuccess={handleAuthenticated} onShowLogin={() => setAuthMode('login')} />
+      <SignupScreen onShowLogin={() => setAuthMode('login')} />
     );
   }
 
@@ -169,20 +114,20 @@ export default function App() {
           accessibilityLabel="Sign out"
           hitSlop={8}
           className="w-12 h-12 items-center justify-center rounded-[14px] active:opacity-[0.72]"
-          onPress={() => void handleLogout()}
+          onPress={() => void logout()}
         >
           <Ionicons name="log-out-outline" size={22} color={colors.leafDark} />
         </Pressable>
       </View>
 
       <View className="flex-1">
-        {activeTab === 'browse' && <FeedScreen token={session.token} />}
+        {activeTab === 'browse' && <FeedScreen />}
         {activeTab === 'list' && (
-          <CreateListingScreen token={session.token} onCreated={() => setActiveTab('browse')} />
+          <CreateListingScreen onCreated={() => setActiveTab('browse')} />
         )}
-        {activeTab === 'rates' && <RateCardScreen token={session.token} />}
-        {activeTab === 'wallet' && <WalletScreen token={session.token} />}
-        {activeTab === 'scan' && <QRScannerScreen token={session.token} />}
+        {activeTab === 'rates' && <RateCardScreen />}
+        {activeTab === 'wallet' && <WalletScreen />}
+        {activeTab === 'scan' && <QRScannerScreen />}
       </View>
 
       <View className="min-h-[72px] flex-row px-2 pt-1.5 pb-1 bg-surface border-t border-border" accessibilityRole="tablist">
