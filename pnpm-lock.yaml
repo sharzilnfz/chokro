@@ -26,6 +26,9 @@ importers:
       '@chokro/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tanstack/react-query':
+        specifier: ^5.67.2
+        version: 5.101.4(react@19.2.3)
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3

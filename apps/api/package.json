@@ -13,6 +13,7 @@
   "dependencies": {
     "@chokro/db": "workspace:*",
     "@chokro/shared": "workspace:*",
+    "@tanstack/react-query": "^5.67.2",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "jsonwebtoken": "^9.0.3",
