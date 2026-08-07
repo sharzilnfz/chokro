@@ -675,7 +675,12 @@ Marketplace: apps/api/app/api/listings/**  ·  apps/api/app/api/feed
 Rate card:   apps/api/app/api/rate-card/published  ·  apps/api/app/api/admin/rate-card
 Wallet:      apps/api/app/api/wallet/*  ·  apps/api/app/api/admin/wallet/adjust
 Zones:       apps/api/app/api/drop-zones/**  ·  /resolve  ·  /:id/poster
-Shared:      packages/shared/src/index.ts (zod enums)  ·  packages/db/src/schema.ts</code></pre></div>
+Shared:      packages/shared/src/index.ts (zod enums)  ·  packages/db/src/schema.ts
+Server GLUE: apps/api/lib/http.ts (safeRoute · apiError/apiSuccess/apiData · OPTIONS · CORS_HEADERS)
+             apps/api/lib/repos/*  (userRepo · listingRepo · partnerRepo · rateCardRepo · dropZoneRepo · walletRepo)
+Mobile:      apps/mobile/App.tsx (5 tabs) · src/api.ts (API_URL + platform-aware resolver) · src/storage.ts · src/theme.ts · global.css + tailwind.config.js (NativeWind v4)
+Deploy:      ./Dockerfile (4-stage standalone Next.js) · compose.yaml (postgres · api · db-setup[@profile setup])
+Testing:     apps/api/tests/* — 10 suites / 37 tests, NODE_ENV=test → in-memory memoryStore</code></pre></div>
   </section>
 
   <footer>[ chokro/sprint-1 · the phone is eyes, the server is the office, the database is the ledger ]</footer>
