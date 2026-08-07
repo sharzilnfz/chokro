@@ -6,7 +6,6 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -14,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { apiRequest, getErrorMessage } from '../api';
-import { colors, radii, shadows } from '../theme';
+import { colors } from '../theme';
 import type { AuthSession, User } from '../types';
 
 type LoginScreenProps = {
@@ -51,33 +50,33 @@ export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) 
   };
 
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView className="flex-1 bg-background">
       <KeyboardAvoidingView
-        style={styles.page}
+        className="flex-1 bg-background"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerClassName="flex-grow justify-center px-[22px] py-[32px]"
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.brandRow}>
-            <View style={styles.mark} accessibilityElementsHidden>
+          <View className="flex-row items-center gap-[10px] mb-[44px]">
+            <View className="w-[44px] h-[44px] rounded-[15px] bg-leaf items-center justify-center" accessibilityElementsHidden>
               <Ionicons name="leaf" size={24} color={colors.surface} />
             </View>
-            <Text style={styles.brand}>Chokro</Text>
+            <Text className="text-ink text-[22px] font-extrabold tracking-tight">Chokro</Text>
           </View>
 
-          <View style={styles.intro}>
-            <Text style={styles.eyebrow}>CIRCULAR, WITH PROOF</Text>
-            <Text accessibilityRole="header" style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to list useful items, recognize drop zones, and see verified Green Credits.</Text>
+          <View className="mb-[24px]">
+            <Text className="text-leaf text-[12px] leading-[18px] font-extrabold tracking-[1.4px]">CIRCULAR, WITH PROOF</Text>
+            <Text accessibilityRole="header" className="text-ink text-[36px] leading-[42px] font-extrabold tracking-tight mt-[5px]">Welcome back</Text>
+            <Text className="text-muted text-[16px] leading-[24px] mt-[9px] max-w-[420px]">Sign in to list useful items, recognize drop zones, and see verified Green Credits.</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Email address</Text>
+          <View className="bg-surface rounded-lg border border-border p-[20px] shadow-card" style={{ elevation: 2 }}>
+            <Text className="text-ink text-[14px] font-bold mb-[7px]">Email address</Text>
             <TextInput
               accessibilityLabel="Email address"
-              style={styles.input}
+              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[16px]"
               placeholder="you@example.com"
               placeholderTextColor={colors.muted}
               value={email}
@@ -89,10 +88,10 @@ export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) 
               editable={!loading}
             />
 
-            <Text style={styles.label}>Password</Text>
+            <Text className="text-ink text-[14px] font-bold mb-[7px]">Password</Text>
             <TextInput
               accessibilityLabel="Password"
-              style={styles.input}
+              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[16px]"
               placeholder="Your password"
               placeholderTextColor={colors.muted}
               value={password}
@@ -104,9 +103,9 @@ export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) 
             />
 
             {error ? (
-              <View accessibilityRole="alert" style={styles.errorBox}>
+              <View accessibilityRole="alert" className="flex-row items-center gap-[8px] bg-danger-soft rounded-sm p-[12px] mb-[14px]">
                 <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text className="flex-1 text-danger text-[14px] leading-[20px] font-semibold">{error}</Text>
               </View>
             ) : null}
 
@@ -114,21 +113,21 @@ export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) 
               accessibilityRole="button"
               accessibilityLabel="Sign in"
               accessibilityState={{ disabled: loading, busy: loading }}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}
+              className={`min-h-[52px] rounded-[14px] bg-leaf items-center justify-center mt-[2px] active:opacity-[0.75] ${loading ? 'opacity-[0.55]' : ''}`}
               disabled={loading}
               onPress={() => void handleLogin()}
             >
-              {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryText}>Sign in</Text>}
+              {loading ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[16px] font-extrabold">Sign in</Text>}
             </Pressable>
 
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Create a new account"
-              style={({ pressed }) => [styles.switchButton, pressed && styles.pressed]}
+              className="min-h-[48px] items-center justify-center px-[4px] mt-[8px] active:opacity-[0.75]"
               onPress={onShowSignup}
               disabled={loading}
             >
-              <Text style={styles.switchText}>New to Chokro? <Text style={styles.switchStrong}>Create an account</Text></Text>
+              <Text className="text-muted text-[14px]">New to Chokro? <Text className="text-leaf-dark font-extrabold">Create an account</Text></Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -137,27 +136,3 @@ export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) 
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 32 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 44 },
-  mark: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
-  brand: { color: colors.ink, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
-  intro: { marginBottom: 24 },
-  eyebrow: { color: colors.leaf, fontSize: 12, lineHeight: 18, fontWeight: '800', letterSpacing: 1.4 },
-  title: { color: colors.ink, fontSize: 36, lineHeight: 42, fontWeight: '800', letterSpacing: -1.1, marginTop: 5 },
-  subtitle: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 9, maxWidth: 420 },
-  card: { backgroundColor: colors.surface, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, padding: 20, ...shadows.card },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '700', marginBottom: 7 },
-  input: { minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radii.small, backgroundColor: colors.background, color: colors.ink, fontSize: 16, paddingHorizontal: 14, marginBottom: 16 },
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dangerSoft, borderRadius: radii.small, padding: 12, marginBottom: 14 },
-  errorText: { flex: 1, color: colors.danger, fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  primaryButton: { minHeight: 52, borderRadius: 14, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  primaryText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
-  switchButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, marginTop: 8 },
-  switchText: { color: colors.muted, fontSize: 14 },
-  switchStrong: { color: colors.leafDark, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-  pressed: { opacity: 0.75 },
-});
