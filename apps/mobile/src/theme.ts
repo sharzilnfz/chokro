@@ -1,3 +1,8 @@
+/**
+ * @deprecated Prefer Tailwind classes via NativeWind (see tailwind.config.js).
+ * These JS values are kept only for props that don't accept className
+ * (e.g., Ionicons `color`, ActivityIndicator `color`).
+ */
 export const colors = {
   background: '#F3F5EF',
   surface: '#FFFFFF',
