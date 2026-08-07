@@ -8,15 +8,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { colors } from '../theme';
-import { useAuth } from '../context/AuthContext';
-import { FeedScreen } from '../screens/FeedScreen';
-import { CreateListingScreen } from '../screens/CreateListingScreen';
-import { WalletScreen } from '../screens/WalletScreen';
-import { QRScannerScreen } from '../screens/QRScannerScreen';
-import { RateCardScreen } from '../screens/RateCardScreen';
-import { LoginScreen } from '../screens/LoginScreen';
-import { SignupScreen } from '../screens/SignupScreen';
+import { colors } from '@/theme';
+import { useAuth } from '@/context/AuthContext';
+import { FeedScreen } from '@/screens/FeedScreen';
+import { CreateListingScreen } from '@/screens/CreateListingScreen';
+import { WalletScreen } from '@/screens/WalletScreen';
+import { QRScannerScreen } from '@/screens/QRScannerScreen';
+import { RateCardScreen } from '@/screens/RateCardScreen';
+import { LoginScreen } from '@/screens/LoginScreen';
+import { SignupScreen } from '@/screens/SignupScreen';
 
 type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan';
 

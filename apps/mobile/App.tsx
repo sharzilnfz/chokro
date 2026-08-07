@@ -1,7 +1,7 @@
 import "./global.css";
 import React from 'react';
-import { AuthProvider } from './src/context/AuthContext';
-import { AppShell } from './src/components/AppShell';
+import { AuthProvider } from '@/context/AuthContext';
+import { AppShell } from '@/navigation/AppShell';
 
 export default function App() {
   return (
