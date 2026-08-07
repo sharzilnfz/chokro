@@ -1,21 +1,14 @@
-export const CATEGORIES = [
-  'CLOTHES',
-  'BOOKS',
-  'PLASTICS',
-  'PAPER',
-  'METAL',
-  'GLASS',
-  'FURNITURE',
-  'APPLIANCES',
-  'E_WASTE',
-] as const;
-
-export const CONDITIONS = ['EXCELLENT', 'GOOD', 'FAIR', 'POOR'] as const;
-export const LISTING_STATUSES = ['DRAFT', 'ACTIVE', 'CANCELLED', 'MATCHED', 'EXPIRED'] as const;
-
-export type Category = (typeof CATEGORIES)[number];
-export type Condition = (typeof CONDITIONS)[number];
-export type ListingStatus = (typeof LISTING_STATUSES)[number];
+export {
+  CategoryEnum,
+  ConditionEnum,
+  ListingStatusEnum,
+  type Category,
+  type Condition,
+  type ListingStatus,
+  CATEGORIES,
+  CONDITIONS,
+  LISTING_STATUSES,
+} from '@chokro/shared';
 
 export type User = {
   id: string;
