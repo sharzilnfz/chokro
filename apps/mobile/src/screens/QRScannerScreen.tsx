@@ -101,7 +101,7 @@ export function QRScannerScreen({ token }: { token: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Allow camera access"
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+            className="min-w-[170px] min-h-[50px] rounded-[14px] bg-leaf items-center justify-center active:opacity-[0.72]"
             onPress={() => void requestPermission()}
           >
             <Text className="text-surface text-[15px] font-extrabold">Allow camera</Text>
@@ -141,7 +141,7 @@ export function QRScannerScreen({ token }: { token: string }) {
           accessibilityRole="button"
           accessibilityLabel="Resolve Drop Zone token"
           accessibilityState={{ disabled: loading, busy: loading }}
-          style={({ pressed }) => [styles.resolveButton, pressed && styles.pressed, loading && styles.disabled]}
+          className={`min-h-[50px] rounded-[13px] bg-leaf items-center justify-center active:opacity-[0.72] ${loading ? 'opacity-[0.55]' : ''}`}
           disabled={loading}
           onPress={() => void resolveToken(manualToken)}
         >
@@ -159,7 +159,7 @@ export function QRScannerScreen({ token }: { token: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Scan another QR code"
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            className="w-[48px] h-[48px] rounded-[15px] items-center justify-center active:opacity-[0.72]"
             onPress={scanAgain}
           >
             <Ionicons name="refresh" size={21} color={colors.danger} />
@@ -193,7 +193,7 @@ export function QRScannerScreen({ token }: { token: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Scan another Drop Zone"
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            className="min-h-[50px] flex-row items-center justify-center gap-[8px] border border-leaf rounded-[14px] mt-[13px] active:opacity-[0.72]"
             onPress={scanAgain}
           >
             <Ionicons name="scan-outline" size={20} color={colors.leafDark} />
