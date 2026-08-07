@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { storage } from '../storage';
-import { apiRequest, ApiError, getErrorMessage, setOnUnauthorized } from '../api';
-import type { AuthSession, User } from '../types';
+import { storage } from '@/storage';
+import { apiRequest, ApiError, getErrorMessage, setOnUnauthorized } from '@/api';
+import type { AuthSession, User } from '@/types';
 
 const TOKEN_KEY = 'chokro.authToken';
 

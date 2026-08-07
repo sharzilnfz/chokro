@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { apiRequest, getErrorMessage } from '../api';
-import { colors } from '../theme';
-import type { User } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { apiRequest, getErrorMessage } from '@/api';
+import { colors } from '@/theme';
+import type { User } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 
 type LoginScreenProps = {
   onShowSignup: () => void;
@@ -74,12 +75,10 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
           </View>
 
           <View className="bg-surface rounded-lg border border-border p-[20px] shadow-card" style={{ elevation: 2 }}>
-            <Text className="text-ink text-[14px] font-bold mb-[7px]">Email address</Text>
-            <TextInput
+            <Input
+              label="Email address"
               accessibilityLabel="Email address"
-              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[16px]"
               placeholder="you@example.com"
-              placeholderTextColor={colors.muted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -89,12 +88,10 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
               editable={!loading}
             />
 
-            <Text className="text-ink text-[14px] font-bold mb-[7px]">Password</Text>
-            <TextInput
+            <Input
+              label="Password"
               accessibilityLabel="Password"
-              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[16px]"
               placeholder="Your password"
-              placeholderTextColor={colors.muted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -103,23 +100,13 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
               onSubmitEditing={() => void handleLogin()}
             />
 
-            {error ? (
-              <View accessibilityRole="alert" className="flex-row items-center gap-[8px] bg-danger-soft rounded-sm p-[12px] mb-[14px]">
-                <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-                <Text className="flex-1 text-danger text-[14px] leading-[20px] font-semibold">{error}</Text>
-              </View>
-            ) : null}
+            {error ? <ErrorBanner message={error} /> : null}
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sign in"
-              accessibilityState={{ disabled: loading, busy: loading }}
-              className={`min-h-[52px] rounded-[14px] bg-leaf items-center justify-center mt-[2px] active:opacity-[0.75] ${loading ? 'opacity-[0.55]' : ''}`}
-              disabled={loading}
+            <Button
+              label="Sign in"
+              loading={loading}
               onPress={() => void handleLogin()}
-            >
-              {loading ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[16px] font-extrabold">Sign in</Text>}
-            </Pressable>
+            />
 
             <Pressable
               accessibilityRole="button"

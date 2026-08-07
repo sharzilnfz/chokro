@@ -9,10 +9,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '../api';
-import { colors } from '../theme';
-import { categoryLabel } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { apiRequest, getErrorMessage } from '@/api';
+import { colors } from '@/theme';
+import { categoryLabel } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 type Balance = { verified: number; pending: number };
 type CreditTransaction = {

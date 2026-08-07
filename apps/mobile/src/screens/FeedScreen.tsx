@@ -10,10 +10,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '../api';
-import { colors } from '../theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition, type ListingStatus } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { apiRequest, getErrorMessage } from '@/api';
+import { colors } from '@/theme';
+import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition, type ListingStatus } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 type FeedFilter = 'ALL' | Category;
 type ConditionFilter = 'ALL' | Condition;

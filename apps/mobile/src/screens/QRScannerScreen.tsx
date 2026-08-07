@@ -9,10 +9,10 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '../api';
-import { colors } from '../theme';
-import { categoryLabel } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { apiRequest, getErrorMessage } from '@/api';
+import { colors } from '@/theme';
+import { categoryLabel } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 type DropZone = {
   id: string;

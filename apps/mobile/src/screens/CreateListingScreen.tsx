@@ -11,10 +11,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { apiRequest, getErrorMessage } from '../api';
-import { colors } from '../theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { apiRequest, getErrorMessage } from '@/api';
+import { colors } from '@/theme';
+import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'];
 const MAX_UPLOAD_BYTES = 500 * 1024;
