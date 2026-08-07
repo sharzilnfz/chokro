@@ -6,7 +6,6 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -14,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { apiRequest, getErrorMessage } from '../api';
-import { colors, radii, shadows } from '../theme';
+import { colors } from '../theme';
 import type { AuthSession, User } from '../types';
 
 type SignupScreenProps = {
@@ -60,27 +59,27 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
   };
 
   return (
-    <SafeAreaView style={styles.page}>
-      <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.brandRow}>
-            <View style={styles.mark} accessibilityElementsHidden>
+    <SafeAreaView className="flex-1 bg-background">
+      <KeyboardAvoidingView className="flex-1 bg-background" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerClassName="flex-grow justify-center px-[22px] py-[28px]" keyboardShouldPersistTaps="handled">
+          <View className="flex-row items-center gap-[10px] mb-[30px]">
+            <View className="w-[44px] h-[44px] rounded-[15px] bg-leaf items-center justify-center" accessibilityElementsHidden>
               <Ionicons name="leaf" size={24} color={colors.surface} />
             </View>
-            <Text style={styles.brand}>Chokro</Text>
+            <Text className="text-ink text-[22px] font-extrabold tracking-tight">Chokro</Text>
           </View>
 
-          <View style={styles.intro}>
-            <Text style={styles.eyebrow}>START A BETTER NEXT LIFE</Text>
-            <Text accessibilityRole="header" style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Public sign-up creates an individual account. Partner and admin access are verified separately.</Text>
+          <View className="mb-[22px]">
+            <Text className="text-leaf text-[12px] leading-[18px] font-extrabold tracking-[1.3px]">START A BETTER NEXT LIFE</Text>
+            <Text accessibilityRole="header" className="text-ink text-[34px] leading-[40px] font-extrabold tracking-tight mt-[5px]">Create your account</Text>
+            <Text className="text-muted text-[15px] leading-[23px] mt-[8px] max-w-[430px]">Public sign-up creates an individual account. Partner and admin access are verified separately.</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Email address</Text>
+          <View className="bg-surface rounded-lg border border-border p-[20px] shadow-card" style={{ elevation: 2 }}>
+            <Text className="text-ink text-[14px] font-bold mb-[7px]">Email address</Text>
             <TextInput
               accessibilityLabel="Email address"
-              style={styles.input}
+              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[14px]"
               placeholder="you@example.com"
               placeholderTextColor={colors.muted}
               value={email}
@@ -92,10 +91,10 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
               editable={!loading}
             />
 
-            <Text style={styles.label}>Password</Text>
+            <Text className="text-ink text-[14px] font-bold mb-[7px]">Password</Text>
             <TextInput
               accessibilityLabel="Password, at least 6 characters"
-              style={styles.input}
+              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[14px]"
               placeholder="At least 6 characters"
               placeholderTextColor={colors.muted}
               value={password}
@@ -105,10 +104,10 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
               editable={!loading}
             />
 
-            <Text style={styles.label}>Confirm password</Text>
+            <Text className="text-ink text-[14px] font-bold mb-[7px]">Confirm password</Text>
             <TextInput
               accessibilityLabel="Confirm password"
-              style={styles.input}
+              className="min-h-[52px] border border-border rounded-sm bg-background text-ink text-[16px] px-[14px] mb-[14px]"
               placeholder="Repeat your password"
               placeholderTextColor={colors.muted}
               value={confirmPassword}
@@ -120,9 +119,9 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
             />
 
             {error ? (
-              <View accessibilityRole="alert" style={styles.errorBox}>
+              <View accessibilityRole="alert" className="flex-row items-center gap-[8px] bg-danger-soft rounded-sm p-[12px] mb-[14px]">
                 <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text className="flex-1 text-danger text-[14px] leading-[20px] font-semibold">{error}</Text>
               </View>
             ) : null}
 
@@ -130,21 +129,21 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
               accessibilityRole="button"
               accessibilityLabel="Create individual account"
               accessibilityState={{ disabled: loading, busy: loading }}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}
+              className={`min-h-[52px] rounded-[14px] bg-leaf items-center justify-center mt-[2px] active:opacity-[0.75] ${loading ? 'opacity-[0.55]' : ''}`}
               disabled={loading}
               onPress={() => void handleSignup()}
             >
-              {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryText}>Create account</Text>}
+              {loading ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[16px] font-extrabold">Create account</Text>}
             </Pressable>
 
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Return to sign in"
-              style={({ pressed }) => [styles.switchButton, pressed && styles.pressed]}
+              className="min-h-[48px] items-center justify-center px-[4px] mt-[8px] active:opacity-[0.75]"
               onPress={onShowLogin}
               disabled={loading}
             >
-              <Text style={styles.switchText}>Already have an account? <Text style={styles.switchStrong}>Sign in</Text></Text>
+              <Text className="text-muted text-[14px]">Already have an account? <Text className="text-leaf-dark font-extrabold">Sign in</Text></Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -153,27 +152,3 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 28 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30 },
-  mark: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
-  brand: { color: colors.ink, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
-  intro: { marginBottom: 22 },
-  eyebrow: { color: colors.leaf, fontSize: 12, lineHeight: 18, fontWeight: '800', letterSpacing: 1.3 },
-  title: { color: colors.ink, fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1, marginTop: 5 },
-  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 8, maxWidth: 430 },
-  card: { backgroundColor: colors.surface, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, padding: 20, ...shadows.card },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '700', marginBottom: 7 },
-  input: { minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radii.small, backgroundColor: colors.background, color: colors.ink, fontSize: 16, paddingHorizontal: 14, marginBottom: 14 },
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dangerSoft, borderRadius: radii.small, padding: 12, marginBottom: 14 },
-  errorText: { flex: 1, color: colors.danger, fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  primaryButton: { minHeight: 52, borderRadius: 14, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  primaryText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
-  switchButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, marginTop: 8 },
-  switchText: { color: colors.muted, fontSize: 14 },
-  switchStrong: { color: colors.leafDark, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-  pressed: { opacity: 0.75 },
-});

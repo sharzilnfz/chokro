@@ -4,7 +4,6 @@ import {
   Image,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -13,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { apiRequest, getErrorMessage } from '../api';
-import { colors, radii, shadows } from '../theme';
+import { colors } from '../theme';
 import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '../types';
 
 const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'];
@@ -172,23 +171,23 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      className="flex-1 bg-background"
+      contentContainerClassName="p-[20px] pb-[36px]"
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.eyebrow}>GIVE IT A NEXT LIFE</Text>
-      <Text accessibilityRole="header" style={styles.title}>List an item</Text>
-      <Text style={styles.subtitle}>Choose only what you know. Final condition and value are confirmed by a partner later.</Text>
+      <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">GIVE IT A NEXT LIFE</Text>
+      <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">List an item</Text>
+      <Text className="text-muted text-[14px] leading-[21px] mt-[7px] mb-[22px]">Choose only what you know. Final condition and value are confirmed by a partner later.</Text>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionNumber}>01</Text>
-          <Text style={styles.sectionTitle}>Item photo</Text>
+      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        <View className="flex-row items-center gap-[9px] mb-[13px]">
+          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">01</Text>
+          <Text className="text-ink text-[17px] font-extrabold">Item photo</Text>
         </View>
 
         {photo ? (
-          <View style={styles.photoWrap}>
-            <Image source={{ uri: photo.previewUri }} style={styles.photo} accessibilityLabel="Selected item photo" />
+          <View className="h-[220px] rounded-[14px] overflow-hidden bg-surface-muted">
+            <Image source={{ uri: photo.previewUri }} className="w-full h-full" style={{ resizeMode: 'cover' }} accessibilityLabel="Selected item photo" />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Remove selected photo"
@@ -215,18 +214,18 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
             ) : (
               <Ionicons name="image-outline" size={29} color={colors.leaf} />
             )}
-            <Text style={styles.photoPickerTitle}>{preparingPhoto ? 'Preparing photo...' : 'Choose from photos'}</Text>
-            <Text style={styles.photoPickerCopy}>Downscaled to 1600 px or less and compressed below 500 KB.</Text>
+            <Text className="text-leaf-dark text-[16px] font-extrabold mt-[7px]">{preparingPhoto ? 'Preparing photo...' : 'Choose from photos'}</Text>
+            <Text className="text-muted text-[12px] leading-[18px] text-center mt-[4px]">Downscaled to 1600 px or less and compressed below 500 KB.</Text>
           </Pressable>
         )}
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionNumber}>02</Text>
-          <Text style={styles.sectionTitle}>Category</Text>
+      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        <View className="flex-row items-center gap-[9px] mb-[13px]">
+          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">02</Text>
+          <Text className="text-ink text-[17px] font-extrabold">Category</Text>
         </View>
-        <View style={styles.options}>
+        <View className="flex-row flex-wrap gap-[8px]">
           {CATEGORIES.map((item) => {
             const selected = category === item;
             return (
@@ -238,41 +237,41 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
                 style={({ pressed }) => [styles.chip, selected && styles.chipActive, pressed && styles.pressed]}
                 onPress={() => selectCategory(item)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextActive]}>{categoryLabel(item)}</Text>
+                <Text className={`text-[13px] font-bold ${selected ? 'text-leaf-dark' : 'text-muted'}`}>{categoryLabel(item)}</Text>
               </Pressable>
             );
           })}
         </View>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionNumber}>03</Text>
-          <Text style={styles.sectionTitle}>{unit === 'kg' ? 'Weight' : 'Quantity'}</Text>
+      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        <View className="flex-row items-center gap-[9px] mb-[13px]">
+          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">03</Text>
+          <Text className="text-ink text-[17px] font-extrabold">{unit === 'kg' ? 'Weight' : 'Quantity'}</Text>
         </View>
-        <View style={styles.quantityRow}>
+        <View className="flex-row">
           <TextInput
             accessibilityLabel={unit === 'kg' ? 'Estimated weight in kilograms' : 'Number of pieces'}
-            style={styles.quantityInput}
+            className="flex-1 min-h-[52px] border border-r-0 border-border rounded-tl-[12px] rounded-bl-[12px] bg-background text-ink text-[17px] px-[14px]"
             placeholder={unit === 'kg' ? 'e.g. 2.5' : 'e.g. 1'}
             placeholderTextColor={colors.muted}
             keyboardType={unit === 'kg' ? 'decimal-pad' : 'number-pad'}
             value={quantity}
             onChangeText={setQuantity}
           />
-          <View style={styles.unitBox}>
-            <Text style={styles.unitText}>{unit === 'kg' ? 'kg' : 'pieces'}</Text>
+          <View className="min-w-[88px] min-h-[52px] border border-border rounded-tr-[12px] rounded-br-[12px] bg-surface-muted items-center justify-center px-[12px]">
+            <Text className="text-ink text-[14px] font-extrabold">{unit === 'kg' ? 'kg' : 'pieces'}</Text>
           </View>
         </View>
-        <Text style={styles.helper}>{unit === 'kg' ? 'Materials are listed by estimated kilograms.' : 'Appliances and e-waste are listed by whole pieces.'}</Text>
+        <Text className="text-muted text-[12px] leading-[18px] mt-[7px]">{unit === 'kg' ? 'Materials are listed by estimated kilograms.' : 'Appliances and e-waste are listed by whole pieces.'}</Text>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionNumber}>04</Text>
-          <Text style={styles.sectionTitle}>Declared condition</Text>
+      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        <View className="flex-row items-center gap-[9px] mb-[13px]">
+          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">04</Text>
+          <Text className="text-ink text-[17px] font-extrabold">Declared condition</Text>
         </View>
-        <View style={styles.options}>
+        <View className="flex-row flex-wrap gap-[8px]">
           {CONDITIONS.map((item) => {
             const selected = condition === item;
             return (
@@ -284,19 +283,19 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
                 style={({ pressed }) => [styles.chip, selected && styles.chipActive, pressed && styles.pressed]}
                 onPress={() => setCondition(item)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextActive]}>{categoryLabel(item)}</Text>
+                <Text className={`text-[13px] font-bold ${selected ? 'text-leaf-dark' : 'text-muted'}`}>{categoryLabel(item)}</Text>
               </Pressable>
             );
           })}
         </View>
-        <View style={styles.statusRow}>
+        <View className="min-h-[48px] flex-row items-center gap-[8px] border-t border-border mt-[14px] pt-[12px]">
           <Ionicons name="radio-button-on" size={17} color={colors.leaf} />
-          <Text style={styles.statusText}>Publishing status: Active</Text>
+          <Text className="text-muted text-[13px] font-bold">Publishing status: Active</Text>
         </View>
       </View>
 
-      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-      {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
+      {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text> : null}
+      {notice ? <Text accessibilityRole="alert" className="text-leaf-dark bg-leaf-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{notice}</Text> : null}
 
       <Pressable
         accessibilityRole="button"
@@ -306,44 +305,9 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
         disabled={loading || preparingPhoto}
         onPress={() => void handleSubmit()}
       >
-        {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.publishText}>Publish listing</Text>}
+        {loading ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[16px] font-extrabold">Publish listing</Text>}
       </Pressable>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingBottom: 36 },
-  eyebrow: { color: colors.leaf, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
-  title: { color: colors.ink, fontSize: 31, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 4 },
-  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 7, marginBottom: 22 },
-  section: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, padding: 16, marginBottom: 13, ...shadows.card },
-  sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 13 },
-  sectionNumber: { color: colors.leaf, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
-  sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: '800' },
-  photoPicker: { minHeight: 150, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.leaf, borderRadius: 14, backgroundColor: colors.leafSoft, alignItems: 'center', justifyContent: 'center', padding: 18 },
-  photoPickerTitle: { color: colors.leafDark, fontSize: 16, fontWeight: '800', marginTop: 7 },
-  photoPickerCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 4 },
-  photoWrap: { height: 220, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
-  photo: { width: '100%', height: '100%', resizeMode: 'cover' },
-  removePhoto: { position: 'absolute', top: 8, right: 8, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 48, paddingHorizontal: 13, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  chipActive: { backgroundColor: colors.leafSoft, borderColor: colors.leaf },
-  chipText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: colors.leafDark },
-  quantityRow: { flexDirection: 'row' },
-  quantityInput: { flex: 1, minHeight: 52, borderWidth: 1, borderRightWidth: 0, borderColor: colors.border, borderTopLeftRadius: 12, borderBottomLeftRadius: 12, backgroundColor: colors.background, color: colors.ink, fontSize: 17, paddingHorizontal: 14 },
-  unitBox: { minWidth: 88, minHeight: 52, borderWidth: 1, borderColor: colors.border, borderTopRightRadius: 12, borderBottomRightRadius: 12, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  unitText: { color: colors.ink, fontSize: 14, fontWeight: '800' },
-  helper: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
-  statusRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 14, paddingTop: 12 },
-  statusText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  error: { color: colors.danger, backgroundColor: colors.dangerSoft, padding: 13, borderRadius: 12, fontSize: 14, lineHeight: 20, fontWeight: '600', marginBottom: 12 },
-  notice: { color: colors.leafDark, backgroundColor: colors.leafSoft, padding: 13, borderRadius: 12, fontSize: 14, lineHeight: 20, fontWeight: '600', marginBottom: 12 },
-  publishButton: { minHeight: 54, borderRadius: 15, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
-  publishText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-  pressed: { opacity: 0.74 },
-});

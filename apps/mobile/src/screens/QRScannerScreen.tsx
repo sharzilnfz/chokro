@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -11,7 +10,7 @@ import {
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '../api';
-import { colors, radii, shadows } from '../theme';
+import { colors } from '../theme';
 import { categoryLabel } from '../types';
 
 type DropZone = {
@@ -84,51 +83,51 @@ export function QRScannerScreen({ token }: { token: string }) {
   const acceptedCategories = zone?.acceptedCategories ?? zone?.accepted_categories ?? [];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.eyebrow}>SIGNED ZONE RECOGNITION</Text>
-      <Text accessibilityRole="header" style={styles.title}>Scan a Drop Zone</Text>
-      <Text style={styles.subtitle}>Recognize a registered zone before you visit. Sprint 1 does not create a deposit or Green Credits.</Text>
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="p-[20px] pb-[36px]" keyboardShouldPersistTaps="handled">
+      <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">SIGNED ZONE RECOGNITION</Text>
+      <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Scan a Drop Zone</Text>
+      <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">Recognize a registered zone before you visit. Sprint 1 does not create a deposit or Green Credits.</Text>
 
       {!permission ? (
-        <View style={styles.cameraState} accessibilityLiveRegion="polite">
+        <View className="h-[300px] rounded-lg bg-surface-muted items-center justify-center" accessibilityLiveRegion="polite">
           <ActivityIndicator color={colors.leaf} />
-          <Text style={styles.cameraStateText}>Checking camera permission</Text>
+          <Text className="text-muted text-[13px] mt-[9px]">Checking camera permission</Text>
         </View>
       ) : !permission.granted ? (
-        <View style={styles.permissionCard}>
+        <View className="min-h-[260px] border border-border rounded-lg bg-surface items-center justify-center p-[24px] shadow-card" style={{ elevation: 2 }}>
           <Ionicons name="camera-outline" size={31} color={colors.leaf} />
-          <Text style={styles.permissionTitle}>Camera permission needed</Text>
-          <Text style={styles.permissionCopy}>Chokro uses the camera only to read the signed QR code on a Drop Zone poster.</Text>
+          <Text className="text-ink text-[18px] font-extrabold mt-[10px]">Camera permission needed</Text>
+          <Text className="text-muted text-[13px] leading-[20px] text-center mt-[6px] mb-[15px]">Chokro uses the camera only to read the signed QR code on a Drop Zone poster.</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Allow camera access"
             style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
             onPress={() => void requestPermission()}
           >
-            <Text style={styles.primaryText}>Allow camera</Text>
+            <Text className="text-surface text-[15px] font-extrabold">Allow camera</Text>
           </Pressable>
         </View>
       ) : (
-        <View style={styles.cameraShell}>
+        <View className="h-[310px] rounded-lg overflow-hidden bg-ink shadow-card" style={{ elevation: 2 }}>
           <CameraView
-            style={styles.camera}
+            className="flex-1"
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             onBarcodeScanned={scanning && !loading ? handleBarcode : undefined}
             accessibilityLabel="QR camera view"
           />
-          <View pointerEvents="none" style={styles.cameraOverlay}>
-            <View style={styles.scanFrame} />
-            <Text style={styles.cameraHint}>{scanning ? 'Hold the poster QR inside the frame' : loading ? 'Resolving signed token...' : 'Scan paused'}</Text>
+          <View pointerEvents="none" className="absolute top-0 right-0 bottom-0 left-0 items-center justify-center bg-[#0a160f]/16">
+            <View className="w-[205px] h-[205px] border-[3px] border-surface rounded-[22px]" />
+            <Text className="absolute bottom-[18px] text-surface text-[12px] font-extrabold bg-overlay px-[12px] py-[8px] rounded-pill overflow-hidden">{scanning ? 'Hold the poster QR inside the frame' : loading ? 'Resolving signed token...' : 'Scan paused'}</Text>
           </View>
         </View>
       )}
 
-      <View style={styles.manualCard}>
-        <Text style={styles.manualTitle}>Enter a token instead</Text>
+      <View className="bg-surface border border-border rounded-md p-[15px] mt-[13px]">
+        <Text className="text-ink text-[14px] font-extrabold mb-[8px]">Enter a token instead</Text>
         <TextInput
           accessibilityLabel="Drop Zone token"
-          style={styles.input}
+          className="min-h-[52px] border border-border rounded-[12px] bg-background text-ink text-[14px] px-[13px] mb-[9px]"
           placeholder="CHOKRO-QR-..."
           placeholderTextColor={colors.muted}
           value={manualToken}
@@ -146,16 +145,16 @@ export function QRScannerScreen({ token }: { token: string }) {
           disabled={loading}
           onPress={() => void resolveToken(manualToken)}
         >
-          {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryText}>Check zone</Text>}
+          {loading ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[15px] font-extrabold">Check zone</Text>}
         </Pressable>
       </View>
 
       {error ? (
-        <View accessibilityRole="alert" style={styles.errorCard}>
+        <View accessibilityRole="alert" className="flex-row items-start gap-[10px] bg-danger-soft rounded-md p-[14px] mt-[13px]">
           <Ionicons name="alert-circle-outline" size={22} color={colors.danger} />
-          <View style={styles.messageBody}>
-            <Text style={styles.errorTitle}>Zone not recognized</Text>
-            <Text style={styles.errorText}>{error}</Text>
+          <View className="flex-1">
+            <Text className="text-danger text-[14px] font-extrabold">Zone not recognized</Text>
+            <Text className="text-danger text-[12px] leading-[18px] mt-[2px]">{error}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -169,27 +168,27 @@ export function QRScannerScreen({ token }: { token: string }) {
       ) : null}
 
       {zone ? (
-        <View accessibilityRole="summary" style={styles.zoneCard}>
-          <View style={styles.zoneIcon}>
+        <View accessibilityRole="summary" className="bg-surface border border-leaf rounded-lg p-[19px] mt-[13px] shadow-card" style={{ elevation: 2 }}>
+          <View className="w-[48px] h-[48px] rounded-[16px] bg-leaf items-center justify-center mb-[14px]">
             <Ionicons name="location" size={25} color={colors.surface} />
           </View>
-          <Text style={styles.zoneEyebrow}>REGISTERED DROP ZONE</Text>
-          <Text style={styles.zoneName}>{zone.name}</Text>
-          <View style={styles.statusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{categoryLabel(zone.status)}</Text>
+          <Text className="text-leaf text-[10px] font-black tracking-[1.2px]">REGISTERED DROP ZONE</Text>
+          <Text className="text-ink text-[23px] leading-[29px] font-extrabold mt-[4px]">{zone.name}</Text>
+          <View className="self-start min-h-[32px] flex-row items-center gap-[6px] bg-leaf-soft rounded-pill px-[11px] mt-[10px]">
+            <View className="w-[7px] h-[7px] rounded-[4px] bg-leaf" />
+            <Text className="text-leaf-dark text-[11px] font-extrabold">{categoryLabel(zone.status)}</Text>
           </View>
-          <Text style={styles.acceptedLabel}>Accepted categories</Text>
-          <View style={styles.categoryRow}>
+          <Text className="text-ink text-[13px] font-extrabold mt-[18px] mb-[8px]">Accepted categories</Text>
+          <View className="flex-row flex-wrap gap-[7px]">
             {acceptedCategories.length > 0 ? acceptedCategories.map((category) => (
-              <View key={category} style={styles.categoryChip}>
-                <Text style={styles.categoryText}>{categoryLabel(category)}</Text>
+              <View key={category} className="min-h-[36px] rounded-pill bg-surface-muted items-center justify-center px-[11px]">
+                <Text className="text-ink text-[11px] font-bold">{categoryLabel(category)}</Text>
               </View>
-            )) : <Text style={styles.unknownText}>No accepted categories were returned by the API.</Text>}
+            )) : <Text className="text-muted text-[12px] leading-[18px]">No accepted categories were returned by the API.</Text>}
           </View>
-          <View style={styles.scopeNotice}>
+          <View className="flex-row items-start gap-[8px] bg-amber-soft rounded-[12px] p-[12px] mt-[16px]">
             <Ionicons name="information-circle-outline" size={21} color={colors.amber} />
-            <Text style={styles.scopeText}>Zone recognized only. No deposit was recorded and no credit was created.</Text>
+            <Text className="flex-1 text-amber text-[12px] leading-[18px] font-bold">Zone recognized only. No deposit was recorded and no credit was created.</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -198,7 +197,7 @@ export function QRScannerScreen({ token }: { token: string }) {
             onPress={scanAgain}
           >
             <Ionicons name="scan-outline" size={20} color={colors.leafDark} />
-            <Text style={styles.secondaryText}>Scan another zone</Text>
+            <Text className="text-leaf-dark text-[14px] font-extrabold">Scan another zone</Text>
           </Pressable>
         </View>
       ) : null}
@@ -206,49 +205,3 @@ export function QRScannerScreen({ token }: { token: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingBottom: 36 },
-  eyebrow: { color: colors.leaf, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
-  title: { color: colors.ink, fontSize: 31, lineHeight: 37, fontWeight: '800', letterSpacing: -0.8, marginTop: 4 },
-  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: 18 },
-  cameraState: { height: 300, borderRadius: radii.large, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  cameraStateText: { color: colors.muted, fontSize: 13, marginTop: 9 },
-  cameraShell: { height: 310, borderRadius: radii.large, overflow: 'hidden', backgroundColor: colors.ink, ...shadows.card },
-  camera: { flex: 1 },
-  cameraOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(10, 22, 15, 0.16)' },
-  scanFrame: { width: 205, height: 205, borderWidth: 3, borderColor: colors.surface, borderRadius: 22 },
-  cameraHint: { position: 'absolute', bottom: 18, color: colors.surface, fontSize: 12, fontWeight: '800', backgroundColor: colors.overlay, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.pill, overflow: 'hidden' },
-  permissionCard: { minHeight: 260, borderWidth: 1, borderColor: colors.border, borderRadius: radii.large, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', padding: 24, ...shadows.card },
-  permissionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', marginTop: 10 },
-  permissionCopy: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 6, marginBottom: 15 },
-  primaryButton: { minWidth: 170, minHeight: 50, borderRadius: 14, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: colors.surface, fontSize: 15, fontWeight: '800' },
-  manualCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, padding: 15, marginTop: 13 },
-  manualTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', marginBottom: 8 },
-  input: { minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.background, color: colors.ink, fontSize: 14, paddingHorizontal: 13, marginBottom: 9 },
-  resolveButton: { minHeight: 50, borderRadius: 13, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
-  errorCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: colors.dangerSoft, borderRadius: radii.medium, padding: 14, marginTop: 13 },
-  messageBody: { flex: 1 },
-  errorTitle: { color: colors.danger, fontSize: 14, fontWeight: '800' },
-  errorText: { color: colors.danger, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  iconButton: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  zoneCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.leaf, borderRadius: radii.large, padding: 19, marginTop: 13, ...shadows.card },
-  zoneIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  zoneEyebrow: { color: colors.leaf, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  zoneName: { color: colors.ink, fontSize: 23, lineHeight: 29, fontWeight: '800', marginTop: 4 },
-  statusBadge: { alignSelf: 'flex-start', minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.leafSoft, borderRadius: radii.pill, paddingHorizontal: 11, marginTop: 10 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.leaf },
-  statusText: { color: colors.leafDark, fontSize: 11, fontWeight: '800' },
-  acceptedLabel: { color: colors.ink, fontSize: 13, fontWeight: '800', marginTop: 18, marginBottom: 8 },
-  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  categoryChip: { minHeight: 36, borderRadius: radii.pill, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 11 },
-  categoryText: { color: colors.ink, fontSize: 11, fontWeight: '700' },
-  unknownText: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  scopeNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: colors.amberSoft, borderRadius: 12, padding: 12, marginTop: 16 },
-  scopeText: { flex: 1, color: colors.amber, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  secondaryButton: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.leaf, borderRadius: 14, marginTop: 13 },
-  secondaryText: { color: colors.leafDark, fontSize: 14, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-  pressed: { opacity: 0.72 },
-});
