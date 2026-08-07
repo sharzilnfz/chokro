@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chokro, Explained — Understand Your Sprint-1 Codebase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d13; --panel:#131826; --panel-2:#171d2d; --line:#262e42;
+  --text:#e7eaf2; --text-dim:#9099b0; --text-faint:#626b84;
+
+  /* semantic colors, used consistently:
+     blue  = client (mobile + admin web) · green = API server
+     amber = database · purple = tokens & signatures · red = errors */
+  --c-client:#5eb4ff;   --c-client-soft:rgba(94,180,255,.14);
+  --c-server:#57d38c;   --c-server-soft:rgba(87,211,140,.14);
+  --c-db:#ffcf56;       --c-db-soft:rgba(255,207,86,.14);
+  --c-danger:#ff7b7b;   --c-danger-soft:rgba(255,123,123,.14);
+  --c-accent:#c792ea;   --c-purp-soft:rgba(199,146,234,.14);
+
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -5%, rgba(94,180,255,.07), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 20%, rgba(199,146,234,.06), transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text);
+  font-family:var(--font-body);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;letter-spacing:-.01em;margin:0 0 .5em;}
+p{margin:0 0 1em;}
+code,.mono{font-family:var(--font-mono);}
+
+/* ---------- layout shell ---------- */
+.layout{position:relative;z-index:1;display:flex;max-width:1300px;margin:0 auto;}
+nav.toc{position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;width:222px;flex:0 0 222px;padding:28px 14px 40px 24px;border-right:1px solid var(--line);scrollbar-width:thin;}
+nav.toc .brand{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);letter-spacing:.12em;text-transform:uppercase;margin-bottom:22px;}
+nav.toc a{display:block;color:var(--text-dim);text-decoration:none;font-size:13.5px;padding:6px 10px;border-radius:7px;border-left:2px solid transparent;margin-bottom:1px;}
+nav.toc a:hover{color:var(--text);background:var(--panel);}
+main{flex:1;min-width:0;padding:0 0 110px;}
+.wrap{max-width:860px;margin:0 auto;padding:0 40px;}
+
+/* ---------- hero ---------- */
+.hero{padding:60px 40px 18px;max-width:860px;margin:0 auto;}
+.hero .eyebrow{font-family:var(--font-mono);font-size:12.5px;color:var(--c-accent);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;}
+.hero h1{font-size:42px;line-height:1.12;margin-bottom:16px;}
+.hero .sub{font-size:16.5px;color:var(--text-dim);max-width:640px;}
+.hero .deck{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ---------- sections ---------- */
+section{padding-top:60px;scroll-margin-top:20px;}
+section.part-head{padding-top:92px;border-top:1px solid var(--line);margin-top:18px;}
+.part-label{font-family:var(--font-mono);font-size:12.5px;color:var(--text-faint);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;}
+h2{font-size:28px;}
+h3{font-size:19.5px;margin-top:2.1em;}
+
+blockquote.insight{margin:1.5em 0;padding:15px 19px;background:var(--panel);border-left:3px solid var(--c-accent);border-radius:0 10px 10px 0;font-size:14.5px;}
+blockquote.insight b{color:var(--c-accent);}
+.trap{margin:1.3em 0;padding:13px 17px;background:var(--c-danger-soft);border:1px solid rgba(255,123,123,.25);border-radius:10px;font-size:14.5px;}
+.trap .lbl{font-family:var(--font-mono);color:var(--c-danger);font-weight:600;margin-right:6px;}
+.note{margin:1.3em 0;padding:13px 17px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c-db);border-radius:0 10px 10px 0;font-size:14px;color:var(--text-dim);}
+.note b{color:var(--c-db);}
+
+.tag{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:20px;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);margin-right:6px;}
+
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 22px;font-family:var(--font-mono);font-size:12.5px;color:var(--text-dim);}
+.legend .sw{display:inline-flex;align-items:center;gap:6px;}
+.legend .dot{width:9px;height:9px;border-radius:2px;display:inline-block;}
+
+/* ---------- code blocks ---------- */
+pre{background:#0c1018;border:1px solid var(--line);border-radius:11px;padding:16px 18px;overflow-x:auto;font-size:12.5px;margin:1.3em 0;line-height:1.62;}
+code{font-size:12.5px;}
+pre code{color:#d3d8e6;}
+.hl-code{background:rgba(199,146,234,.16);color:#e7d4fb;}
+.cm{color:#626b84;font-style:italic;}
+
+/* ---------- panels & widgets ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin:1.6em 0;}
+.panel-title{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+.panel-title .hint{font-family:var(--font-body);text-transform:none;letter-spacing:0;font-size:12px;color:var(--text-faint);}
+.viz-caption{margin-top:12px;font-family:var(--font-mono);font-size:12.5px;color:var(--text-dim);min-height:18px;}
+.viz-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+button.chip{font-family:var(--font-mono);font-size:12.5px;background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);padding:7px 13px;border-radius:20px;cursor:pointer;transition:all .15s;}
+button.chip:hover{color:var(--text);border-color:var(--c-client);background:var(--c-client-soft);}
+button.chip.active{color:#0a0d13;background:var(--c-client);border-color:var(--c-client);font-weight:600;}
+.btn{display:inline-block;font-family:var(--font-mono);font-size:12px;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);padding:8px 14px;border-radius:10px;cursor:pointer;transition:all .15s;margin:2px 6px 2px 0;}
+.btn:hover{color:var(--text);border-color:var(--c-accent);}
+
+/* stepper */
+.stepper{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 14px;}
+.stepper .step{flex:1;min-width:118px;padding:10px 8px;text-align:center;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:all .15s;font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
+.stepper .step .n{display:block;color:var(--c-accent);font-size:11px;margin-bottom:3px;}
+.stepper .step:hover{border-color:var(--c-client);}
+.stepper .step.active{border-color:var(--c-accent);background:var(--c-purp-soft);color:var(--text);}
+.tab-panel{border-left:3px solid var(--c-accent);padding:4px 0 4px 16px;font-size:14.5px;color:var(--text-dim);}
+.tab-panel b{color:var(--text);}
+.tab-meta{margin-top:12px;font-family:var(--font-mono);font-size:12.5px;color:var(--text-faint);}
+
+/* tiles */
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+.tile{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:13px 14px;cursor:pointer;transition:all .15s;}
+.tile:hover{border-color:var(--c-client);}
+.tile.active{border-color:var(--c-accent);background:var(--c-purp-soft);}
+.tile .t-name{font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--text);}
+.tile .t-sub{font-size:11.5px;color:var(--text-faint);margin-top:4px;}
+
+/* method badges */
+.mbadge{font-family:var(--font-mono);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.04em;}
+.m-GET{background:rgba(87,211,140,.16);color:var(--c-server);}
+.m-POST{background:rgba(94,180,255,.16);color:var(--c-client);}
+.m-PATCH{background:rgba(255,207,86,.16);color:var(--c-db);}
+
+/* data tables */
+.dtable{width:100%;border-collapse:collapse;font-size:13px;}
+.dtable th{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--text-faint);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);letter-spacing:.05em;}
+.dtable td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--text-dim);vertical-align:top;}
+.dtable td.mono{font-family:var(--font-mono);}
+.dtable tr.hl td{background:var(--c-purp-soft);border-color:var(--c-accent);color:var(--text);}
+.dtable tr.hl td:first-child{color:var(--c-accent);font-weight:700;}
+.dtable tr.old td{opacity:.5;}
+.dtable tr.hl .old{opacity:1;}
+
+/* feed-style cards (cursor demo) */
+.feed-card{display:flex;gap:14px;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;align-items:center;transition:all .12s;cursor:pointer;}
+.feed-card:hover{border-color:var(--c-client);}
+.feed-card.active{border-color:var(--c-accent);background:var(--c-purp-soft);}
+.feed-card .f-thumb{width:42px;height:42px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--c-db-soft);}
+.feed-card .f-main{flex:1;}
+.feed-card .f-title{font-weight:700;font-size:14px;}
+.feed-card .f-meta{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:2px;}
+
+/* ledger rows */
+.ledger-row{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;margin-top:8px;cursor:pointer;transition:all .15s;}
+.ledger-row:hover{border-color:var(--c-client);}
+.ledger-row .lp{width:64px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:13px;font-weight:700;}
+.lp-pos{background:var(--c-server-soft);color:var(--c-server);}
+.lp-neg{background:var(--c-danger-soft);color:var(--c-danger);}
+.ledger-row .l-main{flex:1;}
+.ledger-row .l-kind{font-family:var(--font-mono);font-size:12.5px;font-weight:600;}
+.ledger-row .l-sub{font-size:11.5px;color:var(--text-faint);margin-top:1px;}
+.ledger-row .l-status{font-family:var(--font-mono);font-size:10.5px;padding:2px 9px;border-radius:20px;font-weight:600;}
+.st-VERIFIED{background:var(--c-server-soft);color:var(--c-server);}
+.st-PENDING{background:var(--c-db-soft);color:var(--c-db);}
+.st-REJECTED{background:var(--c-danger-soft);color:var(--c-danger);}
+
+/* request packet */
+.req-packet{font-family:var(--font-mono);font-size:12.5px;background:#0c1018;border:1px solid var(--line);border-radius:10px;padding:14px 16px;line-height:1.8;overflow-x:auto;}
+.req-packet .k{color:var(--c-accent);}
+.req-packet .v{color:#d3d8e6;}
+.req-packet .gol{color:var(--text-faint);}
+
+/* state machine */
+.fsm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0;}
+.fsm .node{width:118px;text-align:center;padding:11px 8px;border-radius:12px;background:var(--panel-2);border:2px solid var(--line);font-family:var(--font-mono);font-size:12.5px;color:var(--text-dim);cursor:pointer;transition:all .15s;}
+.fsm .node:hover{border-color:var(--c-client);color:var(--text);}
+.fsm .node.active{border-color:var(--c-accent);color:var(--text);background:var(--c-purp-soft);}
+.fsm .arrow{color:var(--text-faint);font-size:18px;}
+
+/* qa */
+.qa{margin:1.4em 0;padding:16px 18px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;}
+.qa .q{font-weight:600;margin-bottom:6px;font-size:14.5px;}
+.qa details summary{cursor:pointer;color:var(--c-client);font-size:13.5px;font-family:var(--font-mono);}
+.qa details p{margin:10px 0 0;font-size:14px;color:var(--text-dim);}
+
+/* quick reference */
+.refcard{background:#0b0e15;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.refcard pre{margin:0;border:none;border-radius:0;font-size:12px;}
+hr.div{border:none;border-top:1px solid var(--line);margin:3em 0;}
+footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-size:13px;font-family:var(--font-mono);}
+@media (max-width:920px){
+  nav.toc{display:none;}
+  .hero{padding:44px 22px 10px;}
+  .wrap{padding:0 22px;}
+  .hero h1{font-size:32px;}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <div class="brand">◆ chokro / sprint-1</div>
+  <a href="#big-picture">0 · The Big Picture</a>
+  <a href="#part-1">1 · Lay of the Land</a>
+  <a href="#part-2">2 · One Request, End-to-End</a>
+  <a href="#part-3">3 · Identity &amp; Trust</a>
+  <a href="#part-4">4 · Marketplace &amp; Feed</a>
+  <a href="#part-5">5 · The Ledger (Rates + Wallet)</a>
+  <a href="#part-6">6 · Signed QR Drop Zones</a>
+  <a href="#part-7">7 · The Clients (Mobile + Admin)</a>
+  <a href="#reference">📌 Reference</a>
+</nav>
+<main>
+  <div class="hero">
+    <div class="eyebrow">your sprint-1 codebase, one walkthrough at a time</div>
+    <h1>Chokro, Explained</h1>
+    <p class="sub">Everything an agent wrote in Sprint&nbsp;1 — the monorepo shape, every API route, the database, the auth, and the mobile app — turned into a guided tour you can click through. Hover the tiles, press the chips, open the self-tests.</p>
+    <div class="deck">
+      <span class="tag">monorepo · turbo</span><span class="tag">Next.js API</span><span class="tag">Expo mobile</span><span class="tag">Postgres + Drizzle</span><span class="tag">JWT + bcrypt</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+  <!-- ============================================================== -->
+  <section id="big-picture" class="part-head">
+    <div class="part-label">Part 0</div>
+    <h2>🧠 The Big Picture</h2>
+
+    <p>Imagine a market with three counters. At the <b style="color:var(--c-client)">front</b>, buyers and sellers hand things over and ask questions — that's the <b>mobile app</b>. Behind it, an <b style="color:var(--c-server)">office</b> checks every request, decides yes/no, and writes receipts — that's the <b>API server</b>. And in the back room, one trusted <b style="color:var(--c-db)">ledger book</b> records everything that is true — that's the <b>database</b>. The front desk is the only thing you ever see, but every "yes" comes from the office, and the office only trusts the ledger.</p>
+
+    <p>Chokro is exactly that. A phone app (Expo / React Native) asks a server (Next.js, which also serves the admin website) to do things, and the server reads and writes a single PostgreSQL database through Drizzle ORM. Nothing on the phone talks to the database directly — every data change travels through an HTTP call to the server.</p>
+
+    <div class="legend">
+      <span class="sw"><span class="dot" style="background:var(--c-client)"></span>client apps (phone + admin web)</span>
+      <span class="sw"><span class="dot" style="background:var(--c-server)"></span>API server (rules &amp; gates)</span>
+      <span class="sw"><span class="dot" style="background:var(--c-db)"></span>database (source of truth)</span>
+      <span class="sw"><span class="dot" style="background:var(--c-accent)"></span>tokens &amp; signatures</span>
+    </div>
+
+    <p>Here is one complete loop through the whole machine. Press each step to see which real endpoint it touches.</p>
+
+    <div class="panel">
+      <div class="panel-title">The whole system in one loop<span class="hint">Sadia's old rice cooker, and the events around it</span></div>
+      <div class="stepper" id="w0-steps"></div>
+      <div class="tab-panel" id="w0-detail"></div>
+    </div>
+
+    <blockquote class="insight"><b>The whole lesson in one line:</b> Every screen you see is the mobile app acting only as eyes and hands — the brains and the memory are the server and the database, and they live in <span class="mono">apps/api</span> + <span class="mono">packages/db</span>.</blockquote>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-1" class="part-head">
+    <div class="part-label">Part 1</div>
+    <h2>🗺️ The Lay of the Land (the monorepo)</h2>
+
+    <p>The repo isn't one project — it's a <b>monorepo</b>: several projects in one git repository, managed by <b>pnpm workspaces</b> and orchestrated by <b>Turbo</b>. The root <span class="mono">package.json</span> only adds convenience scripts; the real apps live in two folders. Hover each tile.</p>
+
+    <div class="panel">
+      <div class="panel-title">Folder map — click a tile<span class="hint">every line of Sprint-1 code lives here</span></div>
+      <div class="tile-grid" id="w1-tiles"></div>
+      <div class="tab-panel" id="w1-detail" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="note"><b>Golden rule of the repo:</b> code that only the phone uses lives in <span class="mono">apps/mobile</span>; code that only the API uses lives in <span class="mono">apps/api</span>; anything both need — the database tables and the shared enums — lives in <span class="mono">packages/</span> and is installed like a normal dependency (<span class="mono">workspace:*</span>).</div>
+
+    <h3>The API surface: all the doors into the system</h3>
+    <p>Next.js "route handlers" map a URL + method to a file. <span class="mono">apps/api/app/api/feed/route.ts</span> with an exported <span class="mono">GET</span> answers <code>GET /api/feed</code>; <span class="mono">listings/[id]/route.ts</span> answers <code>/api/listings/:id</code>. Here is every door, grouped by area — click a group chip.</p>
+
+    <div class="panel">
+      <div class="panel-title">Every API endpoint in Sprint 1<span class="hint">22 endpoints across 17 files</span></div>
+      <div class="viz-controls" id="w1-groups"></div>
+      <div style="margin-top:12px;overflow-x:auto;">
+        <table class="dtable" id="w1-rtable"></table>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="q">Self-test: You want to browse listings by category on the phone. Name the exact pieces involved (client file → URL → server file).</div>
+      <details><summary>Reveal</summary><p>The phone shows <code>FeedScreen.tsx</code>; it calls <code>GET /api/feed?category=...</code>; that's served by <code>apps/api/app/api/feed/route.ts</code>, which reads the <code>listings</code> table in the database. One idea, three layers — and you can now name all three.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-2" class="part-head">
+    <div class="part-label">Part 2</div>
+    <h2>🔑 One Request, End-to-End</h2>
+
+    <p>Every door in Part 1 works the same way. If you understand one route you understand all 22. Let's live inside <code>POST /api/listings</code> — the request the phone fires when Sadia creates a listing.</p>
+
+    <div class="panel">
+      <div class="panel-title">The request as the server sees it<span class="hint">what leaves the phone</span></div>
+      <div class="req-packet" id="w2-req"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Walk the route — press each stage<span class="hint">each stage is one ingredient of the skeleton below</span></div>
+      <div class="stepper" id="w2-steps"></div>
+      <div class="tab-panel" id="w2-detail"></div>
+    </div>
+
+    <h3>Every route shares this skeleton</h3>
+    <pre><code><span class="hl-code">export const POST = safeRoute(async (req: Request) =&gt; {</span> <span class="cm">// ① wrapped in safeRoute for auto error handling</span>
+  <span class="hl-code">const auth = requireAuth(req);</span>                    <span class="cm">// ② gate: Bearer JWT → {userId, email, role} or 401</span>
+  <span class="hl-code">if (auth.response) return auth.response;</span>          <span class="cm">// ③ early return if the gate failed</span>
+
+  <span class="hl-code">const parsed = Schema.safeParse(await req.json());</span> <span class="cm">// ④ validate body with a zod schema</span>
+  <span class="hl-code">if (!parsed.success)</span>                              <span class="cm">// ⑤ bad data → canonical apiError response</span>
+    return apiError('Invalid input', 400, parsed.error.format());
+
+  <span class="hl-code">const listing = await listingRepo.create({ ... });</span> <span class="cm">// ⑥ domain repository encapsulates DB vs test store</span>
+  return NextResponse.json({ listing }, { status: 201 }); <span class="cm">// ⑦ JSON out — clean, decoupled route</span>
+<span class="hl-code">});</span>                                                 <span class="cm">// safeRoute catches unhandled errors → routeError (500/503)</span></code></pre>
+
+    <p>The real file is a few more lines (the zod schema for listings also enforces the kg-vs-piece rule — that's a whole story, see Part 4). But the shape is identical across all 22 endpoints. Once you read one, you've read them all.</p>
+
+    <div class="panel">
+      <div class="panel-title">Production database vs. test twin<span class="hint">the one weird thing in every route</span></div>
+      <p style="font-size:14px;color:var(--text-dim);margin:0 0 10px;">Every route can run one of two code paths. Click to see which.</p>
+      <div class="viz-controls" id="w2-modes"></div>
+      <div class="tab-panel" id="w2-mode-detail"></div>
+    </div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 2.1</span><b>Every route has two parallel back-ends.</b> In dev it writes to real Postgres; when tests set <code>NODE_ENV=test</code>, the <code>@chokro/db</code> package hands you an in-memory array (the <code>memoryStore</code>) and <code>db</code> is literally <code>null</code>. The in-memory tier mirrors all six tables so Jest tests run with no database installed. New data shapes must be added to <em>both</em> the real insert <em>and</em> its <code>memoryStore</code> twin.</div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 2.2</span><b>Postgres returns decimals as strings.</b> The schema stores money and weight as <code>decimal</code>; Drizzle hands those back as text like <code>"45.00"</code>. That's why the code does <code>priceBdt.toString()</code> when writing and <code>Number(txn.amount)</code> when reading. Never add "string money" without a <code>Number()</code> first.</div>
+
+    <div class="qa">
+      <div class="q">Self-test: a test signs up a user, but the test crashes with "Database unavailable". What happened, and what's the fix?</div>
+      <details><summary>Reveal</summary><p>The test probably ran with <code>NODE_ENV</code> set to something other than <code>test</code>, so <code>databaseOrTestStore</code> tried the real database. Run Jest with <code>NODE_ENV=test</code> — then every route takes its in-memory path instead.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-3" class="part-head">
+    <div class="part-label">Part 3</div>
+    <h2>🔐 Identity &amp; Trust</h2>
+
+    <p>Two files do all the security: <span class="mono">apps/api/lib/auth.ts</span> (passwords + tokens + role gates) and <span class="mono">apps/api/app/api/partners/apply/route.ts</span> (partner trust). This part answers the two front-door questions: "<b>Who are you?</b>" → <code>requireAuth</code> — and "<b>Can you do that?</b>" → <code>requireAdmin</code>.</p>
+
+    <h3>1 · Passwords are never stored</h3>
+    <pre><code><span class="cm">// bcryptjs — one-way, salted, deliberately slow</span>
+hashPassword(pw)         <span class="cm">// "letitgo" → "$2b$10$WLnQ…" (never reversible)</span>
+comparePassword(pw, hash)  <span class="cm">// only answers "yes" / "no" — signup &amp; login use it</span></code></pre>
+    <p>Signup runs the raw password through <code>hashPassword</code> (<span class="mono">bcrypt.hashSync(pw, 10)</span>), stores only the hash, and always saves <code>role: 'INDIVIDUAL'</code>. Login re-hashes your attempt and compares — <b>the plain-text password never reaches the database</b>.</p>
+
+    <h3>2 · The token (a badge you carry)</h3>
+    <p>On successful login the server mints a <b>JWT</b> with <code>jsonwebtoken</code>: the payload holds <code>{ userId, email, role }</code>, the server signs it with the <code>JWT_SECRET</code> (HMAC-SHA256), and it expires in <b>7 days</b>. From then on the phone sends it on every request as <code>Authorization: Bearer &lt;token&gt;</code>. Hover each segment below.</p>
+
+    <div class="panel">
+      <div class="panel-title">JWT anatomy — hover a segment<span class="hint">demo for user@chokro.org</span></div>
+      <div class="req-packet" id="w3-tok" style="cursor:pointer;"></div>
+      <div class="tab-panel" id="w3-tok-detail"></div>
+    </div>
+
+    <pre><code><span class="cm">// lib/auth.ts — the two gatekeepers</span>
+export function <span class="hl-code">requireAuth</span>(req) {
+  const user = verifyAuthHeader(req);        <span class="cm">// read Bearer → verifyToken → parse role</span>
+  if (!user) return { response: NextResponse.json({error:'Unauthorized'}, {status:401}) };
+  return { user };
+}
+export function <span class="hl-code">requireAdmin</span>(req) {
+  const auth = requireAuth(req);            <span class="cm">// 1. must be logged in</span>
+  if (auth.response) return auth;
+  if (auth.user.role !== 'ADMIN')           <span class="cm">// 2. must be an admin</span>
+    return { response: NextResponse.json({error:'Forbidden'}, {status:403}) };
+  return auth;
+}</code></pre>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 3.1</span><b>The token is signed, not encrypted.</b> The middle segment is just base64 of the JSON payload — readable by anyone. Its safety comes from the <em>signature</em>: only someone holding <code>JWT_SECRET</code> can create one, so a tampered payload fails verification. Never put secrets in it.</div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 3.2</span><b>The role is trusted from the token.</b> <code>requireAdmin</code> does not re-query the database. If a user is promoted to ADMIN in the DB, their existing 7-day tokens still carry the old role until they log in again. Fine for a demo, unacceptable in production.</div>
+
+    <h3>3 · The partner DoE gate — a trust rule worth memorizing</h3>
+    <p>This is the best example of a <b>business invariant</b> in the whole repo. The PRD says e-waste routes may only go to DoE-licensed partners, and nobody gets that by declaring it themselves.</p>
+
+    <div class="panel">
+      <div class="panel-title">Press each scenario<span class="hint">the same flow, three different legal outcomes</span></div>
+      <div class="viz-controls" id="w3-does"></div>
+      <div class="tab-panel" id="w3-doe-detail"></div>
+    </div>
+
+    <div class="note"><b>Why this matters:</b> even when the request claims <code>eWasteLicensed: true</code> with a doc attached, the route hard-sets <code>e_waste_licensed: false</code> in the database. That flag is only flicked to <code>true</code> later by <code>POST /api/admin/partners</code> when an admin approves a partner who has a DoE license doc on file. <b>The applicant offers a fact; an admin confirms it. The code never lets users self-certify.</b></div>
+
+    <div class="qa">
+      <div class="q">Self-test: someone signs up and self-registers as PARTNER. Two days later their application shows "VERIFIED". What chain made that possible?</div>
+      <details><summary>Reveal</summary><p>Signup always writes role <code>INDIVIDUAL</code> — a user can never be born an admin. Being a partner is two steps: <code>POST /api/partners/apply</code> (any logged-in user) creates an <code>APPLIED</code> row; only <code>POST /api/admin/partners</code> by a real admin flips it to <code>VERIFIED</code>. That's the whole "privilege escalation" story the code lets you see.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-4" class="part-head">
+    <div class="part-label">Part 4</div>
+    <h2>🔄 The Marketplace (Listings &amp; Feed)</h2>
+
+    <p>Three ideas make up this area: the <b>unit rule</b> that turns categories into physical quantities, the <b>status machine</b> listings move through, and the <b>cursor pagination</b> that pages the browse feed without page numbers.</p>
+
+    <h3>1 · Dual-unit validation</h3>
+    <p>Recycling pricing in Bangladesh is dual-unit: scrap materials and clothes are priced <b>per kg</b>, appliances and e-waste are priced <b>per piece</b> (BanglaBin-style rate cards, per the PRD). The create-listing schema enforces it with a <code>superRefine</code>:</p>
+
+    <pre><code>const isPieceCategory = category === 'APPLIANCES' || category === 'E_WASTE';
+if (isPieceCategory  &amp;&amp; (unit !== 'piece' || pieceCount === undefined || weight given)) &rArr; reject
+if (!isPieceCategory &amp;&amp; (unit !== 'kg'     || declaredWeight === undefined))            &rArr; reject</code></pre>
+
+    <div class="panel">
+      <div class="panel-title">Click a category<span class="hint">watch the rule decide the shape of its listing</span></div>
+      <div class="viz-controls" id="w4-cats"></div>
+      <div class="tab-panel" id="w4-cat-detail"></div>
+    </div>
+
+    <h3>2 · The listing state machine</h3>
+    <p><code>PATCH /api/listings/:id</code> only allows legal transitions, hard-coded in a map:</p>
+
+    <div class="panel">
+      <div class="panel-title">Which transition is allowed?<span class="hint">click the node you're leaving</span></div>
+      <div class="fsm" id="w4-fsm"></div>
+      <div class="tab-panel" id="w4-fsm-detail"></div>
+    </div>
+
+    <div class="note"><b>Note:</b> the phone's types file also knows <code>MATCHED</code> and <code>EXPIRED</code> statuses that Sprint 1's backend does not yet assign — the feed filters on <code>ACTIVE</code> only, so those survive as future states.</div>
+
+    <h3>3 · Cursor pagination ("the page that never skips")</h3>
+    <p>The feed route takes <code>limit</code> (up to 50) and an opaque <code>cursor</code>. The cursor is just <b>where we left off</b> — the <code>createdAt</code> + <code>id</code> of the last item you saw, base64-encoded:</p>
+
+    <pre><code><span class="cm">// feed/route.ts</span>
+encode:  Buffer.from(JSON.stringify({ createdAt, id })).toString('base64url');
+decode:  JSON.parse(Buffer.from(value, 'base64url').toString());
+filters.push( or( lt(created_at, cursor.createdAt),          <span class="cm">// strictly older…</span>
+                  and(eq(created_at, cursor.createdAt), lt(id, cursor.id)) ) );  <span class="cm">// …or same-tick, smaller id</span></code></pre>
+
+    <div class="panel">
+      <div class="panel-title">Watch the cursor do its job<span class="hint">press "Load more" — no page numbers anywhere</span></div>
+      <div id="w4-feed"></div>
+      <div class="viz-caption" id="w4-feed-cap"></div>
+      <div class="tab-panel" id="w4-cursor-detail"></div>
+    </div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 4.1</span>Cursor = <b>sort-position of the last seen row</b>. That's why <code>created_at</code> alone isn't enough — two items in the same millisecond share a timestamp, so the <code>id</code> is the tiebreaker. And the route fetches <code>limit + 1</code> rows on purpose: the extra one proves <code>hasMore</code> (there is a next page) and is then dropped.</div>
+
+    <div class="qa">
+      <div class="q">Self-test: the client asks for 20 items, the database has 41 ACTIVE. What does the server return, and what happens on the second request?</div>
+      <details><summary>Reveal</summary><p>First call returns 20 items + a cursor (the 21st row is fetched only to prove more exist). The second call carries that cursor and returns rows 21–40 + a new cursor; the third returns the last row with <code>nextCursor: null</code>. On the phone, "Load more" simply stops rendering.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-5" class="part-head">
+    <div class="part-label">Part 5</div>
+    <h2>💰 The Ledger (Rate Card + Wallet)</h2>
+
+    <p>Two systems, one philosophy: <b>don't store a derived value — store events and derive on reading.</b> The rate card stores every published version and the app shows the current one; the wallet stores every credit transaction and the balance is a sum, never a stored number.</p>
+
+    <h3>1 · Rate card with versioning</h3>
+    <p>Admins publish rates by inserting a new row. The public route (<code>GET /api/rate-card/published</code>) filters out future <code>effective_from</code> dates, then keeps the newest row per <code>category|condition|unit</code> — the "current price" is derived, not stored:</p>
+
+    <div class="panel">
+      <div class="panel-title">Who wins? — click "add" to publish a newer price<span class="hint">green = the version the app actually serves</span></div>
+      <div id="w5-rates"></div>
+      <div class="viz-controls" style="margin-top:12px;">
+        <button class="chip" id="w5-add">Add a newer PLASTICS price (৳45 → ৳50)</button>
+        <button class="chip" id="w5-reset">Reset</button>
+      </div>
+      <div class="tab-panel" id="w5-rate-detail"></div>
+    </div>
+
+    <pre><code><span class="cm">// rate-card/published route — the whole algorithm</span>
+.filter(e =&gt; new Date(e.effective_from) &lt;= now)            <span class="cm">// not alive yet? ignore</span>
+.reduce((acc, entry) =&gt; {
+   key = `${entry.category}|${entry.condition_band}|${entry.unit}`;
+   acc[key] = !acc[key] || new Date(entry.effective_from) &gt; new Date(acc[key].effective_from)
+                ? entry : acc[key];                         <span class="cm">// newest row wins the key</span>
+})</code></pre>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 5.1</span>The admin web page offers a condition called <b><span class="mono">SCRAP</span></b> (<code>CONDITION_BANDS</code> in <span class="mono">admin/rate-card/page.tsx</span>), but the shared <code>Condition</code> enum knows only <span class="mono">EXCELLENT · GOOD · FAIR · POOR</span> — pick SCRAP in the console and the API answers <code>400</code>, because the zod schema validates against the shared enum. The condition list is duplicated in two files, and they've already drifted.</div>
+
+    <h3>2 · The wallet: an append-only ledger</h3>
+    <p>Every credit movement is one row in <span class="mono">credit_txns</span> (kind <code>EARN</code> / <code>REDEEM</code> / <code>ADJUST</code>, status <code>PENDING</code> / <code>VERIFIED</code> / <code>REJECTED</code>). The database literally refuses to ever change or delete a row — a trigger <code>reject_credit_txn_mutation</code> raises <code>'credit_txns is append-only'</code> on <code>UPDATE</code>/<code>DELETE</code> (see <span class="mono">packages/db/src/migrate.ts</span>).</p>
+
+    <p>The balance route (<code>GET /api/wallet/balance</code>) reads <em>all</em> the user's rows and sums: verified positives → <code>verified</code> balance, pending rows → <code>pending</code>. Nothing is stored; it's always recomputed. Click any row below.</p>
+
+    <div class="panel">
+      <div class="panel-title">Click any row — watch the balance derive<span class="hint">from the ledger, never stored</span></div>
+      <div id="w5-wallet"></div>
+      <div class="tab-panel" id="w5-wallet-detail"></div>
+    </div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 5.2</span>Because rows can't be edited, "fixing" a wallet means <b>appending a new <code>ADJUST</code> row</b> — <code>POST /api/admin/wallet/adjust</code> does exactly that. Negative amounts claw credits back, and the <code>reason</code> (at least 5 characters) is mandatory so every adjustment stays auditable.</div>
+
+    <div class="qa">
+      <div class="q">Self-test: an admin "adds 100 credits" but the user's balance still shows 0. Where should you look first?</div>
+      <details><summary>Reveal</summary><p>Check the transaction's <code>status</code>. If it's <code>PENDING</code> or <code>REJECTED</code> it isn't part of <code>verifiedSum</code>, so it never reaches the spendable balance. The wallet only counts VERIFIED rows.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-6" class="part-head">
+    <div class="part-label">Part 6</div>
+    <h2>📟 Signed QR Drop Zones</h2>
+
+    <p>Drop zones are physical boxes on campus. They print a poster; the poster has a QR code; the phone scans it and asks the server "which zone is this?" — but only if the QR proves it was created by Chokro.</p>
+
+    <pre><code><span class="cm">// lib/qr.ts — the anti-tamper layer</span>
+function signature(payload) { return createHmac('sha256', QR_SECRET).update(payload).digest('base64url'); }
+createQrToken() =&gt; payload = 32 random bytes (base64url)
+                   token = payload + '.' + signature(payload)
+isValidQrToken(token) =&gt; recompute signature and <b>timingSafeEqual</b>  <span class="cm">// constant-time compare</span></code></pre>
+
+    <div class="panel">
+      <div class="panel-title">Zone lifecycle — press each stage<span class="hint">admin prints → user scans → server resolves</span></div>
+      <div class="stepper" id="w6-steps"></div>
+      <div class="tab-panel" id="w6-detail"></div>
+    </div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 6.1</span>Signing ≠ secrecy. The random 32-byte payload tells you <em>nothing</em>; the signature is what proves the token wasn't made up. Anyone can <em>read</em> a token — only the server holding <code>QR_SECRET</code> can <em>forge</em> one. And <code>timingSafeEqual</code> makes the check resistant to timing attacks.</div>
+
+    <div class="note"><b>Why so heavy?</b> A QR code on a wall is public. If scanning a zone were just "upload this ID", a scammer would print one for a fake campus. The signature means a printed token can't be forged; the resolve route then returns the zone's name, status, and accepted categories — recognized, not deposited. (Deposits &amp; credits are a later sprint.)</div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-7" class="part-head">
+    <div class="part-label">Part 7</div>
+    <h2>📱 The Clients (Mobile + Admin Web)</h2>
+
+    <p>Last mile. The <b>mobile app</b> (<span class="mono">apps/mobile</span>, Expo + React Native) and the <b>admin console</b> (<span class="mono">apps/api/app/admin</span>, Next.js pages) are two very different shells around the same HTTP API.</p>
+
+    <h3>Mobile: one screen to rule them all</h3>
+    <p><span class="mono">App.tsx</span> is a single React component with a small bootstrap. It never uses a router library — <b>tabs</b> are just a <code>useState</code>. If you read only one mobile file, read this one. Click each tab.</p>
+
+    <div class="panel">
+      <div class="panel-title">The app's tab explorer — press a tab<span class="hint">what mounts, and which API it needs</span></div>
+      <div class="viz-controls" id="w7-tabs"></div>
+      <div class="tab-panel" id="w7-detail"></div>
+      <div class="tile" style="margin-top:16px;cursor:default;">
+        <div class="t-name">Boot sequence (before any tab shows)</div>
+        <div class="t-sub">restoreSession() → read the JWT from expo-secure-store → GET /api/auth/me → <b>ready</b>. If the token is stale (401/404), it's deleted and the login screen shows. This is why the app "remembers" you across restarts — the token lives in the phone keychain.</div>
+      </div>
+    </div>
+
+    <pre><code><span class="cm">// src/api.ts — the tiny HTTP client every screen uses</span>
+const API_URL = EXPO_PUBLIC_API_URL || expoConfig.extra?.apiUrl || "http://localhost:3000";
+apiRequest(path, { token, ... }) =&gt; fetch(`${API_URL}${path}`, { headers: {
+  Accept, 'Content-Type' (only when there's a body), Authorization: `Bearer ${token}` }});
+<span class="cm">// any non-2xx → throw ApiError(message, status); each screen turns it into a friendly line</span></code></pre>
+
+    <div class="note"><b>Mode switch:</b> <code>apps/mobile/.env.local</code> currently points <code>EXPO_PUBLIC_API_URL</code> at a LAN IP (e.g. <code>http://192.168.1.200:3000</code>). On a physical phone that must be your dev machine's LAN address on the same Wi-Fi; on emulators you can use <code>http://localhost:3000</code>.</div>
+
+    <h3>2 · The admin console (web)</h3>
+    <p>Three tools: the partner verification queue (<code>fetchPartners</code> / <code>handleVerify</code> → <code>POST /api/admin/partners</code>), the rate-card editor (<code>POST /api/admin/rate-card</code>), and the drop-zone registry — in <span class="mono">apps/api/app/admin/*/page.tsx</span>. All are guarded server-side by <code>requireAdmin</code>, so loading them as a non-admin answers <code>403</code>.</p>
+
+    <div class="qa">
+      <div class="q">Self-test: why can the admin web page (Next.js) live in the same package as the API, but the phone app cannot?</div>
+      <details><summary>Reveal</summary><p>The admin pages are rendered by the same Next.js server that exposes <code>/api/*</code> — same repo, same process, can import <code>@chokro/db</code> directly. The phone is a separate process (React Native runtime), so it can only communicate over HTTP through the API URL. That's the whole "clients vs. server" boundary in the repo.</p></details>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <section id="reference">
+    <div class="part-label">📌 Reference</div>
+    <h2>Quick Reference</h2>
+
+    <div class="refcard"><pre><code>## Demo logins (seeded) ############################################################
+admin@chokro.org / user@chokro.org / partner@chokro.org  —  password: password123
+
+## Useful commands #######################################################################
+docker compose up -d          # Postgres 17 on :5432 (db = chokro)
+pnpm db:setup                 # = db:push + db:migrate + db:seed
+pnpm dev                      # turbo → API on :3000 + Expo
+pnpm test | lint | typecheck | build
+pnpm --filter @chokro/mobile start   # start the Expo app
+
+## The 6 tables (@chokro/db/src/schema.ts) ###############################################
+users             email · password_hash · role(INDIVIDUAL|PARTNER|ADMIN) · institution_id
+partners          user_id→users · org_name · types[] · e_waste_licensed · doe_license_doc · status
+listings          owner_id→users · category · unit(kg|piece) · declared_weight · piece_count · declared_condition · status
+rate_card_entries category · condition_band · unit · price_bdt · effective_from · updated_by→users
+drop_zones        institution_id · name · geo_location · qr_token · accepted_categories · status
+credit_txns       user_id→users · amount · kind(EARN|REDEEM|ADJUST) · status(PENDING|VERIFIED|REJECTED) · reason
+
+## Auth pipeline ##########################################################################
+signup → bcrypt hash → insert users(role=INDIVIDUAL) → signToken({userId,email,role}, 7d)
+login  → find by email → comparePassword → signToken
+every route → requireAuth / requireAdmin → zod safeParse → databaseOrTestStore → NextResponse
+
+## Where things live ######################################################################
+Identity:    apps/api/app/api/auth/*  ·  apps/api/app/api/partners/apply
+Marketplace: apps/api/app/api/listings/**  ·  apps/api/app/api/feed
+Rate card:   apps/api/app/api/rate-card/published  ·  apps/api/app/api/admin/rate-card
+Wallet:      apps/api/app/api/wallet/*  ·  apps/api/app/api/admin/wallet/adjust
+Zones:       apps/api/app/api/drop-zones/**  ·  /resolve  ·  /:id/poster
+Shared:      packages/shared/src/index.ts (zod enums)  ·  packages/db/src/schema.ts</code></pre></div>
+  </section>
+
+  <footer>[ chokro/sprint-1 · the phone is eyes, the server is the office, the database is the ledger ]</footer>
+  </div>
+</main>
+</div>
+
+<script>
+(function () {
+"use strict";
+
+/* ---------------- helpers ---------------- */
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function b64url(o) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function detail(id, title, bodyHtml, metaHtml) {
+  var html = '<div class="tab-panel"><b>' + title + "</b>";
+  if (bodyHtml) html += '<p style="margin:6px 0 0;">' + bodyHtml + "</p>";
+  if (metaHtml) html += '<div class="tab-meta">' + metaHtml + "</div>";
+  html += "</div>";
+  el(id).innerHTML = html;
+}
+function chips(id, labels, onPick) {
+  var box = el(id);
+  box.innerHTML = "";
+  labels.forEach(function (label, i) {
+    var b = document.createElement("button");
+    b.className = "chip" + (i === 0 ? " active" : "");
+    b.textContent = label;
+    b.addEventListener("click", function () {
+      var all = box.querySelectorAll(".chip");
+      for (var k = 0; k < all.length; k++) all[k].classList.remove("active");
+      b.classList.add("active");
+      onPick(label, i);
+    });
+    box.appendChild(b);
+  });
+}
+function makeStepper(boxId, steps, renderFn) {
+  var box = el(boxId);
+  steps.forEach(function (s, i) {
+    var b = document.createElement("button");
+    b.className = "step" + (i === 0 ? " active" : "");
+    b.textContent = s.t;
+    b.addEventListener("click", function () {
+      var all = box.querySelectorAll(".step");
+      for (var k = 0; k < all.length; k++) all[k].classList.remove("active");
+      b.classList.add("active");
+      renderFn(i);
+    });
+    box.appendChild(b);
+  });
+  renderFn(0);
+}
+
+/* ---------------- Part 0: the loop ---------------- */
+var loop = [
+  { n: "①", t: "An account is born", body: "Sadia opens the app → <b>SignupScreen</b> → <code>POST /api/auth/signup</code>. The server bcrypt-hashes the password, stores the user, and returns a 7-day JWT. The phone keeps it in the keychain (<code>expo-secure-store</code>) so it survives restarts.", meta: "users row created" },
+  { n: "②", t: "A listing is created", body: "Sadia taps <b>List</b> → <b>CreateListingScreen</b> → <code>POST /api/listings</code>. The dual-unit rule decides the shape: an e-waste cooker must be <code>piece</code>, a bag of clothes is <code>kg</code>. A <code>listings</code> row is born with status ACTIVE.", meta: "listings row created" },
+  { n: "③", t: "Someone browses", body: "Another phone opens <b>FeedScreen</b> → <code>GET /api/feed?category=…&amp;limit=20</code>. The server returns only ACTIVE rows, newest first, plus a cursor for the next page — no page numbers anywhere.", meta: "listings · filtered + paged read" },
+  { n: "④", t: "An admin sets fair prices", body: "An ops person opens the admin console → <code>POST /api/admin/rate-card</code>. A new row with <code>effective_from = now</code> is inserted. The app later derives the <em>current</em> price by picking the newest row per category + unit.", meta: "rate_card_entries · versioned write" },
+  { n: "⑤", t: "Someone scans a drop zone", body: "A poster at the campus gym carries a signed QR token. <b>QRScannerScreen</b> → <code>GET /api/drop-zones/resolve?token=…</code>. The server verifies the HMAC signature, then returns the zone name and accepted categories.", meta: "drop_zones · signed lookup" }
+];
+function renderLoop(i) {
+  var s = loop[i];
+  detail("w0-detail", s.n + " · " + s.t, s.body, "touches: " + esc(s.meta));
+}
+var box0 = el("w0-steps");
+loop.forEach(function (s, i) {
+  var b = document.createElement("button");
+  b.className = "step" + (i === 0 ? " active" : "");
+  b.innerHTML = '<span class="n">' + s.n + "</span>" + esc(s.t);
+  b.addEventListener("click", function () {
+    var all = box0.querySelectorAll(".step");
+    for (var k = 0; k < all.length; k++) all[k].classList.remove("active");
+    b.classList.add("active");
+    renderLoop(i);
+  });
+  box0.appendChild(b);
+});
+renderLoop(0);
+
+/* ---------------- Part 1: folder map ---------------- */
+var tiles = [
+  { n: "apps/mobile", sub: "Expo + React Native — the phone app", body: "Five screens under <code>src/screens</code> (Login, Signup, Feed, CreateListing, Wallet, QRScanner) plus <code>App.tsx</code> (tabs + session restore), <code>src/api.ts</code> (the fetch client), <code>src/theme.ts</code>. Only speaks HTTP to the API — it never touches the database." },
+  { n: "apps/api", sub: "Next.js — the server", body: "Two jobs in one package: <code>app/api/**/route.ts</code> holds the 22 REST endpoints, and <code>app/admin/**</code> holds the web pages. Beside them: <code>lib/auth.ts</code>, <code>lib/qr.ts</code>, <code>lib/database.ts</code>, <code>lib/http.ts</code> (safeRoute + apiError), and domain repositories in <code>lib/repos/</code> (userRepo, listingRepo, partnerRepo, rateCardRepo, dropZoneRepo, walletRepo). The Jest test suite lives in <code>tests/</code>." },
+  { n: "packages/db", sub: "Postgres + Drizzle", body: "<code>src/schema.ts</code> defines 6 tables; <code>src/seed.ts</code> creates demo accounts + starter rates; <code>src/migrate.ts</code> enforces the append-only wallet trigger; <code>src/index.ts</code> also exports the <code>memoryStore</code> that tests use instead of Postgres." },
+  { n: "packages/shared", sub: "The shared dictionary", body: "<code>src/index.ts</code> — zod enums both sides share: Role, Category, Unit, Condition, Path, ListingStatus, PartnerStatus, credit kinds. One source of truth for valid values." },
+  { n: "pnpm + Turbo", sub: "Workflow rails", body: "<code>pnpm-workspace.yaml</code> links the four packages; <code>turbo.json</code> runs build/test/lint/typecheck across every app from one command; <code>compose.yaml</code> starts Postgres for dev." }
+];
+var tileBox = el("w1-tiles");
+tiles.forEach(function (t, i) {
+  var d = document.createElement("div");
+  d.className = "tile" + (i === 0 ? " active" : "");
+  d.innerHTML = '<div class="t-name">' + esc(t.n) + '</div><div class="t-sub">' + esc(t.sub) + "</div>";
+  d.addEventListener("click", function () {
+    var all = tileBox.querySelectorAll(".tile");
+    for (var k = 0; k < all.length; k++) all[k].classList.remove("active");
+    d.classList.add("active");
+    detail("w1-detail", t.n, t.body);
+  });
+  tileBox.appendChild(d);
+});
+detail("w1-detail", tiles[0].n, tiles[0].body);
+
+/* ---------------- Part 1: routes ---------------- */
+var routes = [
+  { m: "GET", p: "/api/health", a: "public", d: "liveness check (SELECT 1)" },
+  { m: "POST", p: "/api/auth/signup", a: "public", d: "create account → JWT" },
+  { m: "POST", p: "/api/auth/login", a: "public", d: "email + password → JWT" },
+  { m: "GET", p: "/api/auth/me", a: "JWT", d: "who am I — used at app launch" },
+  { m: "GET", p: "/api/feed", a: "public", d: "ACTIVE listings, filters + cursor paging" },
+  { m: "POST", p: "/api/listings", a: "JWT", d: "create a listing (dual-unit rule)" },
+  { m: "GET", p: "/api/listings", a: "JWT", d: "my listings" },
+  { m: "GET", p: "/api/listings/:id", a: "JWT", d: "one listing (owner or admin)" },
+  { m: "PATCH", p: "/api/listings/:id", a: "JWT", d: "legal status transition" },
+  { m: "GET", p: "/api/rate-card/published", a: "public", d: "current rates (newest per key)" },
+  { m: "POST", p: "/api/partners/apply", a: "JWT", d: "partner application (DoE gate)" },
+  { m: "GET", p: "/api/wallet/balance", a: "JWT", d: "verified + pending, derived from ledger" },
+  { m: "GET", p: "/api/wallet/transactions", a: "JWT", d: "my ledger rows" },
+  { m: "POST", p: "/api/admin/rate-card", a: "ADMIN", d: "publish a rate version" },
+  { m: "GET", p: "/api/admin/rate-card", a: "ADMIN", d: "rate history" },
+  { m: "POST", p: "/api/admin/partners", a: "ADMIN", d: "verify / reject a partner" },
+  { m: "GET", p: "/api/admin/partners", a: "ADMIN", d: "application queue" },
+  { m: "POST", p: "/api/admin/wallet/adjust", a: "ADMIN", d: "append an ADJUST row" },
+  { m: "POST", p: "/api/drop-zones", a: "ADMIN", d: "create zone + signed QR token" },
+  { m: "GET", p: "/api/drop-zones", a: "ADMIN", d: "list zones" },
+  { m: "GET", p: "/api/drop-zones/:id/poster", a: "ADMIN", d: "printable HTML poster" },
+  { m: "GET", p: "/api/drop-zones/resolve", a: "JWT", d: "verify signature + resolve zone" }
+];
+var groups = {
+  "All": routes,
+  "Auth": routes.filter(function (r) { return r.p.indexOf("/api/auth") === 0; }),
+  "Marketplace": routes.filter(function (r) { return r.p.indexOf("/api/listings") === 0 || r.p.indexOf("/api/feed") === 0; }),
+  "Rate card": routes.filter(function (r) { return r.p.indexOf("rate-card") !== -1; }),
+  "Partners": routes.filter(function (r) { return r.p.indexOf("/api/partners") === 0; }),
+  "Wallet": routes.filter(function (r) { return r.p.indexOf("/api/wallet") === 0; }),
+  "Drop zones": routes.filter(function (r) { return r.p.indexOf("/api/drop-zones") === 0; })
+};
+function renderRoutes(key) {
+  var rows = groups[key];
+  var html = '<tr><th>Method</th><th>Path</th><th>Auth</th><th>What it does</th></tr>';
+  rows.forEach(function (r) {
+    html += '<tr><td><span class="mbadge m-' + r.m + '">' + r.m + '</span></td><td class="mono">' + esc(r.p) + '</td><td>' + esc(r.a) + '</td><td>' + esc(r.d) + "</td></tr>";
+  });
+  el("w1-rtable").innerHTML = html;
+}
+chips("w1-groups", Object.keys(groups), renderRoutes);
+renderRoutes("All");
+
+/* ---------------- Part 2: request journey ---------------- */
+el("w2-req").innerHTML =
+  '<span class="k">POST</span> <span class="v">/api/listings</span> <span class="gol">HTTP/1.1</span><br>' +
+  '<span class="k">Authorization</span>: <span class="v">Bearer eyJhbGciOiJIUzI1NiIs… (7-day JWT from login)</span><br>' +
+  '<span class="k">Content-Type</span>: <span class="v">application/json</span><br><br>' +
+  '<span class="v">{</span><br>' +
+  '&nbsp;&nbsp;<span class="k">"category"</span>: <span class="v">"E_WASTE"</span>,<br>' +
+  '&nbsp;&nbsp;<span class="k">"unit"</span>: <span class="v">"piece"</span>,<br>' +
+  '&nbsp;&nbsp;<span class="k">"pieceCount"</span>: <span class="v">1</span>,<br>' +
+  '&nbsp;&nbsp;<span class="k">"declaredCondition"</span>: <span class="v">"GOOD"</span>,<br>' +
+  '&nbsp;&nbsp;<span class="k">"photos"</span>: <span class="v">["camera://…"]</span><br>' +
+  '<span class="v">}</span>';
+
+var journey = [
+  { t: "1 · Route match", body: "Next.js maps <code>POST /api/listings</code> to the exported <code>POST</code> function in <code>apps/api/app/api/listings/route.ts</code>. All 22 handlers are wrapped in <code>safeRoute</code> for automatic top-level error handling.", meta: "file: apps/api/app/api/listings/route.ts" },
+  { t: "2 · requireAuth", body: "<code>verifyAuthHeader</code> reads the <code>Authorization: Bearer</code> header; <code>verifyToken</code> checks the signature and expiry and returns the claims <code>{userId, email, role}</code>. Missing or invalid → <code>401 Unauthorized</code>, the handler stops.", meta: "file: apps/api/lib/auth.ts" },
+  { t: "3 · zod safeParse & apiError", body: "The raw JSON is checked against <code>CreateListingSchema</code>. <code>safeParse</code> returns <code>{success, data | error}</code>. A <code>superRefine</code> enforces the kg-vs-piece rule. Invalid → <code>apiError('Invalid listing data', 400, details)</code> for a standardized error shape.", meta: "file: apps/api/lib/http.ts · library: zod" },
+  { t: "4 · Domain Repository & databaseOrTestStore", body: "The route delegates data operations to <code>listingRepo.create(values)</code>. Inside the repository, <code>databaseOrTestStore</code> branches: in dev it writes to Postgres via Drizzle; in tests (<code>NODE_ENV=test</code>) it pushes to <code>memoryStore.listings</code> — routes stay clean and decoupled.", meta: "files: apps/api/lib/repos/listings.ts · apps/api/lib/database.ts" },
+  { t: "5 · Response & safeRoute", body: "<code>NextResponse.json({ message: 'Listing created', listing }, { status: 201 })</code>. The phone reads the JSON and re-renders. Unhandled exceptions are caught by <code>safeRoute</code> and delegated to <code>routeError</code>: 500 for bugs, 503 when the database is unreachable.", meta: "statuses: 201 · 400 · 401 · 500 · 503" }
+];
+function renderJourney(i) {
+  var s = journey[i];
+  detail("w2-detail", s.t, s.body, s.meta);
+}
+makeStepper("w2-steps", journey, renderJourney);
+
+var modes = [
+  { t: "Production / dev", d: "<code>NODE_ENV</code> is not <code>test</code>, so <code>@chokro/db</code> opens a real PostgreSQL client (default <code>postgres://postgres:postgres@localhost:5432/chokro</code>, started with <code>docker compose up -d</code>). Drizzle turns your queries into real SQL." },
+  { t: "Jest tests", d: "With <code>NODE_ENV=test</code> the db client is <code>null</code> and every route runs its <code>testOperation</code>: plain arrays in <code>memoryStore</code>. That's why the test suite needs no Postgres at all. <code>resetMemoryStore()</code> empties the arrays between tests." }
+];
+chips("w2-modes", modes.map(function (m) { return m.t; }), function (label) {
+  var mode = modes.filter(function (m) { return m.t === label; })[0];
+  detail("w2-mode-detail", mode.t, mode.d);
+});
+
+/* ---------------- Part 3: JWT anatomy ---------------- */
+var headerB64 = b64url({ alg: "HS256", typ: "JWT" });
+var payloadB64 = b64url({ userId: "9f3c2a…", email: "user@chokro.org", role: "INDIVIDUAL", exp: "now + 7 days" });
+el("w3-tok").innerHTML =
+  '<span id="w3-seg1" style="cursor:pointer;color:var(--c-server);text-decoration:underline dotted">' + esc(headerB64) + "</span>" +
+  '<span style="color:var(--text-dim)">.</span>' +
+  '<span id="w3-seg2" style="cursor:pointer;color:var(--c-client);text-decoration:underline dotted">' + esc(payloadB64) + "</span>" +
+  '<span style="color:var(--text-dim)">.</span>' +
+  '<span id="w3-seg3" style="cursor:pointer;color:var(--c-accent);text-decoration:underline dotted">' + esc("SIGNATURE(header.payload, JWT_SECRET)") + "</span>";
+var segInfo = {
+  "w3-seg1": "<b>Header</b> — <code>{\"alg\":\"HS256\",\"typ\":\"JWT\"}</code>. Just says which algorithm signed it. Public info.",
+  "w3-seg2": "<b>Payload</b> — the claims: userId, email, role, exp. Base64url only, <b>not encrypted</b> — anyone can decode it; integrity comes from the signature.",
+  "w3-seg3": "<b>Signature</b> — HMAC-SHA256 over <code>header.payload</code> using the server-only <code>JWT_SECRET</code>. The server recomputes it on every request; if it doesn't match, the token is rejected."
+};
+Object.keys(segInfo).forEach(function (sid) {
+  el(sid).addEventListener("mouseenter", function () { detail("w3-tok-detail", "JWT anatomy", segInfo[sid]); });
+});
+
+/* ---------------- Part 3: DoE gate ---------------- */
+var doe = [
+  { t: "e-waste, no doc", r: "400 — “DoE License document is mandatory for e-waste licensing.”", d: "The route checks before any insert: if <code>eWasteLicensed</code> is true and there is no <code>doeLicenseDoc</code>, the request is refused outright." },
+  { t: "e-waste, with doc", r: "201 — but e_waste_licensed stays false", d: "The application is saved (doc included), yet the DB flag is hard-coded to <code>false</code> at insert. Claiming a capability is not the same as having it." },
+  { t: "admin verifies (doc on file)", r: "200 — partner VERIFIED, flag flips to true", d: "<code>POST /api/admin/partners</code> with <code>status: VERIFIED</code> finds the row, sees the license doc, and sets <code>e_waste_licensed = true</code>. Now e-waste routing is legal." }
+];
+chips("w3-does", doe.map(function (s) { return s.t; }), function (label) {
+  var s = doe.filter(function (x) { return x.t === label; })[0];
+  detail("w3-doe-detail", s.t, s.d, "server outcome: " + esc(s.r));
+});
+
+/* ---------------- Part 4: categories ---------------- */
+var catRules = [
+  { cat: "CLOTHES", u: "kg", need: "declaredWeight" },
+  { cat: "BOOKS", u: "kg", need: "declaredWeight" },
+  { cat: "PLASTICS", u: "kg", need: "declaredWeight" },
+  { cat: "PAPER", u: "kg", need: "declaredWeight" },
+  { cat: "METAL", u: "kg", need: "declaredWeight" },
+  { cat: "GLASS", u: "kg", need: "declaredWeight" },
+  { cat: "FURNITURE", u: "kg", need: "declaredWeight" },
+  { cat: "APPLIANCES", u: "piece", need: "pieceCount" },
+  { cat: "E_WASTE", u: "piece", need: "pieceCount" }
+];
+chips("w4-cats", catRules.map(function (c) { return c.cat; }), function (label) {
+  var c = catRules.filter(function (x) { return x.cat === label; })[0];
+  var body = c.u === "piece"
+    ? "E-waste and appliances are priced <b>per piece</b> in the real market. Sending <code>kg</code> or a weight → <code>400</code>: “Appliances and e-waste require piece unit and pieceCount”."
+    : "This category is priced <b>per kilogram</b>. Sending <code>piece</code> or a piece count → <code>400</code>: “This category requires kg unit and declaredWeight”.";
+  detail("w4-cat-detail", c.cat + " → " + c.u + " unit", body, "required field: " + c.need);
+});
+
+/* ---------------- Part 4: state machine ---------------- */
+var transitions = { DRAFT: ["ACTIVE", "CANCELLED"], ACTIVE: ["CANCELLED"], CANCELLED: [] };
+var fsmNames = ["DRAFT", "ACTIVE", "CANCELLED"];
+var fsmBox = el("w4-fsm");
+fsmNames.forEach(function (n, i) {
+  var d = document.createElement("div");
+  d.className = "node" + (i === 0 ? " active" : "");
+  d.textContent = n;
+  d.addEventListener("click", function () {
+    var all = fsmBox.querySelectorAll(".node");
+    for (var k = 0; k < all.length; k++) all[k].classList.remove("active");
+    d.classList.add("active");
+    var opts = transitions[n];
+    if (opts.length === 0) {
+      detail("w4-fsm-detail", n + " — terminal", "No outgoing transitions. A cancelled listing stays cancelled; nothing in Sprint 1 re-opens it.");
+    } else {
+      detail("w4-fsm-detail", "Leaving " + n, "Legal moves: <b>" + opts.join("</b> · <b>") + "</b>. Any other transition → <code>400</code> “Invalid listing status transition”.");
+    }
+  });
+  fsmBox.appendChild(d);
+  if (i < fsmNames.length - 1) {
+    var ar = document.createElement("span");
+    ar.className = "arrow";
+    ar.textContent = "→";
+    fsmBox.appendChild(ar);
+  }
+});
+
+/* ---------------- Part 4: feed pager ---------------- */
+var feedItems = [
+  { id: "840f3a", cat: "E_WASTE", cond: "GOOD", q: "1 piece", created: "2026-08-06T09:12:00Z", thumb: "📺" },
+  { id: "1c2a9b", cat: "PLASTICS", cond: "FAIR", q: "24 kg", created: "2026-08-06T08:03:00Z", thumb: "🫙" },
+  { id: "9e4b77", cat: "CLOTHES", cond: "GOOD", q: "6 kg", created: "2026-08-05T21:44:00Z", thumb: "👕" },
+  { id: "7f31d0", cat: "BOOKS", cond: "FAIR", q: "14 kg", created: "2026-08-05T17:09:00Z", thumb: "📚" },
+  { id: "ab55c8", cat: "E_WASTE", cond: "POOR", q: "2 pieces", created: "2026-08-04T11:26:00Z", thumb: "🔌" },
+  { id: "d2e8f1", cat: "METAL", cond: "GOOD", q: "9 kg", created: "2026-08-04T10:15:00Z", thumb: "🧲" }
+];
+var PAGE = 3;
+var page = 0;
+function encodeCursor(item) {
+  var raw = JSON.stringify({ createdAt: item.created, id: item.id });
+  return btoa(unescape(encodeURIComponent(raw))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function renderFeed() {
+  var box = el("w4-feed");
+  box.innerHTML = "";
+  var start = page * PAGE;
+  var slice = feedItems.slice(start, start + PAGE);
+  slice.forEach(function (it, i) {
+    var card = document.createElement("div");
+    var isLast = i === slice.length - 1;
+    card.className = "feed-card" + (isLast ? " active" : "");
+    var curs = isLast ? encodeCursor(it) : "";
+    card.innerHTML =
+      '<div class="f-thumb">' + it.thumb + '</div>' +
+      '<div class="f-main"><div class="f-title">' + esc(it.cat) + '</div>' +
+      '<div class="f-meta">' + esc(it.cond) + " · " + esc(it.q) + " · created " + esc(it.created) + " · " + esc(it.id) + "</div></div>";
+    card.addEventListener("click", function () {
+      if (!isLast) return;
+      detail("w4-cursor-detail", "The cursor for this page",
+        "The client remembers the <b>last item it saw</b> and base64-encodes its <code>createdAt</code> + <code>id</code>:<br><code>" + esc(curs) + "</code><br><br>The next request sends <code>?limit=20&amp;cursor=" + esc(curs) + "</code>; the server returns only rows strictly older (or same-tick with a smaller id).",
+        "decodes to: " + esc(JSON.stringify({ createdAt: it.created, id: it.id })));
+    });
+    box.appendChild(card);
+  });
+  var hasMore = start + PAGE < feedItems.length;
+  var btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = hasMore ? "Load more →" : "↺ reset demo";
+  btn.addEventListener("click", function () {
+    if (hasMore) { page++; } else { page = 0; }
+    renderFeed();
+  });
+  box.appendChild(btn);
+  el("w4-feed-cap").textContent = "GET /api/feed?limit=20" + (page > 0 ? "&cursor=<encoded>" : "") + " — page " + (page + 1) + " of " + Math.ceil(feedItems.length / PAGE);
+}
+renderFeed();
+
+/* ---------------- Part 5: rate card ---------------- */
+var rates = [];
+function addRate(cat, cond, unit, price, eff) { rates.push({ cat: cat, cond: cond, unit: unit, price: price, eff: new Date(eff) }); }
+function seedRates() {
+  rates.length = 0;
+  addRate("PLASTICS", "GOOD", "kg", 45, "2026-08-01T00:00:00Z");
+  addRate("PLASTICS", "GOOD", "kg", 48, "2026-07-05T00:00:00Z");
+  addRate("CLOTHES", "FAIR", "kg", 30, "2026-08-02T00:00:00Z");
+  addRate("E_WASTE", "GOOD", "piece", 250, "2026-08-01T00:00:00Z");
+}
+function currentRates() {
+  var now = new Date("2026-08-07T00:00:00Z");
+  var map = {};
+  rates.forEach(function (r) {
+    if (r.eff > now) return;
+    var key = r.cat + "|" + r.cond + "|" + r.unit;
+    var cur = map[key];
+    if (!cur || r.eff > cur.eff) map[key] = r;
+  });
+  return map;
+}
+function renderRates() {
+  var map = currentRates();
+  var html = '<tr><th>Key (category|condition|unit)</th><th>৳</th><th>Effective</th><th>Status</th></tr>';
+  var keys = ["PLASTICS|GOOD|kg", "CLOTHES|FAIR|kg", "E_WASTE|GOOD|piece"];
+  keys.forEach(function (k) {
+    var win = map[k];
+    if (!win) { html += '<tr><td>' + k + '</td><td colspan="3">no current entry</td></tr>'; return; }
+    html += '<tr class="hl"><td>' + k + '</td><td>' + win.price.toFixed(2) + '</td><td>' + win.eff.toISOString().slice(0, 10) + '</td><td>current ✓</td></tr>';
+    rates.forEach(function (r) {
+      if (r.cat + "|" + r.cond + "|" + r.unit !== k || r === win) return;
+      html += '<tr class="old"><td>' + k + '</td><td>' + r.price.toFixed(2) + '</td><td>' + r.eff.toISOString().slice(0, 10) + '</td><td>historical</td></tr>';
+    });
+  });
+  el("w5-rates").innerHTML = '<table class="dtable">' + html + "</table>";
+}
+seedRates();
+renderRates();
+el("w5-add").addEventListener("click", function () {
+  addRate("PLASTICS", "GOOD", "kg", 50, "2026-08-07T00:00:00Z");
+  renderRates();
+  detail("w5-rate-detail", "Published a newer row",
+    "Now the current price for PLASTICS|GOOD|kg is <b>৳50.00</b>. The ৳45 row isn't deleted — it becomes <b>historical</b>, and the app serves ৳50 until an even newer version is published.");
+});
+el("w5-reset").addEventListener("click", function () {
+  seedRates();
+  renderRates();
+  el("w5-rate-detail").innerHTML = "";
+});
+
+/* ---------------- Part 5: wallet ---------------- */
+var txns = [
+  { kind: "EARN", amt: 250, st: "VERIFIED", note: "Verified drop-zone deposit · e-waste" },
+  { kind: "EARN", amt: 40.5, st: "PENDING", note: "Drop-zone deposit — awaiting verification" },
+  { kind: "REDEEM", amt: -120, st: "VERIFIED", note: "mock-bKash cash-out" },
+  { kind: "ADJUST", amt: 15, st: "VERIFIED", note: "Admin correction — pricing audit" },
+  { kind: "EARN", amt: 30, st: "REJECTED", note: "Rejected deposit" }
+];
+function renderWallet() {
+  var box = el("w5-wallet");
+  box.innerHTML = "";
+  txns.forEach(function (t) {
+    var row = document.createElement("div");
+    row.className = "ledger-row";
+    var sign = t.amt >= 0 ? "+" : "−";
+    row.innerHTML =
+      '<span class="lp ' + (t.amt >= 0 ? "lp-pos" : "lp-neg") + '">' + sign + Math.abs(t.amt).toFixed(2) + "</span>" +
+      '<div class="l-main"><div class="l-kind">' + t.kind + '</div><div class="l-sub">' + esc(t.note) + "</div></div>" +
+      '<span class="l-status st-' + t.st + '">' + t.st + "</span>";
+    row.addEventListener("click", function () {
+      var verified = 0;
+      var pending = 0;
+      txns.forEach(function (x) {
+        if (x.st === "VERIFIED") verified += x.amt;
+        if (x.st === "PENDING") pending += x.amt;
+      });
+      var verdict = t.st === "VERIFIED"
+        ? "Counted into the spendable balance."
+        : t.st === "PENDING"
+          ? "Shown as <b>pending</b> — not spendable until verified."
+          : "Excluded from both sums.";
+      detail("w5-wallet-detail", t.kind + " · " + t.st + " · " + sign + Math.abs(t.amt).toFixed(2),
+        esc(t.note) + ". " + verdict,
+        "derived balance — verified: ৳" + verified.toFixed(2) + " · pending: ৳" + pending.toFixed(2));
+    });
+    box.appendChild(row);
+  });
+}
+renderWallet();
+
+/* ---------------- Part 6: QR zone flow ---------------- */
+var zoneFlow = [
+  { t: "1 · Create (admin)", body: "<code>POST /api/drop-zones</code> — the admin gives the zone a name, institution and accepted categories. The server mints a <b>signed token</b>: a random 32-byte payload plus an HMAC-SHA256 signature (secret: <code>QR_SECRET</code>).", meta: "lib/qr.ts — createQrToken()" },
+  { t: "2 · Print poster", body: "<code>GET /api/drop-zones/:id/poster</code> returns a printable HTML page with the token drawn as a QR SVG (the <code>qrcode</code> library) plus the accepted materials. Tape it to the wall.", meta: "route: app/api/drop-zones/[id]/poster/route.ts" },
+  { t: "3 · Scan (user)", body: "<b>QRScannerScreen</b> reads the code with the camera (or a manually typed token). It tolerates a token embedded in a URL like <code>…?token=xxx</code> and calls <code>GET /api/drop-zones/resolve?token=…</code>.", meta: "apps/mobile/src/screens/QRScannerScreen.tsx" },
+  { t: "4 · Resolve", body: "The server recomputes the signature and compares with <code>timingSafeEqual</code>. Mismatch → <code>400 “Invalid drop zone token”</code>. Match → it looks up <code>drop_zones.qr_token</code> and returns the zone name, status and accepted categories.", meta: "lib/qr.ts — isValidQrToken()" }
+];
+function renderZone(i) {
+  var s = zoneFlow[i];
+  detail("w6-detail", s.t, s.body, s.meta);
+}
+makeStepper("w6-steps", zoneFlow, renderZone);
+
+/* ---------------- Part 7: mobile tabs ---------------- */
+var tabs7 = [
+  { label: "Browse", f: "FeedScreen.tsx", api: "GET /api/feed?limit=20&category=…&cursor=…", what: "Active listings as cards; “Load more” pages through with cursors." },
+  { label: "List", f: "CreateListingScreen.tsx", api: "POST /api/listings", what: "Category + condition + unit form; on success it jumps back to Browse." },
+  { label: "Rates", f: "RateCardScreen.tsx", api: "GET /api/rate-card/published", what: "Today's current price per category — the versioned card, read-only." },
+  { label: "Wallet", f: "WalletScreen.tsx", api: "GET /api/wallet/balance + /api/wallet/transactions", what: "Verified (spendable) vs pending balances; the empty state explains credits arrive later." },
+  { label: "Scan", f: "QRScannerScreen.tsx", api: "GET /api/drop-zones/resolve?token=…", what: "Camera or manual token → signed resolution → a zone card. No deposit is recorded in Sprint 1." },
+  { label: "Admin web", f: "apps/api/app/admin/*/page.tsx", api: "GET/POST admin routes", what: "Partner verification queue, rate-card editor, drop-zone registry — same server, browser UI." }
+];
+chips("w7-tabs", tabs7.map(function (t) { return t.label; }), function (label) {
+  var t = tabs7.filter(function (x) { return x.label === label; })[0];
+  detail("w7-detail", t.label, t.what, "Screen: " + esc(t.f) + "<br>API: " + esc(t.api));
+});
+
+})();
+</script>
+</body>
+</html>
