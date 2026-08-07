@@ -1,14 +1,7 @@
 import { requireAuth } from '../../../../lib/auth';
 import { apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { partnerRepo } from '../../../../lib/repos/partners';
-import { z } from 'zod';
-
-const PartnerApplySchema = z.object({
-  orgName: z.string().min(2),
-  types: z.array(z.string()).min(1),
-  eWasteLicensed: z.boolean().default(false),
-  doeLicenseDoc: z.string().nullable().optional(),
-});
+import { PartnerApplySchema } from '@chokro/shared';
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);

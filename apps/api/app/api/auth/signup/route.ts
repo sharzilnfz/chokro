@@ -1,14 +1,7 @@
 import { userRepo } from '../../../../lib/repos/users';
 import { hashPassword, signToken } from '../../../../lib/auth';
 import { apiError, apiSuccess, safeRoute } from '../../../../lib/http';
-import { z } from 'zod';
-
-const SignupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  role: z.enum(['INDIVIDUAL', 'PARTNER', 'ADMIN']).default('INDIVIDUAL'),
-  institutionId: z.string().optional(),
-});
+import { SignupSchema } from '@chokro/shared';
 
 export const POST = safeRoute(async (req: Request) => {
   const body = await req.json();

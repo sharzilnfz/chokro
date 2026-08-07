@@ -1,14 +1,7 @@
-import { z } from 'zod';
 import { requireAdmin } from '../../../../lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { rateCardRepo } from '../../../../lib/repos/rateCards';
-import { CategoryEnum, ConditionEnum } from '@chokro/shared';
-
-const RateCardSchema = z.object({
-  category: CategoryEnum,
-  conditionBand: ConditionEnum,
-  priceBdt: z.number().positive(),
-});
+import { RateCardSchema } from '@chokro/shared';
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);

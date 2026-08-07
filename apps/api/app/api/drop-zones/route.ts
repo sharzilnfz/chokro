@@ -1,15 +1,7 @@
-import { z } from 'zod';
 import { requireAdmin } from '../../../lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '../../../lib/http';
-import { CategoryEnum } from '@chokro/shared';
+import { CreateZoneSchema } from '@chokro/shared';
 import { dropZoneRepo } from '../../../lib/repos/dropZones';
-
-const CreateZoneSchema = z.object({
-  institutionId: z.string().min(1),
-  name: z.string().min(1),
-  acceptedCategories: z.array(CategoryEnum).min(1),
-  geoLocation: z.object({ lat: z.number(), lng: z.number() }).optional(),
-});
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);

@@ -7,7 +7,8 @@
     "types": ["node", "jest"],
     "paths": {
       "@chokro/db": ["../../packages/db/src"],
-      "@chokro/shared": ["../../packages/shared/src"]
+      "@chokro/shared": ["../../packages/shared/src"],
+      "@/*": ["./*"]
     }
   },
   "include": [

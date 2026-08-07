@@ -1,12 +1,7 @@
-import { z } from 'zod';
 import { requireAdmin } from '../../../../lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { partnerRepo } from '../../../../lib/repos/partners';
-
-const VerifyPartnerSchema = z.object({
-  partnerId: z.string(),
-  status: z.enum(['VERIFIED', 'REJECTED']),
-});
+import { VerifyPartnerSchema } from '@chokro/shared';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
