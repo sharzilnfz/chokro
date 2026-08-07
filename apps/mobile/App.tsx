@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Pressable,
   SafeAreaView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -100,13 +99,13 @@ export default function App() {
 
   if (restoreState === 'loading') {
     return (
-      <SafeAreaView style={styles.centeredPage}>
-        <View style={styles.mark} accessibilityElementsHidden>
+      <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
+        <View className="w-14 h-14 rounded-[18px] bg-leaf items-center justify-center mb-2.5" accessibilityElementsHidden>
           <Ionicons name="leaf" size={25} color={colors.surface} />
         </View>
-        <Text style={styles.brand}>Chokro</Text>
+        <Text className="text-ink text-[28px] font-extrabold tracking-tight mb-7">Chokro</Text>
         <ActivityIndicator color={colors.leaf} size="large" accessibilityLabel="Restoring session" />
-        <Text style={styles.loadingText}>Restoring your secure session</Text>
+        <Text className="text-muted mt-3 text-sm">Restoring your secure session</Text>
         <StatusBar style="dark" />
       </SafeAreaView>
     );
@@ -114,30 +113,30 @@ export default function App() {
 
   if (restoreState === 'error') {
     return (
-      <SafeAreaView style={styles.centeredPage}>
-        <View style={styles.restoreCard} accessibilityRole="alert">
+      <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
+        <View className="w-full max-w-[430px] p-6 rounded-3xl bg-surface border border-border items-center" accessibilityRole="alert">
           <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
-          <Text style={styles.restoreTitle}>Session check unavailable</Text>
-          <Text style={styles.restoreCopy}>{restoreError}</Text>
+          <Text className="text-ink text-[21px] font-extrabold mt-3">Session check unavailable</Text>
+          <Text className="text-muted text-[15px] leading-[22px] text-center mt-2 mb-[18px]">{restoreError}</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Retry session restoration"
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+            className="min-h-[50px] w-full rounded-[14px] bg-leaf items-center justify-center active:opacity-[0.72]"
             onPress={() => void restoreSession()}
           >
-            <Text style={styles.primaryButtonText}>Try again</Text>
+            <Text className="text-surface text-base font-extrabold">Try again</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear saved session and sign in"
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            className="min-h-[48px] items-center justify-center mt-1.5 active:opacity-[0.72]"
             onPress={async () => {
               await SecureStore.deleteItemAsync(TOKEN_KEY);
               setSession(null);
               setRestoreState('ready');
             }}
           >
-            <Text style={styles.secondaryButtonText}>Use another account</Text>
+            <Text className="text-leaf-dark text-[15px] font-bold">Use another account</Text>
           </Pressable>
         </View>
         <StatusBar style="dark" />
@@ -154,29 +153,29 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.logoRow}>
-          <View style={styles.smallMark} accessibilityElementsHidden>
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="min-h-[66px] flex-row items-center justify-between px-[18px] border-b border-border bg-background">
+        <View className="flex-1 flex-row items-center gap-2.5">
+          <View className="w-9 h-9 rounded-xl bg-leaf items-center justify-center" accessibilityElementsHidden>
             <Ionicons name="leaf" size={18} color={colors.surface} />
           </View>
           <View>
-            <Text style={styles.appTitle}>Chokro</Text>
-            <Text style={styles.account} numberOfLines={1}>{session.user.email}</Text>
+            <Text className="text-ink text-lg font-extrabold tracking-tight">Chokro</Text>
+            <Text className="text-muted text-[11px] mt-[1px] max-w-[220px]" numberOfLines={1}>{session.user.email}</Text>
           </View>
         </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Sign out"
           hitSlop={8}
-          style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}
+          className="w-12 h-12 items-center justify-center rounded-[14px] active:opacity-[0.72]"
           onPress={() => void handleLogout()}
         >
           <Ionicons name="log-out-outline" size={22} color={colors.leafDark} />
         </Pressable>
       </View>
 
-      <View style={styles.body}>
+      <View className="flex-1">
         {activeTab === 'browse' && <FeedScreen token={session.token} />}
         {activeTab === 'list' && (
           <CreateListingScreen token={session.token} onCreated={() => setActiveTab('browse')} />
@@ -186,7 +185,7 @@ export default function App() {
         {activeTab === 'scan' && <QRScannerScreen token={session.token} />}
       </View>
 
-      <View style={styles.navBar} accessibilityRole="tablist">
+      <View className="min-h-[72px] flex-row px-2 pt-1.5 pb-1 bg-surface border-t border-border" accessibilityRole="tablist">
         {TABS.map((tab) => {
           const active = activeTab === tab.key;
           return (
@@ -195,7 +194,7 @@ export default function App() {
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
-              style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}
+              className={`flex-1 min-h-[56px] items-center justify-center rounded-2xl gap-[2px] active:opacity-[0.72] ${active ? 'bg-leaf-soft' : ''}`}
               onPress={() => setActiveTab(tab.key)}
             >
               <Ionicons
@@ -203,7 +202,7 @@ export default function App() {
                 size={23}
                 color={active ? colors.leafDark : colors.muted}
               />
-              <Text style={[styles.navLabel, active && styles.navLabelActive]}>{tab.label}</Text>
+              <Text className={`text-[11px] font-bold ${active ? 'text-leaf-dark' : 'text-muted'}`}>{tab.label}</Text>
             </Pressable>
           );
         })}
@@ -212,99 +211,3 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  centeredPage: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  mark: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: colors.leaf,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  brand: { color: colors.ink, fontSize: 28, fontWeight: '800', letterSpacing: -0.7, marginBottom: 28 },
-  loadingText: { color: colors.muted, marginTop: 12, fontSize: 14 },
-  restoreCard: {
-    width: '100%',
-    maxWidth: 430,
-    padding: 24,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  restoreTitle: { color: colors.ink, fontSize: 21, fontWeight: '800', marginTop: 12 },
-  restoreCopy: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 8, marginBottom: 18 },
-  primaryButton: {
-    minHeight: 50,
-    width: '100%',
-    borderRadius: 14,
-    backgroundColor: colors.leaf,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: { color: colors.surface, fontSize: 16, fontWeight: '800' },
-  secondaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  secondaryButtonText: { color: colors.leafDark, fontSize: 15, fontWeight: '700' },
-  header: {
-    minHeight: 66,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  logoRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  smallMark: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: colors.leaf,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  account: { color: colors.muted, fontSize: 11, marginTop: 1, maxWidth: 220 },
-  logoutButton: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-  },
-  body: { flex: 1 },
-  navBar: {
-    minHeight: 72,
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: 4,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  navItem: {
-    flex: 1,
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    gap: 2,
-  },
-  navItemActive: { backgroundColor: colors.leafSoft },
-  navLabel: { color: colors.muted, fontSize: 11, fontWeight: '700' },
-  navLabelActive: { color: colors.leafDark },
-  pressed: { opacity: 0.72 },
-});
