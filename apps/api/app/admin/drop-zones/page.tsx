@@ -1,71 +1,37 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useAdminSession } from '../admin-console';
+import type { Category } from '@chokro/shared';
+import { useState } from 'react';
+import { AdminBadge } from '../components/ui/AdminBadge';
+import { AdminButton } from '../components/ui/AdminButton';
+import { AdminInput } from '../components/ui/AdminInput';
+import { AdminSkeleton } from '../components/ui/AdminSkeleton';
+import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import {
+  useAdminDropZones,
+  useCreateDropZone,
+  type DropZone,
+} from '../hooks/useAdminDropZones';
+import { formatLabel } from '../lib/formatters';
+import { parseApiError } from '../services/adminApi';
 import { CATEGORY_OPTIONS } from './categories';
 
-type DropZone = {
-  id: string;
-  institution_id: string;
-  name: string;
-  accepted_categories: string[];
-  qr_token: string;
-  status: string;
-  created_at: string;
-};
-
-type Notice = { tone: 'success' | 'error'; text: string } | null;
-
-function label(value: string) {
-  return value.replaceAll('_', ' ').toLowerCase().replace(/^./, (character) => character.toUpperCase());
-}
-
-async function apiError(response: Response, fallback: string) {
-  try {
-    const body = (await response.json()) as { error?: string };
-    return body.error || fallback;
-  } catch {
-    return fallback;
-  }
-}
+type Notice = { tone: NoticeTone; text: string } | null;
 
 export default function AdminDropZonesPage() {
-  const { request } = useAdminSession();
-  const [zones, setZones] = useState<DropZone[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const { request } = useAdminAuth();
+  const { data: zones = [], isLoading, isError, refetch } = useAdminDropZones();
+  const createZoneMutation = useCreateDropZone();
+
   const [notice, setNotice] = useState<Notice>(null);
 
-  const fetchZones = useCallback(async () => {
-    setLoading(true);
-    setNotice(null);
-    try {
-      const response = await request('/api/drop-zones');
-      if (!response.ok) {
-        setNotice({ tone: 'error', text: await apiError(response, 'Drop zones could not be loaded.') });
-        return;
-      }
-      const body = (await response.json()) as { zones?: DropZone[] };
-      setZones(Array.isArray(body.zones) ? body.zones : []);
-    } catch {
-      setNotice({ tone: 'error', text: 'Drop zones could not be loaded. Check the service and try again.' });
-    } finally {
-      setLoading(false);
-    }
-  }, [request]);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void fetchZones(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [fetchZones]);
-
   async function createZone(formData: FormData) {
-    setCreating(true);
     setNotice(null);
 
-    const selected = CATEGORY_OPTIONS
-      .filter((category) => formData.getAll('categories').includes(category.value))
-      .map((category) => category.value);
+    const selected = CATEGORY_OPTIONS.filter((category) =>
+      formData.getAll('categories').includes(category.value),
+    ).map((category) => category.value as Category);
 
     try {
       if (selected.length === 0) {
@@ -73,29 +39,25 @@ export default function AdminDropZonesPage() {
         return;
       }
 
-      const response = await request('/api/drop-zones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          institutionId: String(formData.get('institutionId') || '').trim(),
-          name: String(formData.get('name') || '').trim(),
-          acceptedCategories: selected,
-        }),
+      const institutionId = String(formData.get('institutionId') || '').trim();
+      const name = String(formData.get('name') || '').trim();
+
+      await createZoneMutation.mutateAsync({
+        institutionId,
+        name,
+        acceptedCategories: selected,
       });
 
-      if (!response.ok) {
-        setNotice({ tone: 'error', text: await apiError(response, 'Drop zone could not be created.') });
-        return;
-      }
-
-      setNotice({ tone: 'success', text: 'Drop zone created. Print its poster and display it on-site.' });
+      setNotice({
+        tone: 'success',
+        text: 'Drop zone created. Print its poster and display it on-site.',
+      });
       const form = document.getElementById('drop-zone-form') as HTMLFormElement | null;
       form?.reset();
-      await fetchZones();
-    } catch {
-      setNotice({ tone: 'error', text: 'Drop zone could not be created. Check the service and try again.' });
-    } finally {
-      setCreating(false);
+    } catch (error) {
+      const errMessage =
+        error instanceof Error ? error.message : 'Drop zone could not be created.';
+      setNotice({ tone: 'error', text: errMessage });
     }
   }
 
@@ -104,7 +66,10 @@ export default function AdminDropZonesPage() {
     try {
       const response = await request(`/api/drop-zones/${zone.id}/poster`);
       if (!response.ok) {
-        setNotice({ tone: 'error', text: await apiError(response, 'The poster could not be generated.') });
+        setNotice({
+          tone: 'error',
+          text: await parseApiError(response, 'The poster could not be generated.'),
+        });
         return;
       }
       const html = await response.text();
@@ -119,7 +84,10 @@ export default function AdminDropZonesPage() {
       posterWindow.focus();
       posterWindow.print();
     } catch {
-      setNotice({ tone: 'error', text: 'The poster could not be generated. Check the service and try again.' });
+      setNotice({
+        tone: 'error',
+        text: 'The poster could not be generated. Check the service and try again.',
+      });
     }
   }
 
@@ -136,17 +104,17 @@ export default function AdminDropZonesPage() {
         </div>
       </header>
 
-      {notice && (
-        <p className="admin-status-message" data-tone={notice.tone} role={notice.tone === 'error' ? 'alert' : 'status'}>
-          {notice.text}
-        </p>
-      )}
+      {notice && <AdminStatusMessage tone={notice.tone}>{notice.text}</AdminStatusMessage>}
 
       <section className="admin-panel" aria-labelledby="create-zone-title">
         <div className="admin-panel-header">
           <div>
-            <h2 className="admin-section-heading" id="create-zone-title">Register a drop zone</h2>
-            <p className="admin-section-copy">Name, institution, and accepted categories are required. Location can be added later.</p>
+            <h2 className="admin-section-heading" id="create-zone-title">
+              Register a drop zone
+            </h2>
+            <p className="admin-section-copy">
+              Name, institution, and accepted categories are required. Location can be added later.
+            </p>
           </div>
         </div>
         <form
@@ -157,27 +125,43 @@ export default function AdminDropZonesPage() {
             void createZone(new FormData(event.currentTarget));
           }}
         >
-          <div className="admin-field">
-            <label className="admin-label" htmlFor="zone-name">Drop zone name</label>
-            <input className="admin-input" id="zone-name" name="name" type="text" required placeholder="e.g. North Hall Collection Point" />
-          </div>
-          <div className="admin-field">
-            <label className="admin-label" htmlFor="zone-institution">Institution ID</label>
-            <input className="admin-input" id="zone-institution" name="institutionId" type="text" required placeholder="e.g. BUET" />
-          </div>
+          <AdminInput
+            id="zone-name"
+            name="name"
+            label="Drop zone name"
+            type="text"
+            placeholder="e.g. North Hall Collection Point"
+            required
+          />
+
+          <AdminInput
+            id="zone-institution"
+            name="institutionId"
+            label="Institution ID"
+            type="text"
+            placeholder="e.g. BUET"
+            required
+          />
+
           <fieldset className="admin-field admin-checkbox-group">
             <legend className="admin-label">Accepted categories</legend>
             {CATEGORY_OPTIONS.map((category) => (
               <label className="admin-checkbox" key={category.value}>
                 <input type="checkbox" name="categories" value={category.value} />
-                <span>{label(category.value)}</span>
+                <span>{formatLabel(category.value)}</span>
               </label>
             ))}
           </fieldset>
+
           <div className="admin-form-actions">
-            <button className="admin-button admin-button-primary" type="submit" disabled={creating}>
-              {creating ? 'Creating...' : 'Create drop zone'}
-            </button>
+            <AdminButton
+              variant="primary"
+              type="submit"
+              loading={createZoneMutation.isPending}
+              loadingText="Creating..."
+            >
+              Create drop zone
+            </AdminButton>
           </div>
         </form>
       </section>
@@ -185,22 +169,24 @@ export default function AdminDropZonesPage() {
       <section className="admin-panel" aria-labelledby="zone-list-title">
         <div className="admin-panel-header">
           <div>
-            <h2 className="admin-section-heading" id="zone-list-title">Registered zones</h2>
+            <h2 className="admin-section-heading" id="zone-list-title">
+              Registered zones
+            </h2>
             <p className="admin-section-copy">Each zone has a unique signed QR for recognition.</p>
           </div>
-          {!loading && <span className="admin-panel-count">{zones.length} shown</span>}
+          {!isLoading && <span className="admin-panel-count">{zones.length} shown</span>}
         </div>
 
-        {loading ? (
-          <LoadingRows />
-        ) : notice?.tone === 'error' && zones.length === 0 ? (
+        {isLoading ? (
+          <AdminSkeleton rowCount={4} colCount={4} label="Loading drop zones" />
+        ) : isError && zones.length === 0 ? (
           <div className="admin-state">
             <div className="admin-state-content">
               <h3 className="admin-state-title">Drop zones unavailable</h3>
               <p className="admin-state-copy">Retry the request when the admin API is available.</p>
-              <button className="admin-button admin-button-secondary" type="button" onClick={() => void fetchZones()}>
+              <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
                 Retry
-              </button>
+              </AdminButton>
             </div>
           </div>
         ) : zones.length === 0 ? (
@@ -224,19 +210,28 @@ export default function AdminDropZonesPage() {
               <tbody>
                 {zones.map((zone) => (
                   <tr key={zone.id}>
-                    <td data-label="Name"><span className="admin-cell-primary">{zone.name}</span></td>
+                    <td data-label="Name">
+                      <span className="admin-cell-primary">{zone.name}</span>
+                    </td>
                     <td data-label="Institution">{zone.institution_id}</td>
                     <td data-label="Accepted categories">
                       <div className="admin-capabilities">
-                        {(Array.isArray(zone.accepted_categories) ? zone.accepted_categories : []).map((category) => (
-                          <span className="admin-badge" key={category}>{label(category)}</span>
+                        {(Array.isArray(zone.accepted_categories)
+                          ? zone.accepted_categories
+                          : []
+                        ).map((category) => (
+                          <AdminBadge key={category}>{formatLabel(category)}</AdminBadge>
                         ))}
                       </div>
                     </td>
                     <td data-label="Poster">
-                      <button className="admin-button admin-button-secondary" type="button" onClick={() => void openPoster(zone)}>
+                      <AdminButton
+                        variant="secondary"
+                        type="button"
+                        onClick={() => void openPoster(zone)}
+                      >
                         Print poster
-                      </button>
+                      </AdminButton>
                     </td>
                   </tr>
                 ))}
@@ -246,17 +241,5 @@ export default function AdminDropZonesPage() {
         )}
       </section>
     </>
-  );
-}
-
-function LoadingRows() {
-  return (
-    <div className="admin-skeleton-list" role="status" aria-label="Loading drop zones">
-      {[0, 1, 2, 3].map((row) => (
-        <div className="admin-skeleton-row" key={row} aria-hidden="true">
-          {[0, 1, 2, 3].map((column) => <span className="admin-skeleton-line" key={column} />)}
-        </div>
-      ))}
-    </div>
   );
 }
