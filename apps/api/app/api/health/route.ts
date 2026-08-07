@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@chokro/db';
 import { sql } from 'drizzle-orm';
+import { apiError, safeRoute } from '../../../lib/http';
 
-export async function GET() {
+export const GET = safeRoute(async () => {
   if (process.env.NODE_ENV === 'test') {
     return NextResponse.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
   }
@@ -16,4 +17,4 @@ export async function GET() {
       { status: 503 },
     );
   }
-}
+});

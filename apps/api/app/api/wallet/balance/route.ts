@@ -1,29 +1,23 @@
 import { NextResponse } from 'next/server';
-import { db, creditTxns, memoryStore } from '@chokro/db';
 import { requireAuth } from '../../../../lib/auth';
-import { databaseOrTestStore, routeError } from '../../../../lib/database';
-import { eq } from 'drizzle-orm';
+import { safeRoute } from '../../../../lib/http';
+import { walletRepo } from '../../../../lib/repos/wallet';
 
-export async function GET(req: Request) {
-  try {
-    const auth = requireAuth(req);
-    if (auth.response) return auth.response;
-    const txns = await databaseOrTestStore(
-      () => db.select().from(creditTxns).where(eq(creditTxns.user_id, auth.user.userId)),
-      () => memoryStore.creditTxns.filter((txn) => txn.user_id === auth.user.userId),
-    );
+export const GET = safeRoute(async (req: Request) => {
+  const auth = requireAuth(req);
+  if (auth.response) return auth.response;
+  const txns = await walletRepo.findTransactionsByOwner(auth.user.userId);
 
-    let verifiedSum = 0;
-    let pendingSum = 0;
+  let verifiedSum = 0;
+  let pendingSum = 0;
 
-    for (const txn of txns) {
-      const amount = Number(txn.amount);
-      if (txn.status === 'VERIFIED') verifiedSum += amount;
-      if (txn.status === 'PENDING') pendingSum += amount;
-    }
-
-    return NextResponse.json({ balance: { verified: verifiedSum, pending: pendingSum } });
-  } catch (error) {
-    return routeError(error);
+  for (const txn of txns) {
+    const amount = Number(txn.amount);
+    if (txn.status === 'VERIFIED') verifiedSum += amount;
+    if (txn.status === 'PENDING') pendingSum += amount;
   }
-}
+
+  return NextResponse.json({ balance: { verified: verifiedSum, pending: pendingSum } });
+});
+
+

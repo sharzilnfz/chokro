@@ -1,35 +1,38 @@
 import { NextResponse } from 'next/server';
-import { db, dropZones, memoryStore } from '@chokro/db';
-import { eq } from 'drizzle-orm';
 import { requireAuth } from '../../../../lib/auth';
-import { databaseOrTestStore, routeError } from '../../../../lib/database';
+import { apiError, safeRoute } from '../../../../lib/http';
 import { isValidQrToken } from '../../../../lib/qr';
+import { dropZoneRepo } from '../../../../lib/repos/dropZones';
 
-export async function GET(req: Request) {
-  try {
-    const auth = requireAuth(req);
-    if (auth.response) return auth.response;
-    const token = new URL(req.url).searchParams.get('token');
+export const GET = safeRoute(async (req: Request) => {
+  const auth = requireAuth(req);
+  if (auth.response) return auth.response;
+  const url = new URL(req.url);
+  const token = url.searchParams.get('token');
+  const lat = url.searchParams.get('lat');
+  const lng = url.searchParams.get('lng');
+
+  let zone = null;
+  if (lat && lng) {
+    zone = await dropZoneRepo.resolveByLocation(Number(lat), Number(lng));
+  } else {
     if (!token || !isValidQrToken(token)) {
-      return NextResponse.json({ error: 'Invalid drop zone token' }, { status: 400 });
+      return apiError('Invalid drop zone token', 400);
     }
-
-    const zone = await databaseOrTestStore(
-      async () => (await db.select().from(dropZones).where(eq(dropZones.qr_token, token)))[0],
-      () => memoryStore.dropZones.find((candidate) => candidate.qr_token === token),
-    );
-    if (!zone) {
-      return NextResponse.json({ error: 'Drop zone not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      zone: {
-        name: zone.name,
-        status: zone.status,
-        acceptedCategories: zone.accepted_categories,
-      },
-    });
-  } catch (error) {
-    return routeError(error);
+    zone = await dropZoneRepo.findByQrToken(token);
   }
-}
+
+  if (!zone) {
+    return apiError('Drop zone not found', 404);
+  }
+
+  return NextResponse.json({
+    zone: {
+      name: zone.name,
+      status: zone.status,
+      acceptedCategories: zone.accepted_categories,
+    },
+  });
+});
+
+
