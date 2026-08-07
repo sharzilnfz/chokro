@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "b51dc273162c5026a86e230a8091ad762138d57c",
+    "indexed_at": "2026-08-06T12:59:00Z",
+    "project": "chokro",
+    "nodes": 2822,
+    "edges": 2958,
+    "original_size": 3014656,
+    "compressed_size": 394037,
+    "compression_level": 9
+}
