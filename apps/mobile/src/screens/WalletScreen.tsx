@@ -76,7 +76,7 @@ export function WalletScreen({ token }: { token: string }) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry loading wallet"
-          style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+          className="min-w-[132px] min-h-[48px] rounded-[14px] bg-leaf items-center justify-center mt-[16px] active:opacity-[0.72]"
           onPress={() => void loadWallet()}
         >
           <Text className="text-surface text-[14px] font-extrabold">Try again</Text>
