@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from './src/storage';
 import { apiRequest, ApiError, getErrorMessage } from './src/api';
 import { colors } from './src/theme';
 import type { AuthSession, User } from './src/types';
@@ -52,7 +52,7 @@ export default function App() {
     setRestoreError('');
 
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       if (!token) {
         setSession(null);
         setRestoreState('ready');
@@ -65,9 +65,9 @@ export default function App() {
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
         try {
-          await SecureStore.deleteItemAsync(TOKEN_KEY);
+          await storage.deleteItem(TOKEN_KEY);
         } catch {
-          // The rejected token remains unusable even if the device keychain cannot be updated.
+          // The rejected token remains unusable even if device storage cannot be updated.
         }
         setSession(null);
         setRestoreState('ready');
@@ -83,14 +83,14 @@ export default function App() {
   }, []);
 
   const handleAuthenticated = async (nextSession: AuthSession) => {
-    await SecureStore.setItemAsync(TOKEN_KEY, nextSession.token);
+    await storage.setItem(TOKEN_KEY, nextSession.token);
     setSession(nextSession);
     setActiveTab('browse');
   };
 
   const handleLogout = async () => {
     try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await storage.deleteItem(TOKEN_KEY);
     } finally {
       setSession(null);
       setAuthMode('login');
@@ -131,7 +131,7 @@ export default function App() {
             accessibilityLabel="Clear saved session and sign in"
             className="min-h-[48px] items-center justify-center mt-1.5 active:opacity-[0.72]"
             onPress={async () => {
-              await SecureStore.deleteItemAsync(TOKEN_KEY);
+              await storage.deleteItem(TOKEN_KEY);
               setSession(null);
               setRestoreState('ready');
             }}

@@ -1,8 +1,20 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl;
 
-export const API_URL = String(configuredUrl || 'http://localhost:3000').replace(/\/$/, '');
+function resolveApiUrl(): string {
+  const base = String(configuredUrl || 'http://localhost:3000').replace(/\/$/, '');
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    // On web when opening on localhost, prefer localhost:3000 if configuredUrl is LAN IP
+    if (base.includes('192.168.') || base.includes('10.0.')) {
+      return 'http://localhost:3000';
+    }
+  }
+  return base;
+}
+
+export const API_URL = resolveApiUrl();
 
 export class ApiError extends Error {
   constructor(
