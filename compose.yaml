@@ -15,5 +15,32 @@ services:
     volumes:
       - chokro-postgres:/var/lib/postgresql/data
 
+  api:
+    build:
+      context: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
+      JWT_SECRET: dev_jwt_secret
+      QR_SECRET: dev_qr_secret
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  db-setup:
+    build:
+      context: .
+      target: builder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
+    profiles:
+      - setup
+    command: sh -c "pnpm db:push && pnpm db:migrate && pnpm db:seed"
+
 volumes:
   chokro-postgres:
