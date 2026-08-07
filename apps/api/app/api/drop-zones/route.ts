@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '../../../lib/auth';
-import { apiError, safeRoute } from '../../../lib/http';
+import { apiData, apiError, apiSuccess, safeRoute } from '../../../lib/http';
 import { CategoryEnum } from '@chokro/shared';
 import { dropZoneRepo } from '../../../lib/repos/dropZones';
 
@@ -23,14 +22,14 @@ export const POST = safeRoute(async (req: Request) => {
 
   const zone = await dropZoneRepo.create(parsed.data);
 
-  return NextResponse.json({ message: 'Drop zone created', zone }, { status: 201 });
+  return apiSuccess('Drop zone created', { zone }, 201);
 });
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
   if (auth.response) return auth.response;
   const zones = await dropZoneRepo.findAll();
-  return NextResponse.json({ zones });
+  return apiData({ zones });
 });
 
 

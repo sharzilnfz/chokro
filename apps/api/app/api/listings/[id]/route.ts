@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
 import { listingRepo } from '../../../../lib/repos/listings';
 import { z } from 'zod';
 import { requireAuth } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiData, apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 
 const UpdateListingSchema = z.object({ status: z.enum(['DRAFT', 'ACTIVE', 'CANCELLED']) });
 const transitions: Record<string, string[]> = {
@@ -25,7 +24,7 @@ export const GET = safeRoute(async (req: Request, { params }: { params: Promise<
     return apiError('Forbidden', 403);
   }
 
-  return NextResponse.json({ listing });
+  return apiData({ listing });
 });
 
 export const PATCH = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
@@ -50,5 +49,5 @@ export const PATCH = safeRoute(async (req: Request, { params }: { params: Promis
 
   const updatedListing = await listingRepo.updateStatus(id, parsed.data.status);
 
-  return NextResponse.json({ message: 'Listing updated', listing: updatedListing });
+  return apiSuccess('Listing updated', { listing: updatedListing });
 });

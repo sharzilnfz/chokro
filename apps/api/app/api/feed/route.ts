@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { listingRepo } from '../../../lib/repos/listings';
 import { CategoryEnum, ConditionEnum } from '@chokro/shared';
-import { apiError, safeRoute } from '../../../lib/http';
+import { apiData, apiError, safeRoute } from '../../../lib/http';
 import { z } from 'zod';
 
 type Cursor = { createdAt: string; id: string };
@@ -41,7 +40,7 @@ export const GET = safeRoute(async (req: Request) => {
   const hasMore = allItems.length > limit;
   const items = allItems.slice(0, limit);
 
-  return NextResponse.json({
+  return apiData({
     items,
     nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
   });

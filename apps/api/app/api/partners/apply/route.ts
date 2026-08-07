@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { partnerRepo } from '../../../../lib/repos/partners';
 import { z } from 'zod';
 
@@ -39,5 +38,5 @@ export const POST = safeRoute(async (req: Request) => {
     status: 'APPLIED',
   });
 
-  return NextResponse.json({ message: 'Partner application submitted', partner }, { status: 201 });
+  return apiSuccess('Partner application submitted', { partner }, 201);
 });

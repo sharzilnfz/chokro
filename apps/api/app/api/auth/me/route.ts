@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { userRepo } from '../../../../lib/repos/users';
 import { requireAuth } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiData, apiError, safeRoute } from '../../../../lib/http';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
@@ -13,7 +12,7 @@ export const GET = safeRoute(async (req: Request) => {
     return apiError('Unauthorized', 401);
   }
 
-  return NextResponse.json({
+  return apiData({
     user: {
       id: user.id,
       email: user.email,

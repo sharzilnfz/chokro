@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '../../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../../lib/http';
+import { apiError, apiSuccess, safeRoute } from '../../../../../lib/http';
 import { walletRepo } from '../../../../../lib/repos/wallet';
 
 const AdjustSchema = z.object({
@@ -21,6 +20,6 @@ export const POST = safeRoute(async (req: Request) => {
 
   const txn = await walletRepo.createAdjustmentTransaction(parsed.data);
 
-  return NextResponse.json({ message: 'Wallet adjusted successfully', txn }, { status: 201 });
+  return apiSuccess('Wallet adjusted successfully', { txn }, 201);
 });
 

@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { userRepo } from '../../../../lib/repos/users';
 import { hashPassword, signToken } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { z } from 'zod';
 
 const SignupSchema = z.object({
@@ -38,17 +37,13 @@ export const POST = safeRoute(async (req: Request) => {
     role: newUser.role,
   });
 
-  return NextResponse.json(
-    {
-      message: 'Signup successful',
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        role: newUser.role,
-        institutionId: newUser.institution_id,
-      },
-      token,
+  return apiSuccess('Signup successful', {
+    user: {
+      id: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+      institutionId: newUser.institution_id,
     },
-    { status: 201 }
-  );
+    token,
+  }, 201);
 });
