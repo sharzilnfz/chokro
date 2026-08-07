@@ -14,14 +14,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
-import type { AuthSession, User } from '../types';
+import type { User } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type LoginScreenProps = {
-  onLoginSuccess: (session: AuthSession) => Promise<void>;
   onShowSignup: () => void;
 };
 
-export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) {
+export function LoginScreen({ onShowSignup }: LoginScreenProps) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,7 @@ export function LoginScreen({ onLoginSuccess, onShowSignup }: LoginScreenProps) 
         method: 'POST',
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
-      await onLoginSuccess(session);
+      await login(session);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not sign in.'));
     } finally {

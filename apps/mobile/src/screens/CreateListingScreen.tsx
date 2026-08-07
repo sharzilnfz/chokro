@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,6 +14,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
 import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'];
 const MAX_UPLOAD_BYTES = 500 * 1024;
@@ -27,7 +28,6 @@ type PreparedPhoto = {
 };
 
 type CreateListingScreenProps = {
-  token: string;
   onCreated: () => void;
 };
 
@@ -81,7 +81,8 @@ async function preparePhoto(asset: ImagePicker.ImagePickerAsset): Promise<Prepar
   throw new Error('This photo is still larger than 500 KB after compression. Choose a simpler photo.');
 }
 
-export function CreateListingScreen({ token, onCreated }: CreateListingScreenProps) {
+export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
+  const { token } = useAuth();
   const [category, setCategory] = useState<Category>('PLASTICS');
   const [condition, setCondition] = useState<Condition>('GOOD');
   const [quantity, setQuantity] = useState('');
@@ -90,16 +91,23 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const unit = PIECE_CATEGORIES.includes(category) ? 'piece' : 'kg';
 
-  const selectCategory = (nextCategory: Category) => {
+  const selectCategory = useCallback((nextCategory: Category) => {
     setCategory(nextCategory);
     setQuantity('');
     setError('');
-  };
+  }, []);
 
-  const pickPhoto = async () => {
+  const pickPhoto = useCallback(async () => {
     setPreparingPhoto(true);
     setError('');
     setNotice('');
@@ -126,9 +134,9 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
     } finally {
       setPreparingPhoto(false);
     }
-  };
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     const numericQuantity = Number(quantity);
     if (!photo) {
       setError('Add a real item photo before publishing.');
@@ -161,13 +169,13 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
         }),
       });
       setNotice('Listing published as active. It is now available in Browse.');
-      setTimeout(onCreated, 650);
+      timerRef.current = setTimeout(onCreated, 650);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not publish this listing.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [category, condition, onCreated, photo, quantity, token, unit]);
 
   return (
     <ScrollView
@@ -310,4 +318,3 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
     </ScrollView>
   );
 }
-

@@ -14,14 +14,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
-import type { AuthSession, User } from '../types';
+import type { User } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type SignupScreenProps = {
-  onSignupSuccess: (session: AuthSession) => Promise<void>;
   onShowLogin: () => void;
 };
 
-export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps) {
+export function SignupScreen({ onShowLogin }: SignupScreenProps) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -50,7 +51,7 @@ export function SignupScreen({ onSignupSuccess, onShowLogin }: SignupScreenProps
         method: 'POST',
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
-      await onSignupSuccess(session);
+      await login(session);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not create your account.'));
     } finally {

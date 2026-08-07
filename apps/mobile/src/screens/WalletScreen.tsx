@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   Text,
@@ -11,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
 import { categoryLabel } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Balance = { verified: number; pending: number };
 type CreditTransaction = {
@@ -23,39 +25,70 @@ type CreditTransaction = {
   created_at?: string;
 };
 
-export function WalletScreen({ token }: { token: string }) {
+const TransactionItem = React.memo(function TransactionItem({ item }: { item: CreditTransaction }) {
+  const amount = Number(item.amount ?? 0);
+  const isDebit = amount < 0;
+  const sign = isDebit ? '-' : '+';
+  const statusColor = item.status === 'VERIFIED' ? colors.leafDark : item.status === 'PENDING' ? colors.amber : colors.danger;
+
+  return (
+    <View
+      className="min-h-[78px] flex-row items-center bg-surface border border-border rounded-md p-[13px] mb-[9px] shadow-card"
+      style={{ elevation: 2 }}
+      accessibilityLabel={`${categoryLabel(item.kind)} ${Math.abs(amount).toFixed(2)} credits, ${categoryLabel(item.status)}`}
+    >
+      <View className={`w-[44px] h-[44px] rounded-[14px] items-center justify-center ${isDebit ? 'bg-danger-soft' : 'bg-leaf-soft'}`}>
+        <Ionicons name={isDebit ? 'arrow-up' : 'arrow-down'} size={19} color={isDebit ? colors.danger : colors.leafDark} />
+      </View>
+      <View className="flex-1 mx-[11px]">
+        <Text className="text-ink text-[14px] font-extrabold">{categoryLabel(item.kind)}</Text>
+        <Text className="text-[11px] font-extrabold mt-[2px]" style={{ color: statusColor }}>{categoryLabel(item.status)}</Text>
+        {item.reason ? <Text className="text-muted text-[11px] leading-[16px] mt-[2px]">{item.reason}</Text> : null}
+      </View>
+      <Text className={`text-[16px] font-extrabold ${isDebit ? 'text-danger' : 'text-leaf-dark'}`}>{sign}{Math.abs(amount).toFixed(2)}</Text>
+    </View>
+  );
+});
+
+export function WalletScreen() {
+  const { token } = useAuth();
   const [balance, setBalance] = useState<Balance>({ verified: 0, pending: 0 });
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const loadWallet = async (refresh = false) => {
-    if (refresh) setRefreshing(true);
-    else setLoading(true);
-    setError('');
+  const loadWallet = useCallback(
+    async (refresh = false) => {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+      setError('');
 
-    try {
-      const [balanceData, transactionData] = await Promise.all([
-        apiRequest<{ balance: Balance }>('/api/wallet/balance', { token }),
-        apiRequest<{ transactions: CreditTransaction[] }>('/api/wallet/transactions', { token }),
-      ]);
-      setBalance({
-        verified: Number(balanceData.balance?.verified ?? 0),
-        pending: Number(balanceData.balance?.pending ?? 0),
-      });
-      setTransactions(Array.isArray(transactionData.transactions) ? transactionData.transactions : []);
-    } catch (nextError) {
-      setError(getErrorMessage(nextError, 'Could not load your wallet.'));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+      try {
+        const [balanceData, transactionData] = await Promise.all([
+          apiRequest<{ balance: Balance }>('/api/wallet/balance', { token }),
+          apiRequest<{ transactions: CreditTransaction[] }>('/api/wallet/transactions', { token }),
+        ]);
+        setBalance({
+          verified: Number(balanceData.balance?.verified ?? 0),
+          pending: Number(balanceData.balance?.pending ?? 0),
+        });
+        setTransactions(Array.isArray(transactionData.transactions) ? transactionData.transactions : []);
+      } catch (nextError) {
+        setError(getErrorMessage(nextError, 'Could not load your wallet.'));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [token],
+  );
 
   useEffect(() => {
     void loadWallet();
-  }, [token]);
+  }, [loadWallet]);
+
+  const renderItem = useCallback(({ item }: { item: CreditTransaction }) => <TransactionItem item={item} />, []);
 
   if (loading) {
     return (
@@ -91,6 +124,11 @@ export function WalletScreen({ token }: { token: string }) {
       contentContainerClassName="p-[20px] pb-[36px]"
       data={transactions}
       keyExtractor={(item) => item.id}
+      renderItem={renderItem}
+      removeClippedSubviews={Platform.OS !== 'web'}
+      initialNumToRender={8}
+      maxToRenderPerBatch={10}
+      windowSize={7}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -126,26 +164,6 @@ export function WalletScreen({ token }: { token: string }) {
           <Text className="text-ink text-[18px] font-extrabold mt-[24px] mb-[10px]">Ledger history</Text>
         </View>
       }
-      renderItem={({ item }) => {
-        const amount = Number(item.amount ?? 0);
-        const isDebit = amount < 0;
-        const isCredit = amount > 0;
-        const sign = isDebit ? '-' : '+';
-        const statusColor = item.status === 'VERIFIED' ? colors.leafDark : item.status === 'PENDING' ? colors.amber : colors.danger;
-        return (
-          <View className="min-h-[78px] flex-row items-center bg-surface border border-border rounded-md p-[13px] mb-[9px] shadow-card" style={{ elevation: 2 }} accessibilityLabel={`${categoryLabel(item.kind)} ${Math.abs(amount).toFixed(2)} credits, ${categoryLabel(item.status)}`}>
-            <View className={`w-[44px] h-[44px] rounded-[14px] items-center justify-center ${isDebit ? 'bg-danger-soft' : 'bg-leaf-soft'}`}>
-              <Ionicons name={isDebit ? 'arrow-up' : 'arrow-down'} size={19} color={isDebit ? colors.danger : colors.leafDark} />
-            </View>
-            <View className="flex-1 mx-[11px]">
-              <Text className="text-ink text-[14px] font-extrabold">{categoryLabel(item.kind)}</Text>
-              <Text className="text-[11px] font-extrabold mt-[2px]" style={{ color: statusColor }}>{categoryLabel(item.status)}</Text>
-              {item.reason ? <Text className="text-muted text-[11px] leading-[16px] mt-[2px]">{item.reason}</Text> : null}
-            </View>
-            <Text className={`text-[16px] font-extrabold ${isDebit ? 'text-danger' : 'text-leaf-dark'}`}>{sign}{Math.abs(amount).toFixed(2)}</Text>
-          </View>
-        );
-      }}
       ListEmptyComponent={
         <View className="items-center p-[28px] border border-border rounded-md bg-surface">
           <Ionicons name="receipt-outline" size={31} color={colors.leaf} />
@@ -156,4 +174,3 @@ export function WalletScreen({ token }: { token: string }) {
     />
   );
 }
-

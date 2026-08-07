@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   Text,
@@ -11,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
 import { categoryLabel } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Rate = {
   id: string;
@@ -45,7 +47,27 @@ function conditionOrder(condition: Rate['condition_band']) {
   return ['EXCELLENT', 'GOOD', 'FAIR', 'POOR'].indexOf(condition);
 }
 
-export function RateCardScreen({ token }: { token: string }) {
+const RateCardRow = React.memo(function RateCardRow({ item }: { item: RowRate }) {
+  return (
+    <View
+      className="bg-surface border border-border rounded-md p-[16px] mb-[14px] shadow-card"
+      style={{ elevation: 2 }}
+      accessibilityLabel={`${categoryLabel(item.category)} rates`}
+    >
+      <Text className="text-ink text-[16px] font-extrabold mb-[6px]">{categoryLabel(item.category)}</Text>
+      {item.entries.map((rate) => (
+        <View className="flex-row items-center py-[9px]" key={rate.id}>
+          <Text className="text-ink text-[14px] font-bold">{categoryLabel(rate.condition_band)}</Text>
+          <Text className="text-muted text-[12px] ml-[8px]">per {rate.unit}</Text>
+          <Text className="text-leaf-dark text-[16px] font-extrabold ml-auto">৳ {Number(rate.price_bdt).toFixed(2)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+});
+
+export function RateCardScreen() {
+  const { token } = useAuth();
   const [rows, setRows] = useState<RowRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,6 +95,8 @@ export function RateCardScreen({ token }: { token: string }) {
   useEffect(() => {
     void loadRates();
   }, [loadRates]);
+
+  const renderItem = useCallback(({ item }: { item: RowRate }) => <RateCardRow item={item} />, []);
 
   if (loading) {
     return (
@@ -108,6 +132,11 @@ export function RateCardScreen({ token }: { token: string }) {
       contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
       data={rows}
       keyExtractor={(item) => item.category}
+      renderItem={renderItem}
+      removeClippedSubviews={Platform.OS !== 'web'}
+      initialNumToRender={6}
+      maxToRenderPerBatch={8}
+      windowSize={7}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -127,18 +156,6 @@ export function RateCardScreen({ token }: { token: string }) {
           {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] my-[12px] text-[13px] leading-[19px]">{error}</Text> : null}
         </View>
       }
-      renderItem={({ item }) => (
-        <View className="bg-surface border border-border rounded-md p-[16px] mb-[14px] shadow-card" style={{ elevation: 2 }} accessibilityLabel={`${categoryLabel(item.category)} rates`}>
-          <Text className="text-ink text-[16px] font-extrabold mb-[6px]">{categoryLabel(item.category)}</Text>
-          {item.entries.map((rate) => (
-            <View className="flex-row items-center py-[9px]" key={rate.id}>
-              <Text className="text-ink text-[14px] font-bold">{categoryLabel(rate.condition_band)}</Text>
-              <Text className="text-muted text-[12px] ml-[8px]">per {rate.unit}</Text>
-              <Text className="text-leaf-dark text-[16px] font-extrabold ml-auto">৳ {Number(rate.price_bdt).toFixed(2)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
       ListEmptyComponent={
         <View className="items-center p-[28px] border border-border rounded-md bg-surface">
           <Ionicons name="pricetags-outline" size={31} color={colors.leaf} />

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
 import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition, type ListingStatus } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type FeedFilter = 'ALL' | Category;
 type ConditionFilter = 'ALL' | Condition;
@@ -34,7 +35,65 @@ type FeedResponse = {
   nextCursor?: string | null;
 };
 
-export function FeedScreen({ token }: { token: string }) {
+const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
+const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
+
+function ListingCard({ item }: { item: Listing }) {
+  const quantity = item.unit === 'piece'
+    ? item.piece_count ?? item.declared_weight
+    : item.declared_weight;
+  const quantityText = item.unit === 'piece'
+    ? `${quantity ?? 'Not stated'} ${Number(quantity) === 1 ? 'piece' : 'pieces'}`
+    : `${quantity ?? 'Not stated'} kg`;
+  const photo = item.photos?.[0];
+
+  return (
+    <View
+      className="bg-surface rounded-md border border-border overflow-hidden mt-[10px] shadow-card"
+      style={{ elevation: 2 }}
+      accessibilityLabel={`${categoryLabel(item.category)}, ${categoryLabel(item.declared_condition)}, ${quantityText}, status ${categoryLabel(item.status)}`}
+    >
+      {photo ? (
+        <Image
+          source={{ uri: photo }}
+          className="w-full h-[178px] bg-surface-muted"
+          resizeMode="cover"
+          accessibilityLabel={`${categoryLabel(item.category)} listing photo`}
+        />
+      ) : (
+        <View className="h-[130px] bg-surface-muted items-center justify-center gap-[5px]">
+          <Ionicons name="image-outline" size={28} color={colors.muted} />
+          <Text className="text-muted text-[12px] font-semibold">No photo available</Text>
+        </View>
+      )}
+      <View className="p-[16px]">
+        <View className="flex-row items-center justify-between gap-[10px]">
+          <Text className="flex-1 text-ink text-[20px] font-extrabold tracking-tight">{categoryLabel(item.category)}</Text>
+          <View className="min-h-[30px] flex-row items-center gap-[6px] bg-leaf-soft rounded-pill px-[10px]">
+            <View className="w-[7px] h-[7px] rounded-[4px] bg-leaf" />
+            <Text className="text-leaf-dark text-[11px] font-extrabold">{categoryLabel(item.status)}</Text>
+          </View>
+        </View>
+        <View className="flex-row flex-wrap gap-[14px] mt-[12px]">
+          <View className="min-h-[28px] flex-row items-center gap-[6px]">
+            <Ionicons name="layers-outline" size={16} color={colors.muted} />
+            <Text className="text-muted text-[13px] font-bold">{quantityText}</Text>
+          </View>
+          <View className="min-h-[28px] flex-row items-center gap-[6px]">
+            <Ionicons name="sparkles-outline" size={16} color={colors.muted} />
+            <Text className="text-muted text-[13px] font-bold">{categoryLabel(item.declared_condition)}</Text>
+          </View>
+        </View>
+        <Text className="text-muted text-[12px] leading-[18px] border-t border-border mt-[12px] pt-[11px]">
+          Owner-declared details. Final condition and value are confirmed at handover.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+export function FeedScreen() {
+  const { token } = useAuth();
   const [category, setCategory] = useState<FeedFilter>('ALL');
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
   const [items, setItems] = useState<Listing[]>([]);
@@ -93,48 +152,7 @@ export function FeedScreen({ token }: { token: string }) {
     void loadFeed('initial');
   }, [category, condition]);
 
-  const renderCard = ({ item }: { item: Listing }) => {
-    const quantity = item.unit === 'piece'
-      ? item.piece_count ?? item.declared_weight
-      : item.declared_weight;
-    const quantityText = item.unit === 'piece'
-      ? `${quantity ?? 'Not stated'} ${Number(quantity) === 1 ? 'piece' : 'pieces'}`
-      : `${quantity ?? 'Not stated'} kg`;
-    const photo = item.photos?.[0];
-
-    return (
-      <View className="bg-surface rounded-md border border-border overflow-hidden mt-[10px] shadow-card" style={{ elevation: 2 }} accessibilityLabel={`${categoryLabel(item.category)}, ${categoryLabel(item.declared_condition)}, ${quantityText}, status ${categoryLabel(item.status)}`}>
-        {photo ? (
-          <Image source={{ uri: photo }} className="w-full h-[178px] bg-surface-muted" resizeMode="cover" accessibilityLabel={`${categoryLabel(item.category)} listing photo`} />
-        ) : (
-          <View className="h-[130px] bg-surface-muted items-center justify-center gap-[5px]">
-            <Ionicons name="image-outline" size={28} color={colors.muted} />
-            <Text className="text-muted text-[12px] font-semibold">No photo available</Text>
-          </View>
-        )}
-        <View className="p-[16px]">
-          <View className="flex-row items-center justify-between gap-[10px]">
-            <Text className="flex-1 text-ink text-[20px] font-extrabold tracking-tight">{categoryLabel(item.category)}</Text>
-            <View className="min-h-[30px] flex-row items-center gap-[6px] bg-leaf-soft rounded-pill px-[10px]">
-              <View className="w-[7px] h-[7px] rounded-[4px] bg-leaf" />
-              <Text className="text-leaf-dark text-[11px] font-extrabold">{categoryLabel(item.status)}</Text>
-            </View>
-          </View>
-          <View className="flex-row flex-wrap gap-[14px] mt-[12px]">
-            <View className="min-h-[28px] flex-row items-center gap-[6px]">
-              <Ionicons name="layers-outline" size={16} color={colors.muted} />
-              <Text className="text-muted text-[13px] font-bold">{quantityText}</Text>
-            </View>
-            <View className="min-h-[28px] flex-row items-center gap-[6px]">
-              <Ionicons name="sparkles-outline" size={16} color={colors.muted} />
-              <Text className="text-muted text-[13px] font-bold">{categoryLabel(item.declared_condition)}</Text>
-            </View>
-          </View>
-          <Text className="text-muted text-[12px] leading-[18px] border-t border-border mt-[12px] pt-[11px]">Owner-declared details. Final condition and value are confirmed at handover.</Text>
-        </View>
-      </View>
-    );
-  };
+  const renderCard = ({ item }: { item: Listing }) => <ListingCard item={item} />;
 
   return (
     <View className="flex-1 bg-background">
@@ -159,7 +177,7 @@ export function FeedScreen({ token }: { token: string }) {
 
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
-              {(['ALL', ...CATEGORIES] as FeedFilter[]).map((item) => {
+              {FEED_CATEGORIES.map((item) => {
                 const selected = category === item;
                 const label = item === 'ALL' ? 'All' : categoryLabel(item);
                 return (
@@ -179,7 +197,7 @@ export function FeedScreen({ token }: { token: string }) {
 
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Condition</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
-              {(['ALL', ...CONDITIONS] as ConditionFilter[]).map((item) => {
+              {FEED_CONDITIONS.map((item) => {
                 const selected = condition === item;
                 const label = item === 'ALL' ? 'Any condition' : categoryLabel(item);
                 return (

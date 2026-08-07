@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '../api';
 import { colors } from '../theme';
 import { categoryLabel } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type DropZone = {
   id: string;
@@ -23,6 +24,8 @@ type DropZone = {
   institution_id?: string;
 };
 
+const EMPTY_CATEGORIES: string[] = [];
+
 function extractToken(payload: string): string {
   const trimmed = payload.trim();
   try {
@@ -33,7 +36,8 @@ function extractToken(payload: string): string {
   }
 }
 
-export function QRScannerScreen({ token }: { token: string }) {
+export function QRScannerScreen() {
+  const { token } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [manualToken, setManualToken] = useState('');
   const [scanning, setScanning] = useState(true);
@@ -42,45 +46,51 @@ export function QRScannerScreen({ token }: { token: string }) {
   const [zone, setZone] = useState<DropZone | null>(null);
   const resolvingRef = useRef(false);
 
-  const resolveToken = async (rawToken: string) => {
-    const zoneToken = extractToken(rawToken);
-    if (!zoneToken) {
-      setError('Enter or scan a Drop Zone token.');
-      return;
-    }
-    if (resolvingRef.current) return;
+  const resolveToken = useCallback(
+    async (rawToken: string) => {
+      const zoneToken = extractToken(rawToken);
+      if (!zoneToken) {
+        setError('Enter or scan a Drop Zone token.');
+        return;
+      }
+      if (resolvingRef.current) return;
 
-    resolvingRef.current = true;
-    setLoading(true);
-    setScanning(false);
-    setError('');
-    setZone(null);
-    try {
-      const data = await apiRequest<{ zone: DropZone }>(`/api/drop-zones/resolve?token=${encodeURIComponent(zoneToken)}`, { token });
-      if (!data.zone) throw new Error('The API did not return a Drop Zone.');
-      setZone(data.zone);
-      setManualToken(zoneToken);
-    } catch (nextError) {
-      setError(getErrorMessage(nextError, 'This QR code could not be resolved.'));
-    } finally {
-      resolvingRef.current = false;
-      setLoading(false);
-    }
-  };
+      resolvingRef.current = true;
+      setLoading(true);
+      setScanning(false);
+      setError('');
+      setZone(null);
+      try {
+        const data = await apiRequest<{ zone: DropZone }>(`/api/drop-zones/resolve?token=${encodeURIComponent(zoneToken)}`, { token });
+        if (!data.zone) throw new Error('The API did not return a Drop Zone.');
+        setZone(data.zone);
+        setManualToken(zoneToken);
+      } catch (nextError) {
+        setError(getErrorMessage(nextError, 'This QR code could not be resolved.'));
+      } finally {
+        resolvingRef.current = false;
+        setLoading(false);
+      }
+    },
+    [token],
+  );
 
-  const handleBarcode = (result: BarcodeScanningResult) => {
-    if (!scanning || loading) return;
-    void resolveToken(result.data);
-  };
+  const handleBarcode = useCallback(
+    (result: BarcodeScanningResult) => {
+      if (!scanning || loading) return;
+      void resolveToken(result.data);
+    },
+    [loading, resolveToken, scanning],
+  );
 
-  const scanAgain = () => {
+  const scanAgain = useCallback(() => {
     setZone(null);
     setError('');
     setManualToken('');
     setScanning(true);
-  };
+  }, []);
 
-  const acceptedCategories = zone?.acceptedCategories ?? zone?.accepted_categories ?? [];
+  const acceptedCategories = zone?.acceptedCategories ?? zone?.accepted_categories ?? EMPTY_CATEGORIES;
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-[20px] pb-[36px]" keyboardShouldPersistTaps="handled">
@@ -204,4 +214,3 @@ export function QRScannerScreen({ token }: { token: string }) {
     </ScrollView>
   );
 }
-
