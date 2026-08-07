@@ -1,38 +1,50 @@
 import { NextResponse } from 'next/server';
 import { routeError } from './database';
 
-/**
- * Wraps a route handler so unexpected errors surface through the shared
- * `routeError` mapping (503 for a dead database, 500 otherwise) instead of
- * each handler repeating its own try/catch.
- */
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+};
+
+export function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
 export function safeRoute<TArgs extends unknown[]>(
   handler: (...args: TArgs) => Promise<Response>,
 ) {
   return async (...args: TArgs): Promise<Response> => {
     try {
-      return await handler(...args);
+      const res = await handler(...args);
+      Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+        res.headers.set(key, value);
+      });
+      return res;
     } catch (error) {
-      return routeError(error);
+      const res = routeError(error);
+      Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+        res.headers.set(key, value);
+      });
+      return res;
     }
   };
 }
 
-/** Canonical error payload: always `{ error }`, plus `details` only when given. */
 export function apiError(message: string, status: number, details?: unknown): NextResponse {
-  if (details === undefined) {
-    return NextResponse.json({ error: message }, { status });
-  }
-  return NextResponse.json({ error: message, details }, { status });
-}
-/** Canonical success payload: always `{ message }`, plus any extra data spread in. */
-export function apiSuccess(message: string, data?: Record<string, unknown>, status = 200): NextResponse {
-  return NextResponse.json({ message, ...data }, { status });
+  const body = details === undefined ? { error: message } : { error: message, details };
+  return NextResponse.json(body, { status, headers: CORS_HEADERS });
 }
 
-/** Data-only payload (no message): spreads the record as the JSON body. */
+export function apiSuccess(message: string, data?: Record<string, unknown>, status = 200): NextResponse {
+  return NextResponse.json({ message, ...data }, { status, headers: CORS_HEADERS });
+}
+
 export function apiData(data: Record<string, unknown>, status = 200): NextResponse {
-  return NextResponse.json(data, { status });
+  return NextResponse.json(data, { status, headers: CORS_HEADERS });
 }
 
 export { routeError } from './database';
