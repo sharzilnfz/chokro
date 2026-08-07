@@ -193,7 +193,8 @@ footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-siz
   <a href="#big-picture">0 · The Big Picture</a>
   <a href="#part-1">1 · Lay of the Land</a>
   <a href="#part-2">2 · One Request, End-to-End</a>
-  <a href="#part-3">3 · Identity &amp; Trust</a>
+  <a href="#part-2-5">2.5 · Networks &amp; CORS</a>
+   <a href="#part-3">3 · Identity &amp; Trust</a>
   <a href="#part-4">4 · Marketplace &amp; Feed</a>
   <a href="#part-5">5 · The Ledger (Rates + Wallet)</a>
   <a href="#part-6">6 · Signed QR Drop Zones</a>
@@ -206,7 +207,7 @@ footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-siz
     <h1>Chokro, Explained</h1>
     <p class="sub">Everything an agent wrote in Sprint&nbsp;1 — the monorepo shape, every API route, the database, the auth, and the mobile app — turned into a guided tour you can click through. Hover the tiles, press the chips, open the self-tests.</p>
     <div class="deck">
-      <span class="tag">monorepo · turbo</span><span class="tag">Next.js API</span><span class="tag">Expo mobile</span><span class="tag">Postgres + Drizzle</span><span class="tag">JWT + bcrypt</span>
+      <span class="tag">monorepo · turbo</span><span class="tag">Next.js API</span><span class="tag">Expo + NativeWind mobile</span><span class="tag">Postgres + Drizzle</span><span class="tag">JWT + bcrypt</span><span class="tag">CORS networks</span><span class="tag">Docker deploy</span>
     </div>
   </div>
 
@@ -290,7 +291,7 @@ footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-siz
     </div>
 
     <h3>Every route shares this skeleton</h3>
-    <pre><code><span class="hl-code">export const POST = safeRoute(async (req: Request) =&gt; {</span> <span class="cm">// ① wrapped in safeRoute for auto error handling</span>
+    <pre><code><span class="hl-code">export const POST = safeRoute(async (req: Request) =&gt; {</span> <span class="cm">// ① safeRoute: try/catch → routeError, + stamps CORS headers on every response</span>
   <span class="hl-code">const auth = requireAuth(req);</span>                    <span class="cm">// ② gate: Bearer JWT → {userId, email, role} or 401</span>
   <span class="hl-code">if (auth.response) return auth.response;</span>          <span class="cm">// ③ early return if the gate failed</span>
 
@@ -299,10 +300,10 @@ footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-siz
     return apiError('Invalid input', 400, parsed.error.format());
 
   <span class="hl-code">const listing = await listingRepo.create({ ... });</span> <span class="cm">// ⑥ domain repository encapsulates DB vs test store</span>
-  return NextResponse.json({ listing }, { status: 201 }); <span class="cm">// ⑦ JSON out — clean, decoupled route</span>
+  return apiSuccess('Listing created', { listing }, 201); <span class="cm">// ⑦ JSON out, CORS-stamped — apiSuccess/apiData/apiError keep the shape uniform</span>
 <span class="hl-code">});</span>                                                 <span class="cm">// safeRoute catches unhandled errors → routeError (500/503)</span></code></pre>
 
-    <p>The real file is a few more lines (the zod schema for listings also enforces the kg-vs-piece rule — that's a whole story, see Part 4). But the shape is identical across all 22 endpoints. Once you read one, you've read them all.</p>
+    <p>The real file is a few more lines (the zod schema for listings also enforces the kg-vs-piece rule — that's a whole story, see Part 4). But the shape is identical across all 22 endpoints: a thin route wrapper, an auth gate, a zod parse, a <b>repository call</b> that hides the Postgres-vs-`memoryStore` twin, and one of the three response helpers (<code>apiSuccess</code>/<code>apiData</code>/<code>apiError</code>). <b>Cross-cutting note:</b> because the mobile app can now run in a browser, <code>safeRoute</code> also stamps <code>Access-Control-Allow-*</code> headers on every success <em>and</em> error, and each route exports an <code>OPTIONS</code> handler for the browser's CORS preflight (see Part 4.5).</p>
 
     <div class="panel">
       <div class="panel-title">Production database vs. test twin<span class="hint">the one weird thing in every route</span></div>
@@ -318,6 +319,47 @@ footer{text-align:center;padding:60px 20px 30px;color:var(--text-faint);font-siz
     <div class="qa">
       <div class="q">Self-test: a test signs up a user, but the test crashes with "Database unavailable". What happened, and what's the fix?</div>
       <details><summary>Reveal</summary><p>The test probably ran with <code>NODE_ENV</code> set to something other than <code>test</code>, so <code>databaseOrTestStore</code> tried the real database. Run Jest with <code>NODE_ENV=test</code> — then every route takes its in-memory path instead.</p></details>
+    </div>
+  </section>
+
+  <!-- ============================================================== -->
+  <section id="part-2-5" class="part-head">
+    <div class="part-label">Part 2.5</div>
+    <h2>🌐 Networks — how the app on the web talks to the API</h2>
+
+    <p>Sprint 2 changed one thing that ripples through the whole server: <b>the phone app now runs in a browser.</b> When a phone (React Native) talks to the API it's just an HTTP call. But when the <em>same app</em> is served as a web page and fetches <code>http://localhost:3000/api/*</code> from a different origin, the browser steps in with <b>CORS</b> (Cross-Origin Resource Sharing) and silently blocks every response unless the server explicitly says it's allowed.</p>
+
+    <pre><code><span class="cm">// apps/api/lib/http.ts — one constant, stamped on every response via safeRoute</span>
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',                                   <span class="cm">// any origin may read</span>
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+};
+export function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS_HEADERS }); }  <span class="cm">// preflight</span></code></pre>
+
+    <div class="panel">
+      <div class="panel-title">How CORS actually flows<span class="hint">pick a scenario to see what the browser does</span></div>
+      <div class="tile-grid">
+        <div class="tile">
+          <div class="t-name">① Safe read (GET)</div>
+          <div class="t-sub">Browser sends <code>GET /api/feed</code> with an <code>Origin:</code> header. The route runs, <code>safeRoute</code> stamps <code>Access-Control-Allow-Origin: *</code> on the response. Browser sees the match → hands the JSON to the web app.</div>
+        </div>
+        <div class="tile">
+          <div class="t-name">② Non-simple request (POST + JSON)</div>
+          <div class="t-sub">POST with <code>Content-Type: application/json</code> triggers a <b>preflight</b>: the browser first fires <code>OPTIONS /api/listings</code>. Our <code>OPTIONS()</code> handler answers <code>204</code> with the CORS headers → browser then sends the real POST.</div>
+        </div>
+        <div class="tile">
+          <div class="t-name">③ Without CORS headers</div>
+          <div class="t-sub">The fetch actually reaches the server and the DB runs — but the browser <b>withholds the response</b> from JavaScript. The request "fails" from the app's view even though the server replied 200. This is why CORS feels like the server is "broken" when it isn't.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trap"><span class="lbl">⚡ TRAP 2.5.1</span><b>Errors were invisible on web before this.</b> Before CORS headers were added to <code>routeError</code> and every helper, a 400/500 from the API showed up in the web app only as a generic "Failed to fetch" — the browser hid the real body. Now <code>safeRoute</code> stamps the headers on the error path too, so a validation 400 is readable as JSON on web.</div>
+
+    <div class="qa">
+      <div class="q">Self-test: why does <code>GET /api/health</code> (no body, no custom headers) not trigger a preflight, but logging in does?</div>
+      <details><summary>Reveal</summary><p>A plain <code>GET</code> with no custom headers is a "simple request" — the browser sends it directly. The login POST uses <code>Content-Type: application/json</code>, which is not a "simple" content type, so the browser fires the <code>OPTIONS</code> preflight first. That's why routes export an <code>OPTIONS</code> handler even though there's no POST body to speak of on the preflight itself.</p></details>
     </div>
   </section>
 
@@ -665,7 +707,7 @@ renderLoop(0);
 
 /* ---------------- Part 1: folder map ---------------- */
 var tiles = [
-  { n: "apps/mobile", sub: "Expo + React Native — the phone app", body: "Five screens under <code>src/screens</code> (Login, Signup, Feed, CreateListing, Wallet, QRScanner) plus <code>App.tsx</code> (tabs + session restore), <code>src/api.ts</code> (the fetch client), <code>src/theme.ts</code>. Only speaks HTTP to the API — it never touches the database." },
+  { n: "apps/mobile", sub: "Expo + React Native + NativeWind — the phone app (and now web)", body: "Five screens under <code>src/screens</code> (Login, Signup, Feed, CreateListing, Wallet, QRScanner) plus <code>App.tsx</code> (tabs + session restore), <code>src/api.ts</code> (the fetch client), <code>src/storage.ts</code> (platform-safe token persistence) and <code>src/theme.ts</code>. Styled with <b>NativeWind</b> (Tailwind classes compiled to RN styles) via <code>global.css</code> + <code>tailwind.config.js</code>. Runs on iOS, Android, and <b>web</b> — which is why the API now needs CORS." },
   { n: "apps/api", sub: "Next.js — the server", body: "Two jobs in one package: <code>app/api/**/route.ts</code> holds the 22 REST endpoints, and <code>app/admin/**</code> holds the web pages. Beside them: <code>lib/auth.ts</code>, <code>lib/qr.ts</code>, <code>lib/database.ts</code>, <code>lib/http.ts</code> (safeRoute + apiError), and domain repositories in <code>lib/repos/</code> (userRepo, listingRepo, partnerRepo, rateCardRepo, dropZoneRepo, walletRepo). The Jest test suite lives in <code>tests/</code>." },
   { n: "packages/db", sub: "Postgres + Drizzle", body: "<code>src/schema.ts</code> defines 6 tables; <code>src/seed.ts</code> creates demo accounts + starter rates; <code>src/migrate.ts</code> enforces the append-only wallet trigger; <code>src/index.ts</code> also exports the <code>memoryStore</code> that tests use instead of Postgres." },
   { n: "packages/shared", sub: "The shared dictionary", body: "<code>src/index.ts</code> — zod enums both sides share: Role, Category, Unit, Condition, Path, ListingStatus, PartnerStatus, credit kinds. One source of truth for valid values." },
