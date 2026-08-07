@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=50"]
     environment:
       POSTGRES_DB: chokro
       POSTGRES_PASSWORD: postgres
@@ -12,6 +13,11 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '1.0'
     volumes:
       - chokro-postgres:/var/lib/postgresql/data
 
@@ -25,8 +31,14 @@ services:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
       JWT_SECRET: dev_jwt_secret
       QR_SECRET: dev_qr_secret
+      NODE_OPTIONS: "--max-old-space-size=512"
     ports:
       - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.5'
     restart: unless-stopped
 
   db-setup:
@@ -44,3 +56,4 @@ services:
 
 volumes:
   chokro-postgres:
+
