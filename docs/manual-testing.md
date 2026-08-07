@@ -2,26 +2,34 @@
 
 Monorepo: `@chokro/api` (Next.js 16, port 3000), `@chokro/mobile` (Expo), `@chokro/db` (Drizzle + Postgres), `@chokro/shared` (zod enums). pnpm 11.18, Node ≥ 22.13. The API and admin console are the same Next.js process on **`http://localhost:3000`**; the mobile app runs in **Expo Go**.
 
-## 1. Prereqs & one-time setup
+## 1. Prereqs & setup
+
+### Docker Setup (API + Database + Automated Migrations/Seed)
 
 ```bash
-pnpm install
-docker compose up -d && docker compose ps   # postgres:17 on 5432 (db/user/pass all "postgres", db "chokro")
-pnpm db:setup                                # db:push + db:migrate + db:seed
-pnpm --filter @chokro/api dev                # Next on port 3000
+# 1. Start Postgres & Next.js API containers
+docker compose up -d
+
+# 2. Run automated database setup (Schema push + Migrations + Seeding)
+docker compose --profile setup up db-setup
 ```
 
-Health check — expect `200`:
+Verify backend health — expect `200 OK`:
 
 ```bash
 curl -s http://localhost:3000/api/health   # {"status":"ok","db":"connected",...}
 ```
 
-Mobile:
+### Mobile App (Host Laptop / Device)
 
 ```bash
-pnpm --filter @chokro/mobile start   # i = iOS sim, a = Android, QR = Expo Go
+pnpm --filter @chokro/mobile start
 ```
+* Press **`w`** — Open in Web Browser (Mac/Laptop testing without physical phone)
+* Press **`i`** — Launch iOS Simulator
+* Press **`a`** — Launch Android Emulator
+* Scan QR Code — Launch on physical phone via Expo Go app
+
 
 Physical phone needs the LAN IP (restart before bundling):
 
