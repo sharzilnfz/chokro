@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '@/api';
+import { apiRequest, getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
 import { useAuth } from '@/context/AuthContext';

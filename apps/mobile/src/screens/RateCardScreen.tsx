@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,43 +9,11 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '@/api';
+import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
-import { useAuth } from '@/context/AuthContext';
+import { useRateCard, type Rate, type RowRate } from '@/hooks/useRateCard';
 
-type Rate = {
-  id: string;
-  category: string;
-  condition_band: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
-  unit: 'kg' | 'piece';
-  price_bdt: string | number;
-  effective_from: string;
-};
-
-type RowRate = {
-  category: string;
-  entries: Rate[];
-};
-
-function groupRates(rates: Rate[]): RowRate[] {
-  const byCategory = new Map<string, Rate[]>();
-  for (const rate of rates) {
-    const bucket = byCategory.get(rate.category) ?? [];
-    bucket.push(rate);
-    byCategory.set(rate.category, bucket);
-  }
-  return Array.from(byCategory.entries()).map(([category, entries]) => ({
-    category,
-    entries: entries.sort(
-      (a, b) => conditionOrder(a.condition_band) - conditionOrder(b.condition_band),
-    ),
-  }));
-}
-
-function conditionOrder(condition: Rate['condition_band']) {
-  return ['EXCELLENT', 'GOOD', 'FAIR', 'POOR'].indexOf(condition);
-}
 
 const RateCardRow = React.memo(function RateCardRow({ item }: { item: RowRate }) {
   return (
@@ -67,38 +35,12 @@ const RateCardRow = React.memo(function RateCardRow({ item }: { item: RowRate })
 });
 
 export function RateCardScreen() {
-  const { token } = useAuth();
-  const [rows, setRows] = useState<RowRate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-
-  const loadRates = useCallback(
-    async (refresh = false) => {
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError('');
-
-      try {
-        const data = await apiRequest<{ rates: Rate[] }>('/api/rate-card/published', { token });
-        setRows(groupRates(Array.isArray(data.rates) ? data.rates : []));
-      } catch (nextError) {
-        setError(getErrorMessage(nextError, 'Could not load the current rate card.'));
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [token],
-  );
-
-  useEffect(() => {
-    void loadRates();
-  }, [loadRates]);
+  const { data: rows = [], isLoading, error, refetch, isRefetching } = useRateCard();
+  const errorMessage = error ? getErrorMessage(error, 'Could not load the current rate card.') : '';
 
   const renderItem = useCallback(({ item }: { item: RowRate }) => <RateCardRow item={item} />, []);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background p-[28px]" accessibilityLiveRegion="polite">
         <ActivityIndicator color={colors.leaf} size="large" />
@@ -108,17 +50,17 @@ export function RateCardScreen() {
     );
   }
 
-  if (error && rows.length === 0) {
+  if (errorMessage && rows.length === 0) {
     return (
       <View className="flex-1 items-center justify-center bg-background p-[28px]" accessibilityRole="alert">
         <Ionicons name="cloud-offline-outline" size={32} color={colors.danger} />
         <Text className="text-ink text-[18px] font-extrabold text-center mt-[11px]">Rate card unavailable</Text>
-        <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{error}</Text>
+        <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{errorMessage}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry loading the rate card"
           className="min-w-[132px] min-h-[48px] rounded-[14px] bg-leaf items-center justify-center mt-[16px] active:opacity-[0.72]"
-          onPress={() => void loadRates()}
+          onPress={() => void refetch()}
         >
           <Text className="text-surface text-[14px] font-extrabold">Try again</Text>
         </Pressable>
@@ -139,8 +81,8 @@ export function RateCardScreen() {
       windowSize={7}
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void loadRates(true)}
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
           colors={[colors.leaf]}
           tintColor={colors.leaf}
         />
@@ -153,7 +95,7 @@ export function RateCardScreen() {
             Values are per unit — by piece for appliances and e-waste, by kilogram for everything else. The final
             condition and value are confirmed by a person before a listing is matched.
           </Text>
-          {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] my-[12px] text-[13px] leading-[19px]">{error}</Text> : null}
+          {errorMessage ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] my-[12px] text-[13px] leading-[19px]">{errorMessage}</Text> : null}
         </View>
       }
       ListEmptyComponent={

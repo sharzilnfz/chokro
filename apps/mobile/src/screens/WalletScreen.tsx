@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,21 +9,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '@/api';
+import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
-import { useAuth } from '@/context/AuthContext';
-
-type Balance = { verified: number; pending: number };
-type CreditTransaction = {
-  id: string;
-  amount: string | number;
-  kind: 'EARN' | 'REDEEM' | 'ADJUST';
-  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
-  reason?: string | null;
-  source_id?: string | null;
-  created_at?: string;
-};
+import { useWallet, type CreditTransaction } from '@/hooks/useWallet';
 
 const TransactionItem = React.memo(function TransactionItem({ item }: { item: CreditTransaction }) {
   const amount = Number(item.amount ?? 0);
@@ -51,46 +40,14 @@ const TransactionItem = React.memo(function TransactionItem({ item }: { item: Cr
 });
 
 export function WalletScreen() {
-  const { token } = useAuth();
-  const [balance, setBalance] = useState<Balance>({ verified: 0, pending: 0 });
-  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-
-  const loadWallet = useCallback(
-    async (refresh = false) => {
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError('');
-
-      try {
-        const [balanceData, transactionData] = await Promise.all([
-          apiRequest<{ balance: Balance }>('/api/wallet/balance', { token }),
-          apiRequest<{ transactions: CreditTransaction[] }>('/api/wallet/transactions', { token }),
-        ]);
-        setBalance({
-          verified: Number(balanceData.balance?.verified ?? 0),
-          pending: Number(balanceData.balance?.pending ?? 0),
-        });
-        setTransactions(Array.isArray(transactionData.transactions) ? transactionData.transactions : []);
-      } catch (nextError) {
-        setError(getErrorMessage(nextError, 'Could not load your wallet.'));
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [token],
-  );
-
-  useEffect(() => {
-    void loadWallet();
-  }, [loadWallet]);
+  const { data, isLoading, error, refetch, isRefetching } = useWallet();
+  const balance = data?.balance ?? { verified: 0, pending: 0 };
+  const transactions = data?.transactions ?? [];
+  const errorMessage = error ? getErrorMessage(error, 'Could not load your wallet.') : '';
 
   const renderItem = useCallback(({ item }: { item: CreditTransaction }) => <TransactionItem item={item} />, []);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background p-[28px]" accessibilityLiveRegion="polite">
         <ActivityIndicator color={colors.leaf} size="large" />
@@ -100,17 +57,17 @@ export function WalletScreen() {
     );
   }
 
-  if (error && transactions.length === 0) {
+  if (errorMessage && transactions.length === 0) {
     return (
       <View className="flex-1 items-center justify-center bg-background p-[28px]" accessibilityRole="alert">
         <Ionicons name="cloud-offline-outline" size={32} color={colors.danger} />
         <Text className="text-ink text-[18px] font-extrabold text-center mt-[11px]">Wallet unavailable</Text>
-        <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{error}</Text>
+        <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{errorMessage}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry loading wallet"
           className="min-w-[132px] min-h-[48px] rounded-[14px] bg-leaf items-center justify-center mt-[16px] active:opacity-[0.72]"
-          onPress={() => void loadWallet()}
+          onPress={() => void refetch()}
         >
           <Text className="text-surface text-[14px] font-extrabold">Try again</Text>
         </Pressable>
@@ -131,8 +88,8 @@ export function WalletScreen() {
       windowSize={7}
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void loadWallet(true)}
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
           colors={[colors.leaf]}
           tintColor={colors.leaf}
         />
@@ -160,7 +117,7 @@ export function WalletScreen() {
             <Text className="text-amber text-[24px] font-extrabold">{balance.pending.toFixed(2)}</Text>
           </View>
 
-          {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] mt-[12px] text-[13px] leading-[19px]">{error}</Text> : null}
+          {errorMessage ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] mt-[12px] text-[13px] leading-[19px]">{errorMessage}</Text> : null}
           <Text className="text-ink text-[18px] font-extrabold mt-[24px] mb-[10px]">Ledger history</Text>
         </View>
       }

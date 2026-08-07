@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { apiRequest, getErrorMessage } from '@/api';
+import { apiRequest, getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import type { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';

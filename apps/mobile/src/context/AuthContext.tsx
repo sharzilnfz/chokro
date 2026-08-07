@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { storage } from '@/storage';
-import { apiRequest, ApiError, getErrorMessage, setOnUnauthorized } from '@/api';
+import { storage } from '@/services/storage';
+import { apiRequest, ApiError, getErrorMessage, setOnUnauthorized } from '@/services/api';
+import { queryClient } from '@/lib/queryClient';
 import type { AuthSession, User } from '@/types';
 
 const TOKEN_KEY = 'chokro.authToken';
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await storage.deleteItem(TOKEN_KEY);
     } finally {
+      queryClient.clear();
       setSession(null);
       setAuthMode('login');
     }

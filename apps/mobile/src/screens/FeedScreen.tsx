@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,30 +10,14 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiRequest, getErrorMessage } from '@/api';
+import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition, type ListingStatus } from '@/types';
-import { useAuth } from '@/context/AuthContext';
+import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '@/types';
+import { useFeed, type Listing } from '@/hooks/useFeed';
 
 type FeedFilter = 'ALL' | Category;
 type ConditionFilter = 'ALL' | Condition;
 
-type Listing = {
-  id: string;
-  category: Category;
-  unit: 'kg' | 'piece';
-  declared_weight?: string | number | null;
-  piece_count?: string | number | null;
-  declared_condition: Condition;
-  photos?: string[];
-  status: ListingStatus;
-  created_at?: string;
-};
-
-type FeedResponse = {
-  items: Listing[];
-  nextCursor?: string | null;
-};
 
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
 const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
@@ -93,64 +77,12 @@ function ListingCard({ item }: { item: Listing }) {
 }
 
 export function FeedScreen() {
-  const { token } = useAuth();
   const [category, setCategory] = useState<FeedFilter>('ALL');
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
-  const [items, setItems] = useState<Listing[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState('');
-  const requestVersion = useRef(0);
 
-  const buildPath = (cursor?: string | null) => {
-    const params = new URLSearchParams({ limit: '20' });
-    if (category !== 'ALL') params.set('category', category);
-    if (condition !== 'ALL') params.set('condition', condition);
-    if (cursor) params.set('cursor', cursor);
-    return `/api/feed?${params.toString()}`;
-  };
-
-  const loadFeed = async (mode: 'initial' | 'refresh' | 'more' = 'initial') => {
-    if (mode === 'more' && (!nextCursor || loadingMore)) return;
-    const version = mode === 'more' ? requestVersion.current : ++requestVersion.current;
-    if (mode === 'initial') setLoading(true);
-    if (mode === 'refresh') setRefreshing(true);
-    if (mode === 'more') setLoadingMore(true);
-    setError('');
-
-    try {
-      const requestedCursor = mode === 'more' ? nextCursor : null;
-      const data = await apiRequest<FeedResponse>(buildPath(requestedCursor), { token });
-      if (version !== requestVersion.current) return;
-      const nextItems = Array.isArray(data.items) ? data.items : [];
-
-      if (mode === 'more') {
-        const existingIds = new Set(items.map((item) => item.id));
-        const uniqueItems = nextItems.filter((item) => !existingIds.has(item.id));
-        setItems((current) => [...current, ...uniqueItems]);
-        setNextCursor(uniqueItems.length > 0 && data.nextCursor !== requestedCursor ? data.nextCursor ?? null : null);
-      } else {
-        setItems(nextItems);
-        setNextCursor(data.nextCursor ?? null);
-      }
-    } catch (nextError) {
-      if (version !== requestVersion.current) return;
-      setError(getErrorMessage(nextError, 'Could not load listings.'));
-      if (mode !== 'more') setItems([]);
-    } finally {
-      if (version !== requestVersion.current) return;
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    setNextCursor(null);
-    void loadFeed('initial');
-  }, [category, condition]);
+  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeed(category, condition);
+  const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const errorMessage = error ? getErrorMessage(error, 'Could not load listings.') : '';
 
   const renderCard = ({ item }: { item: Listing }) => <ListingCard item={item} />;
 
@@ -163,8 +95,8 @@ export function FeedScreen() {
         contentContainerStyle={[{ padding: 20, paddingBottom: 32 }, items.length === 0 && { flexGrow: 1 }]}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void loadFeed('refresh')}
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
             colors={[colors.leaf]}
             tintColor={colors.leaf}
           />
@@ -217,21 +149,21 @@ export function FeedScreen() {
           </View>
         }
         ListEmptyComponent={
-          loading ? (
+          isLoading ? (
             <View className="flex-1 min-h-[240px] items-center justify-center px-[22px] py-[34px]" accessibilityLiveRegion="polite">
               <ActivityIndicator color={colors.leaf} size="large" />
               <Text className="text-ink text-[18px] font-extrabold text-center mt-[10px]">Loading active listings</Text>
             </View>
-          ) : error ? (
+          ) : errorMessage ? (
             <View className="flex-1 min-h-[240px] items-center justify-center px-[22px] py-[34px]" accessibilityRole="alert">
               <Ionicons name="cloud-offline-outline" size={31} color={colors.danger} />
               <Text className="text-ink text-[18px] font-extrabold text-center mt-[10px]">Browse is unavailable</Text>
-              <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{error}</Text>
+              <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{errorMessage}</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Retry loading listings"
                 className="min-w-[132px] min-h-[48px] rounded-[14px] bg-leaf items-center justify-center mt-[16px] active:opacity-[0.72]"
-                onPress={() => void loadFeed('initial')}
+                onPress={() => void refetch()}
               >
                 <Text className="text-surface text-[14px] font-extrabold">Try again</Text>
               </Pressable>
@@ -247,17 +179,17 @@ export function FeedScreen() {
         ListFooterComponent={
           items.length > 0 ? (
             <View className="items-center pt-[18px] pb-[4px]">
-              {error ? <Text accessibilityRole="alert" className="text-danger text-center text-[13px] leading-[19px] mb-[8px]">{error}</Text> : null}
-              {nextCursor ? (
+              {errorMessage ? <Text accessibilityRole="alert" className="text-danger text-center text-[13px] leading-[19px] mb-[8px]">{errorMessage}</Text> : null}
+              {hasNextPage ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Load more listings"
-                  accessibilityState={{ disabled: loadingMore, busy: loadingMore }}
-                  className={`min-w-[150px] min-h-[48px] border border-leaf rounded-[14px] items-center justify-center bg-surface active:opacity-[0.72] ${loadingMore ? 'opacity-[0.55]' : ''}`}
-                  disabled={loadingMore}
-                  onPress={() => void loadFeed('more')}
+                  accessibilityState={{ disabled: isFetchingNextPage, busy: isFetchingNextPage }}
+                  className={`min-w-[150px] min-h-[48px] border border-leaf rounded-[14px] items-center justify-center bg-surface active:opacity-[0.72] ${isFetchingNextPage ? 'opacity-[0.55]' : ''}`}
+                  disabled={isFetchingNextPage}
+                  onPress={() => void fetchNextPage()}
                 >
-                  {loadingMore ? <ActivityIndicator color={colors.leaf} /> : <Text className="text-leaf-dark text-[14px] font-extrabold">Load more</Text>}
+                  {isFetchingNextPage ? <ActivityIndicator color={colors.leaf} /> : <Text className="text-leaf-dark text-[14px] font-extrabold">Load more</Text>}
                 </Pressable>
               ) : (
                 <Text className="text-muted text-[12px]">You have reached the end of this feed.</Text>

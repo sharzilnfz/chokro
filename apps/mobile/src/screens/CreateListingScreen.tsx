@@ -11,10 +11,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { apiRequest, getErrorMessage } from '@/api';
+import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '@/types';
-import { useAuth } from '@/context/AuthContext';
+import { useCreateListing } from '@/hooks/useCreateListing';
 
 const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'];
 const MAX_UPLOAD_BYTES = 500 * 1024;
@@ -82,15 +82,14 @@ async function preparePhoto(asset: ImagePicker.ImagePickerAsset): Promise<Prepar
 }
 
 export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
-  const { token } = useAuth();
   const [category, setCategory] = useState<Category>('PLASTICS');
   const [condition, setCondition] = useState<Condition>('GOOD');
   const [quantity, setQuantity] = useState('');
   const [photo, setPhoto] = useState<PreparedPhoto | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const createListing = useCreateListing();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -151,31 +150,24 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       return;
     }
 
-    setLoading(true);
     setError('');
     setNotice('');
     try {
-      await apiRequest('/api/listings', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({
-          category,
-          unit,
-          ...(unit === 'kg'
-            ? { declaredWeight: numericQuantity }
-            : { pieceCount: numericQuantity }),
-          declaredCondition: condition,
-          photos: [photo.dataUri],
-        }),
+      await createListing.mutateAsync({
+        category,
+        unit,
+        ...(unit === 'kg'
+          ? { declaredWeight: numericQuantity }
+          : { pieceCount: numericQuantity }),
+        declaredCondition: condition,
+        photos: [photo.dataUri],
       });
       setNotice('Listing published as active. It is now available in Browse.');
       timerRef.current = setTimeout(onCreated, 650);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not publish this listing.'));
-    } finally {
-      setLoading(false);
     }
-  }, [category, condition, onCreated, photo, quantity, token, unit]);
+  }, [category, condition, createListing, onCreated, photo, quantity, unit]);
 
   return (
     <ScrollView
@@ -308,12 +300,12 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Publish active listing"
-        accessibilityState={{ disabled: loading || preparingPhoto, busy: loading }}
-        className={`min-h-[54px] rounded-[15px] bg-leaf items-center justify-center mt-[3px] active:opacity-[0.72] ${(loading || preparingPhoto) ? 'opacity-[0.55]' : ''}`}
-        disabled={loading || preparingPhoto}
+        accessibilityState={{ disabled: createListing.isPending || preparingPhoto, busy: createListing.isPending }}
+        className={`min-h-[54px] rounded-[15px] bg-leaf items-center justify-center mt-[3px] active:opacity-[0.72] ${(createListing.isPending || preparingPhoto) ? 'opacity-[0.55]' : ''}`}
+        disabled={createListing.isPending || preparingPhoto}
         onPress={() => void handleSubmit()}
       >
-        {loading ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[16px] font-extrabold">Publish listing</Text>}
+        {createListing.isPending ? <ActivityIndicator color={colors.surface} /> : <Text className="text-surface text-[16px] font-extrabold">Publish listing</Text>}
       </Pressable>
     </ScrollView>
   );
