@@ -191,7 +191,7 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Remove selected photo"
-              style={({ pressed }) => [styles.removePhoto, pressed && styles.pressed]}
+              className="absolute top-[8px] right-[8px] w-[48px] h-[48px] rounded-[24px] bg-overlay items-center justify-center active:opacity-[0.72]"
               onPress={() => {
                 setPhoto(null);
                 setNotice('');
@@ -205,7 +205,7 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
             accessibilityRole="button"
             accessibilityLabel="Choose item photo"
             accessibilityState={{ busy: preparingPhoto }}
-            style={({ pressed }) => [styles.photoPicker, pressed && styles.pressed]}
+            className="min-h-[150px] border border-dashed border-leaf rounded-[14px] bg-leaf-soft items-center justify-center p-[18px] active:opacity-[0.72]"
             disabled={preparingPhoto}
             onPress={() => void pickPhoto()}
           >
@@ -234,7 +234,7 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
                 accessibilityRole="radio"
                 accessibilityLabel={categoryLabel(item)}
                 accessibilityState={{ checked: selected }}
-                style={({ pressed }) => [styles.chip, selected && styles.chipActive, pressed && styles.pressed]}
+                className={`min-h-[48px] px-[13px] rounded-pill border items-center justify-center active:opacity-[0.72] ${selected ? 'bg-leaf-soft border-leaf' : 'bg-background border-border'}`}
                 onPress={() => selectCategory(item)}
               >
                 <Text className={`text-[13px] font-bold ${selected ? 'text-leaf-dark' : 'text-muted'}`}>{categoryLabel(item)}</Text>
@@ -280,7 +280,7 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
                 accessibilityRole="radio"
                 accessibilityLabel={`Condition ${categoryLabel(item)}`}
                 accessibilityState={{ checked: selected }}
-                style={({ pressed }) => [styles.chip, selected && styles.chipActive, pressed && styles.pressed]}
+                className={`min-h-[48px] px-[13px] rounded-pill border items-center justify-center active:opacity-[0.72] ${selected ? 'bg-leaf-soft border-leaf' : 'bg-background border-border'}`}
                 onPress={() => setCondition(item)}
               >
                 <Text className={`text-[13px] font-bold ${selected ? 'text-leaf-dark' : 'text-muted'}`}>{categoryLabel(item)}</Text>
@@ -301,7 +301,7 @@ export function CreateListingScreen({ token, onCreated }: CreateListingScreenPro
         accessibilityRole="button"
         accessibilityLabel="Publish active listing"
         accessibilityState={{ disabled: loading || preparingPhoto, busy: loading }}
-        style={({ pressed }) => [styles.publishButton, pressed && styles.pressed, (loading || preparingPhoto) && styles.disabled]}
+        className={`min-h-[54px] rounded-[15px] bg-leaf items-center justify-center mt-[3px] active:opacity-[0.72] ${(loading || preparingPhoto) ? 'opacity-[0.55]' : ''}`}
         disabled={loading || preparingPhoto}
         onPress={() => void handleSubmit()}
       >
