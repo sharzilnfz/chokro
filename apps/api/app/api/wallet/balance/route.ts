@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
-import { safeRoute } from '../../../../lib/http';
+import { apiData, safeRoute } from '../../../../lib/http';
 import { walletRepo } from '../../../../lib/repos/wallet';
 
 export const GET = safeRoute(async (req: Request) => {
@@ -17,7 +16,7 @@ export const GET = safeRoute(async (req: Request) => {
     if (txn.status === 'PENDING') pendingSum += amount;
   }
 
-  return NextResponse.json({ balance: { verified: verifiedSum, pending: pendingSum } });
+  return apiData({ balance: { verified: verifiedSum, pending: pendingSum } });
 });
 
 

@@ -1,6 +1,25 @@
 
 # AGENTS.md
 
+<!-- codebase-memory-mcp:start -->
+# Codebase Knowledge Graph (codebase-memory-mcp)
+
+This project uses `codebase-memory-mcp` as the default MCP tool for code discovery and architectural analysis.
+ALWAYS prefer MCP graph tools (`search_graph`, `trace_path`, `get_code_snippet`, `query_graph`, `get_architecture`) over grep/glob/file-search for code discovery.
+
+## Tool Selection Hierarchy
+1. `search_graph`: Find functions, handlers, classes, routes, models by name pattern.
+2. `trace_path`: Trace call graphs (inbound/outbound calls).
+3. `get_code_snippet`: Retrieve full source of indexed functions/classes.
+4. `query_graph`: Execute Cypher queries for deep architectural dependencies.
+5. `get_architecture`: Get high-level domain breakdown.
+
+## Fallback to Grep/Glob
+- Searching for raw string literals, environment variable names, error messages, or config files (`.json`, `.yaml`).
+- Inspecting unindexed static assets or non-code files.
+
+<!-- codebase-memory-mcp:end -->
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

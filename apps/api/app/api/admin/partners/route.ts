@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiData, apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { partnerRepo } from '../../../../lib/repos/partners';
 
 const VerifyPartnerSchema = z.object({
@@ -13,7 +12,7 @@ export const GET = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
   if (auth.response) return auth.response;
   const allPartners = await partnerRepo.findAll();
-  return NextResponse.json({ partners: allPartners });
+  return apiData({ partners: allPartners });
 });
 
 export const POST = safeRoute(async (req: Request) => {
@@ -34,5 +33,5 @@ export const POST = safeRoute(async (req: Request) => {
 
   const partner = await partnerRepo.updateStatusAndLicense(partnerId, status);
 
-  return NextResponse.json({ message: `Partner ${status.toLowerCase()}`, partner });
+  return apiSuccess(`Partner ${status.toLowerCase()}`, { partner });
 });

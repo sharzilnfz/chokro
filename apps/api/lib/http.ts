@@ -25,4 +25,14 @@ export function apiError(message: string, status: number, details?: unknown): Ne
   }
   return NextResponse.json({ error: message, details }, { status });
 }
+/** Canonical success payload: always `{ message }`, plus any extra data spread in. */
+export function apiSuccess(message: string, data?: Record<string, unknown>, status = 200): NextResponse {
+  return NextResponse.json({ message, ...data }, { status });
+}
+
+/** Data-only payload (no message): spreads the record as the JSON body. */
+export function apiData(data: Record<string, unknown>, status = 200): NextResponse {
+  return NextResponse.json(data, { status });
+}
+
 export { routeError } from './database';

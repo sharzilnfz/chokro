@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireAdmin } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiData, apiError, apiSuccess, safeRoute } from '../../../../lib/http';
 import { rateCardRepo } from '../../../../lib/repos/rateCards';
 import { CategoryEnum, ConditionEnum } from '@chokro/shared';
-import { z } from 'zod';
 
 const RateCardSchema = z.object({
   category: CategoryEnum,
@@ -29,12 +28,12 @@ export const POST = safeRoute(async (req: Request) => {
     updatedBy: auth.user.userId,
   });
 
-  return NextResponse.json({ message: 'Rate card updated', entry }, { status: 201 });
+  return apiSuccess('Rate card updated', { entry }, 201);
 });
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
   if (auth.response) return auth.response;
   const entries = await rateCardRepo.findCurrent();
-  return NextResponse.json({ entries });
+  return apiData({ entries });
 });

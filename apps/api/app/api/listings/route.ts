@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { listingRepo } from '../../../lib/repos/listings';
 import { requireAuth } from '../../../lib/auth';
-import { apiError, safeRoute } from '../../../lib/http';
+import { apiData, apiError, apiSuccess, safeRoute } from '../../../lib/http';
 import { CategoryEnum, ConditionEnum } from '@chokro/shared';
 import { z } from 'zod';
 
@@ -46,7 +45,7 @@ export const POST = safeRoute(async (req: Request) => {
   };
   const newListing = await listingRepo.create(values);
 
-  return NextResponse.json({ message: 'Listing created', listing: newListing }, { status: 201 });
+  return apiSuccess('Listing created', { listing: newListing }, 201);
 });
 
 export const GET = safeRoute(async (req: Request) => {
@@ -54,5 +53,5 @@ export const GET = safeRoute(async (req: Request) => {
   if (auth.response) return auth.response;
 
   const myListings = await listingRepo.findByOwnerId(auth.user.userId);
-  return NextResponse.json({ listings: myListings });
+  return apiData({ listings: myListings });
 });

@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
-import { apiError, safeRoute } from '../../../../lib/http';
+import { apiData, apiError, safeRoute } from '../../../../lib/http';
 import { isValidQrToken } from '../../../../lib/qr';
 import { dropZoneRepo } from '../../../../lib/repos/dropZones';
 
@@ -26,7 +25,7 @@ export const GET = safeRoute(async (req: Request) => {
     return apiError('Drop zone not found', 404);
   }
 
-  return NextResponse.json({
+  return apiData({
     zone: {
       name: zone.name,
       status: zone.status,
