@@ -323,18 +323,13 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
           </View>
 
           <Text className="text-ink text-[28px] font-black tracking-tight leading-[34px]">
-            {totalEstimatedBdt !== null
-              ? `৳${totalEstimatedBdt.toFixed(2)}`
-              : `৳${Number(estimate.price_bdt).toFixed(2)}`}
-            {totalEstimatedBdt === null && (
-              <Text className="text-muted text-[15px] font-bold">/{estimate.unit}</Text>
-            )}
+            ৳{totalEstimatedBdt !== null ? totalEstimatedBdt.toFixed(2) : '0.00'}
           </Text>
 
           <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[1px]" numberOfLines={1}>
             {totalEstimatedBdt !== null
               ? `${parsedQuantity} ${estimate.unit === 'kg' ? 'kg' : parsedQuantity === 1 ? 'piece' : 'pieces'} × ৳${Number(estimate.price_bdt).toFixed(2)}/${estimate.unit}`
-              : `Enter ${estimate.unit === 'kg' ? 'weight' : 'quantity'} above to compute total payout`}
+              : `Enter ${estimate.unit === 'kg' ? 'weight' : 'quantity'} above to calculate payout`}
           </Text>
 
           <Text className="text-muted text-[11px] leading-[15px] mt-[8px] pt-[6px] border-t border-border/60" numberOfLines={1}>
