@@ -15,6 +15,7 @@ import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '@/types';
 import { useCreateListing } from '@/hooks/useCreateListing';
+import { useEstimate } from '@/hooks/useEstimate';
 
 const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'];
 const MAX_UPLOAD_BYTES = 500 * 1024;
@@ -90,6 +91,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const createListing = useCreateListing();
+  const { data: estimate, isLoading: estimateLoading } = useEstimate(category, condition);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -293,6 +295,26 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
           <Text className="text-muted text-[13px] font-bold">Publishing status: Active</Text>
         </View>
       </View>
+
+      {/* Rate Card Value Estimate */}
+      {estimateLoading ? (
+        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card items-center" style={{ elevation: 2 }}>
+          <ActivityIndicator size="small" color={colors.leaf} />
+          <Text className="text-leaf-dark text-[13px] font-bold mt-[6px]">Looking up current rate...</Text>
+        </View>
+      ) : estimate ? (
+        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+          <View className="flex-row items-center gap-[9px] mb-[6px]">
+            <Ionicons name="pricetag" size={18} color={colors.leaf} />
+            <Text className="text-leaf-dark text-[17px] font-extrabold">Estimated value</Text>
+          </View>
+          <Text className="text-ink text-[28px] font-black tracking-tight">
+            ৳{Number(estimate.price_bdt).toFixed(2)}
+            <Text className="text-muted text-[16px] font-bold">/{estimate.unit}</Text>
+          </Text>
+          <Text className="text-muted text-[12px] leading-[18px] mt-[6px]">Final value confirmed at pickup by a verified partner.</Text>
+        </View>
+      ) : null}
 
       {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text> : null}
       {notice ? <Text accessibilityRole="alert" className="text-leaf-dark bg-leaf-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{notice}</Text> : null}
