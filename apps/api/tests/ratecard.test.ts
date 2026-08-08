@@ -2,6 +2,7 @@ import { memoryStore } from '@chokro/db';
 import crypto from 'crypto';
 import { POST as createRate, GET as getAdminRates } from '../app/api/admin/rate-card/route';
 import { GET as getPublishedRates } from '../app/api/rate-card/published/route';
+import { GET as getEstimate } from '../app/api/rate-card/estimate/route';
 import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
 describe('rate card API', () => {
@@ -71,5 +72,30 @@ describe('rate card API', () => {
     expect(created.status).toBe(201);
     expect(adminRates.status).toBe(200);
     expect((await published.json()).rates).toHaveLength(1);
+  });
+
+  it('estimates value for a given category and condition combo', async () => {
+    const admin = createTestUser('ADMIN');
+    const token = tokenFor(admin);
+    await createRate(new Request('http://localhost/api/admin/rate-card', {
+      method: 'POST', headers: authHeaders(token),
+      body: JSON.stringify({ category: 'PLASTICS', conditionBand: 'GOOD', priceBdt: 45 }),
+    }));
+
+    const valid = await getEstimate(new Request('http://localhost/api/rate-card/estimate?category=PLASTICS&condition=GOOD'));
+    expect(valid.status).toBe(200);
+    const data = await valid.json();
+    expect(data.estimate).toMatchObject({
+      price_bdt: '45',
+      unit: 'kg',
+      category: 'PLASTICS',
+      condition_band: 'GOOD',
+    });
+
+    const missing = await getEstimate(new Request('http://localhost/api/rate-card/estimate?category=PLASTICS'));
+    expect(missing.status).toBe(400);
+
+    const notFound = await getEstimate(new Request('http://localhost/api/rate-card/estimate?category=GLASS&condition=POOR'));
+    expect(notFound.status).toBe(404);
   });
 });

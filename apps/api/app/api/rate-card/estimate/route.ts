@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server';
 import { apiData, apiError, safeRoute } from '../../../../lib/http';
 import { rateCardRepo } from '../../../../lib/repos/rateCards';
 
-export const GET = safeRoute(async (request: NextRequest) => {
-  const category = request.nextUrl.searchParams.get('category');
-  const condition = request.nextUrl.searchParams.get('condition');
+export const GET = safeRoute(async (request: Request) => {
+  const url = new URL(request.url);
+  const category = url.searchParams.get('category');
+  const condition = url.searchParams.get('condition');
 
   if (!category || !condition) {
     return apiError('Missing required query parameters: category, condition', 400);
