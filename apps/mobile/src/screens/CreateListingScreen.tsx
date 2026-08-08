@@ -101,6 +101,12 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
   }, []);
 
   const unit = PIECE_CATEGORIES.includes(category) ? 'piece' : 'kg';
+  const parsedQuantity = parseFloat(quantity);
+  const hasValidQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0;
+  const ratePerUnit = estimate ? Number(estimate.price_bdt) : 0;
+  const totalEstimatedBdt = (hasValidQuantity && estimate && Number.isFinite(ratePerUnit))
+    ? parsedQuantity * ratePerUnit
+    : null;
 
   const selectCategory = useCallback((nextCategory: Category) => {
     setCategory(nextCategory);
@@ -298,21 +304,42 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
 
       {/* Rate Card Value Estimate */}
       {estimateLoading ? (
-        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card items-center" style={{ elevation: 2 }}>
+        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card min-h-[142px] justify-center items-center" style={{ elevation: 2 }}>
           <ActivityIndicator size="small" color={colors.leaf} />
           <Text className="text-leaf-dark text-[13px] font-bold mt-[6px]">Looking up current rate...</Text>
         </View>
       ) : estimate ? (
-        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
-          <View className="flex-row items-center gap-[9px] mb-[6px]">
-            <Ionicons name="pricetag" size={18} color={colors.leaf} />
-            <Text className="text-leaf-dark text-[17px] font-extrabold">Estimated value</Text>
+        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card min-h-[142px]" style={{ elevation: 2 }}>
+          <View className="flex-row items-center justify-between mb-[4px]">
+            <View className="flex-row items-center gap-[8px]">
+              <Ionicons name="pricetag" size={17} color={colors.leaf} />
+              <Text className="text-leaf-dark text-[16px] font-extrabold">Estimated value</Text>
+            </View>
+            <View className="bg-surface border border-border rounded-full px-[8px] py-[2px]">
+              <Text className="text-leaf-dark text-[11px] font-bold">
+                ৳{Number(estimate.price_bdt).toFixed(2)}/{estimate.unit}
+              </Text>
+            </View>
           </View>
-          <Text className="text-ink text-[28px] font-black tracking-tight">
-            ৳{Number(estimate.price_bdt).toFixed(2)}
-            <Text className="text-muted text-[16px] font-bold">/{estimate.unit}</Text>
+
+          <Text className="text-ink text-[28px] font-black tracking-tight leading-[34px]">
+            {totalEstimatedBdt !== null
+              ? `৳${totalEstimatedBdt.toFixed(2)}`
+              : `৳${Number(estimate.price_bdt).toFixed(2)}`}
+            {totalEstimatedBdt === null && (
+              <Text className="text-muted text-[15px] font-bold">/{estimate.unit}</Text>
+            )}
           </Text>
-          <Text className="text-muted text-[12px] leading-[18px] mt-[6px]">Final value confirmed at pickup by a verified partner.</Text>
+
+          <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[1px]" numberOfLines={1}>
+            {totalEstimatedBdt !== null
+              ? `${parsedQuantity} ${estimate.unit === 'kg' ? 'kg' : parsedQuantity === 1 ? 'piece' : 'pieces'} × ৳${Number(estimate.price_bdt).toFixed(2)}/${estimate.unit}`
+              : `Enter ${estimate.unit === 'kg' ? 'weight' : 'quantity'} above to compute total payout`}
+          </Text>
+
+          <Text className="text-muted text-[11px] leading-[15px] mt-[8px] pt-[6px] border-t border-border/60" numberOfLines={1}>
+            Final {estimate.unit === 'kg' ? 'weight' : 'quantity'} and value confirmed at pickup.
+          </Text>
         </View>
       ) : null}
 
