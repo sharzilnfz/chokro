@@ -7,7 +7,9 @@ const materialListing = {
 };
 
 describe('listing API', () => {
-  beforeEach(resetTestStore);
+  beforeEach(async () => {
+    await resetTestStore();
+  });
 
   it('requires authentication to create a listing', async () => {
     const response = await createListing(new Request('http://localhost/api/listings', {
@@ -17,8 +19,8 @@ describe('listing API', () => {
   });
 
   it('returns only the authenticated user&apos;s own listings', async () => {
-    const owner = createTestUser();
-    const other = createTestUser();
+    const owner = await createTestUser();
+    const other = await createTestUser();
     await createListing(new Request('http://localhost/api/listings', {
       method: 'POST', headers: authHeaders(tokenFor(owner)), body: JSON.stringify(materialListing),
     }));
@@ -34,9 +36,9 @@ describe('listing API', () => {
   });
 
   it('lets only the owner or an admin read a listing by id', async () => {
-    const owner = createTestUser();
-    const other = createTestUser();
-    const admin = createTestUser('ADMIN');
+    const owner = await createTestUser();
+    const other = await createTestUser();
+    const admin = await createTestUser('ADMIN');
     const created = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST', headers: authHeaders(tokenFor(owner)), body: JSON.stringify(materialListing),
     }));
@@ -61,7 +63,8 @@ describe('listing API', () => {
     { body: { ...materialListing, declaredCondition: 'BROKEN' }, description: 'unsupported condition' },
     { body: { ...materialListing, status: 'MATCHED' }, description: 'unsupported Sprint 1 status' },
   ])('rejects invalid category-derived quantity: $body ($description)', async ({ body }) => {
-    const token = tokenFor(createTestUser());
+    const user = await createTestUser();
+    const token = tokenFor(user);
     const response = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST', headers: authHeaders(token), body: JSON.stringify(body),
     }));
@@ -69,7 +72,7 @@ describe('listing API', () => {
   });
 
   it('creates piece listings with a positive integer piece count and no mock photos', async () => {
-    const user = createTestUser();
+    const user = await createTestUser();
     const response = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST',
       headers: authHeaders(tokenFor(user)),
@@ -81,9 +84,9 @@ describe('listing API', () => {
   });
 
   it('allows only the owner or an admin to apply canonical transitions', async () => {
-    const owner = createTestUser();
-    const other = createTestUser();
-    const admin = createTestUser('ADMIN');
+    const owner = await createTestUser();
+    const other = await createTestUser();
+    const admin = await createTestUser('ADMIN');
     const created = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST', headers: authHeaders(tokenFor(owner)), body: JSON.stringify({ ...materialListing, status: 'DRAFT' }),
     }));

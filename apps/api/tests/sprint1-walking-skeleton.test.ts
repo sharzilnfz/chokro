@@ -9,11 +9,13 @@ import { GET as getWalletBalance } from '../app/api/wallet/balance/route';
 import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
 describe('Sprint 1 walking skeleton', () => {
-  beforeEach(resetTestStore);
+  beforeEach(async () => {
+    await resetTestStore();
+  });
 
   it('runs the authenticated user, partner, admin, feed, zone, and wallet seams', async () => {
-    const user = createTestUser();
-    const admin = createTestUser('ADMIN');
+    const user = await createTestUser();
+    const admin = await createTestUser('ADMIN');
     const userToken = tokenFor(user);
     const adminToken = tokenFor(admin);
 
@@ -51,8 +53,8 @@ describe('Sprint 1 walking skeleton', () => {
   });
 
   it('treats the signed amount as the ledger source of truth for debits', async () => {
-    const user = createTestUser();
-    const admin = createTestUser('ADMIN');
+    const user = await createTestUser();
+    const admin = await createTestUser('ADMIN');
     const credit = await adjustWallet(new Request('http://localhost/api/admin/wallet/adjust', {
       method: 'POST', headers: authHeaders(tokenFor(admin)),
       body: JSON.stringify({ userId: user.id, amount: 200, reason: 'Verified pilot adjustment' }),

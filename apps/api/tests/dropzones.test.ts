@@ -5,20 +5,22 @@ import { createQrToken } from '../lib/qr';
 import { authHeaders, createTestUser, resetTestStore, routeParams, tokenFor } from './test-utils';
 
 describe('drop-zone API', () => {
-  beforeEach(resetTestStore);
+  beforeEach(async () => {
+    await resetTestStore();
+  });
 
   it('requires admin for create and list', async () => {
     const body = JSON.stringify({ institutionId: 'BUET', name: 'Main Zone', acceptedCategories: ['PAPER'] });
     const missing = await createDropZone(new Request('http://localhost/api/drop-zones', { method: 'POST', body }));
-    const user = createTestUser();
+    const user = await createTestUser();
     const forbidden = await listDropZones(new Request('http://localhost/api/drop-zones', { headers: authHeaders(tokenFor(user)) }));
     expect(missing.status).toBe(401);
     expect(forbidden.status).toBe(403);
   });
 
   it('creates and resolves an opaque signed token, rejecting tampering', async () => {
-    const admin = createTestUser('ADMIN');
-    const user = createTestUser();
+    const admin = await createTestUser('ADMIN');
+    const user = await createTestUser();
     const created = await createDropZone(new Request('http://localhost/api/drop-zones', {
       method: 'POST', headers: authHeaders(tokenFor(admin)),
       body: JSON.stringify({ institutionId: 'BUET', name: 'Main Zone', acceptedCategories: ['PAPER', 'E_WASTE'] }),
@@ -43,7 +45,7 @@ describe('drop-zone API', () => {
   });
 
   it('renders an admin-only scannable QR poster and escapes user data', async () => {
-    const admin = createTestUser('ADMIN');
+    const admin = await createTestUser('ADMIN');
     const token = tokenFor(admin);
     const created = await createDropZone(new Request('http://localhost/api/drop-zones', {
       method: 'POST', headers: authHeaders(token),

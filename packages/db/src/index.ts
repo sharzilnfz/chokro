@@ -1,32 +1,24 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { PGlite } from '@electric-sql/pglite';
 import postgres from 'postgres';
 import * as schema from './schema';
-import * as dotenv from 'dotenv';
-dotenv.config({ quiet: true });
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/chokro';
+type DrizzleDb = ReturnType<typeof drizzle<typeof schema>> | ReturnType<typeof drizzlePglite<typeof schema>>;
 
-// In-memory store for unit test fallback when live PostgreSQL is unavailable
-export const memoryStore = {
-  users: [] as any[],
-  partners: [] as any[],
-  listings: [] as any[],
-  rateCardEntries: [] as any[],
-  dropZones: [] as any[],
-  creditTxns: [] as any[],
-};
+let dbInstance: DrizzleDb;
 
-let client: ReturnType<typeof postgres> | null = null;
-if (process.env.NODE_ENV !== 'test') {
-  client = postgres(connectionString, { max: 5, connect_timeout: 2, idle_timeout: 20 });
+if (process.env.NODE_ENV === 'test') {
+  // In-memory real Postgres WASM engine for tests (Zero setup required!)
+  const client = new PGlite();
+  dbInstance = drizzlePglite(client, { schema });
+} else {
+  // Live PostgreSQL for dev / production
+  const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/chokro';
+  const client = postgres(connectionString, { max: 5 });
+  dbInstance = drizzle(client, { schema });
 }
 
-export const db = client ? drizzle(client, { schema }) : (null as any);
-
-export function resetMemoryStore() {
-  for (const records of Object.values(memoryStore)) {
-    records.splice(0, records.length);
-  }
-}
-
+export const db = dbInstance;
+export { eq, and, or, lt, desc, sql } from 'drizzle-orm';
 export * from './schema';

@@ -1,112 +1,84 @@
-import { rateCardEntries, memoryStore } from '@chokro/db';
-import { getCategoryUnit } from '@chokro/shared';
-import crypto from 'crypto';
-import { withDb, createRepoSeam } from './seam';
+import { db, rateCardEntries, desc, lt } from '@chokro/db';
+import { withDb } from './seam';
 
-export interface CreateRateCardData {
+export type RateCardEntry = typeof rateCardEntries.$inferSelect;
+
+export interface CreateRateCardEntryInput {
   category: string;
   conditionBand?: string;
   condition_band?: string;
   unit?: string;
   priceBdt?: number | string;
-  price_bdt?: string | number;
+  price_bdt?: number | string;
   effectiveFrom?: Date;
   effective_from?: Date;
-  updatedBy?: string;
-  updated_by?: string;
+  updatedBy?: string | null;
+  updated_by?: string | null;
 }
 
-export interface RateCardRepo {
-  findPublished(): Promise<Array<typeof rateCardEntries.$inferSelect>>;
-  findCurrent(): Promise<Array<typeof rateCardEntries.$inferSelect>>;
-  create(data: CreateRateCardData): Promise<typeof rateCardEntries.$inferSelect>;
-}
+export const rateCardRepo = {
+  async createEntry(input: CreateRateCardEntryInput): Promise<RateCardEntry> {
+    return withDb(async () => {
+      const conditionBand = input.condition_band || input.conditionBand || 'GOOD';
+      const priceBdt = input.price_bdt ?? input.priceBdt ?? 0;
+      const effectiveFrom = input.effective_from || input.effectiveFrom || new Date();
+      const updatedBy = input.updated_by || input.updatedBy || null;
+      const unit = input.unit || (['E_WASTE', 'APPLIANCES'].includes(input.category) ? 'piece' : 'kg');
 
-function reduceToPublishedRates(rates: any[]): any[] {
-  const now = new Date();
-  const current = rates
-    .filter((entry: any) => new Date(entry.effective_from) <= now)
-    .reduce<Record<string, (typeof rates)[number]>>((latest, entry: any) => {
-      const key = `${entry.category}|${entry.condition_band}|${entry.unit}`;
-      const existing = latest[key];
-      if (!existing || new Date(entry.effective_from) > new Date(existing.effective_from)) {
-        latest[key] = entry;
+      const [entry] = await db
+        .insert(rateCardEntries)
+        .values({
+          category: input.category,
+          condition_band: conditionBand,
+          unit,
+          price_bdt: String(priceBdt),
+          effective_from: effectiveFrom,
+          updated_by: updatedBy,
+        })
+        .returning();
+      return entry;
+    });
+  },
+
+  async create(input: CreateRateCardEntryInput): Promise<RateCardEntry> {
+    return this.createEntry(input);
+  },
+
+  async findPublishedRates(now: Date = new Date()): Promise<RateCardEntry[]> {
+    return withDb(async () => {
+      const all: RateCardEntry[] = await db
+        .select()
+        .from(rateCardEntries)
+        .where(lt(rateCardEntries.effective_from, now))
+        .orderBy(desc(rateCardEntries.effective_from));
+
+      const seen = new Set<string>();
+      const deduplicated: RateCardEntry[] = [];
+      for (const entry of all) {
+        const key = `${entry.category}:${entry.condition_band}:${entry.unit}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicated.push(entry);
+        }
       }
-      return latest;
-    }, {});
-
-  return Object.values(current);
-}
-
-export const drizzleRateCardRepo: RateCardRepo = {
-  async findPublished() {
-    return withDb(async (db) => {
-      const rates = await db.select().from(rateCardEntries);
-      return reduceToPublishedRates(rates);
+      return deduplicated;
     });
   },
 
-  async findCurrent() {
-    return withDb(async (db) => db.select().from(rateCardEntries));
+  async findPublished(now: Date = new Date()): Promise<RateCardEntry[]> {
+    return this.findPublishedRates(now);
   },
 
-  async create(data: CreateRateCardData) {
-    const category = data.category;
-    const conditionBand = (data.condition_band ?? data.conditionBand)!;
-    const unit = data.unit ?? getCategoryUnit(category);
-    const priceBdt = (data.price_bdt ?? data.priceBdt ?? 0).toString();
-    const effectiveFrom = data.effective_from ?? data.effectiveFrom ?? new Date();
-    const updatedBy = data.updated_by ?? data.updatedBy;
-
-    const values = {
-      category,
-      condition_band: conditionBand,
-      unit,
-      price_bdt: priceBdt,
-      effective_from: effectiveFrom,
-      updated_by: updatedBy,
-    };
-
-    return withDb(async (db) => {
-      const rows = await db.insert(rateCardEntries).values(values).returning();
-      return rows[0];
+  async findAll(): Promise<RateCardEntry[]> {
+    return withDb(async () => {
+      return db
+        .select()
+        .from(rateCardEntries)
+        .orderBy(desc(rateCardEntries.effective_from));
     });
   },
-};
 
-export const memoryRateCardRepo: RateCardRepo = {
-  async findPublished() {
-    return reduceToPublishedRates([...memoryStore.rateCardEntries]);
-  },
-
-  async findCurrent() {
-    return [...memoryStore.rateCardEntries];
-  },
-
-  async create(data: CreateRateCardData) {
-    const category = data.category;
-    const conditionBand = (data.condition_band ?? data.conditionBand)!;
-    const unit = data.unit ?? getCategoryUnit(category);
-    const priceBdt = (data.price_bdt ?? data.priceBdt ?? 0).toString();
-    const effectiveFrom = data.effective_from ?? data.effectiveFrom ?? new Date();
-    const updatedBy = data.updated_by ?? data.updatedBy;
-
-    const values = {
-      category,
-      condition_band: conditionBand,
-      unit,
-      price_bdt: priceBdt,
-      effective_from: effectiveFrom,
-      updated_by: updatedBy,
-    };
-
-    const rate = {
-      id: crypto.randomUUID(),
-      ...values,
-    };
-    memoryStore.rateCardEntries.push(rate);
-    return rate as any;
+  async findCurrent(): Promise<RateCardEntry[]> {
+    return this.findAll();
   },
 };
-
-export const rateCardRepo: RateCardRepo = createRepoSeam(drizzleRateCardRepo, memoryRateCardRepo);

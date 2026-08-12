@@ -1,62 +1,36 @@
-import { creditTxns, memoryStore } from '@chokro/db';
-import { eq } from 'drizzle-orm';
-import crypto from 'crypto';
-import { withDb, createRepoSeam } from './seam';
+import { db, creditTxns, eq, desc } from '@chokro/db';
+import { withDb } from './seam';
 
-export interface CreateAdjustmentData {
+export interface CreateAdjustmentTransactionInput {
   userId: string;
   amount: number;
-  reason: string;
+  reason?: string | null;
 }
 
-export interface WalletRepo {
-  findTransactionsByOwner(ownerId: string): Promise<Array<typeof creditTxns.$inferSelect>>;
-  createAdjustmentTransaction(data: CreateAdjustmentData): Promise<typeof creditTxns.$inferSelect>;
-}
-
-export const drizzleWalletRepo: WalletRepo = {
-  async findTransactionsByOwner(ownerId: string) {
-    return withDb(async (db) => db.select().from(creditTxns).where(eq(creditTxns.user_id, ownerId)));
+export const walletRepo = {
+  async findTransactionsByOwner(userId: string) {
+    return withDb(async () => {
+      return db
+        .select()
+        .from(creditTxns)
+        .where(eq(creditTxns.user_id, userId))
+        .orderBy(desc(creditTxns.created_at));
+    });
   },
 
-  async createAdjustmentTransaction(data: CreateAdjustmentData) {
-    const values = {
-      user_id: data.userId,
-      amount: data.amount.toString(),
-      kind: 'ADJUST',
-      reason: data.reason,
-      status: 'VERIFIED',
-    };
-
-    return withDb(async (db) => {
-      const rows = await db.insert(creditTxns).values(values).returning();
-      return rows[0];
+  async createAdjustmentTransaction(input: CreateAdjustmentTransactionInput) {
+    return withDb(async () => {
+      const [txn] = await db
+        .insert(creditTxns)
+        .values({
+          user_id: input.userId,
+          amount: String(input.amount.toFixed(2)),
+          kind: 'ADJUST',
+          status: 'VERIFIED',
+          reason: input.reason || null,
+        })
+        .returning();
+      return txn;
     });
   },
 };
-
-export const memoryWalletRepo: WalletRepo = {
-  async findTransactionsByOwner(ownerId: string) {
-    return memoryStore.creditTxns.filter((txn) => txn.user_id === ownerId);
-  },
-
-  async createAdjustmentTransaction(data: CreateAdjustmentData) {
-    const values = {
-      user_id: data.userId,
-      amount: data.amount.toString(),
-      kind: 'ADJUST',
-      reason: data.reason,
-      status: 'VERIFIED',
-    };
-
-    const adjustment = {
-      id: crypto.randomUUID(),
-      ...values,
-      created_at: new Date(),
-    };
-    memoryStore.creditTxns.push(adjustment);
-    return adjustment as any;
-  },
-};
-
-export const walletRepo: WalletRepo = createRepoSeam(drizzleWalletRepo, memoryWalletRepo);

@@ -1,9 +1,11 @@
 import { dropZoneRepo } from '../lib/repos/dropZones';
 import { walletRepo } from '../lib/repos/wallet';
-import { resetTestStore } from './test-utils';
+import { createTestUser, resetTestStore } from './test-utils';
 
 describe('Worker 3 Repositories (dropZoneRepo & walletRepo)', () => {
-  beforeEach(resetTestStore);
+  beforeEach(async () => {
+    await resetTestStore();
+  });
 
   describe('dropZoneRepo', () => {
     it('creates, finds by id, lists all, and resolves by location', async () => {
@@ -32,19 +34,19 @@ describe('Worker 3 Repositories (dropZoneRepo & walletRepo)', () => {
 
   describe('walletRepo', () => {
     it('creates adjustment transaction and finds transactions by owner', async () => {
-      const userId = '00000000-0000-0000-0000-000000000001';
+      const user = await createTestUser();
       const adjustment = await walletRepo.createAdjustmentTransaction({
-        userId,
+        userId: user.id,
         amount: 250,
         reason: 'Bonus credits',
       });
 
       expect(adjustment.id).toBeDefined();
-      expect(adjustment.user_id).toBe(userId);
-      expect(adjustment.amount).toBe('250');
+      expect(adjustment.user_id).toBe(user.id);
+      expect(adjustment.amount).toBe('250.00');
       expect(adjustment.kind).toBe('ADJUST');
 
-      const ownerTxns = await walletRepo.findTransactionsByOwner(userId);
+      const ownerTxns = await walletRepo.findTransactionsByOwner(user.id);
       expect(ownerTxns).toHaveLength(1);
       expect(ownerTxns[0].id).toBe(adjustment.id);
     });

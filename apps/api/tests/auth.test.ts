@@ -1,12 +1,16 @@
 import { POST as signup } from '../app/api/auth/signup/route';
 import { POST as login } from '../app/api/auth/login/route';
 import { GET as me } from '../app/api/auth/me/route';
-import { memoryStore } from '@chokro/db';
 import { signToken } from '../lib/auth';
+import { userRepo } from '../lib/repos/users';
+import { DatabaseUnavailableError } from '../lib/database';
 import { resetTestStore } from './test-utils';
 
 describe('auth API', () => {
-  beforeEach(resetTestStore);
+  beforeEach(async () => {
+    await resetTestStore();
+    jest.restoreAllMocks();
+  });
 
   it('always creates an individual even when a privileged role is submitted', async () => {
     const response = await signup(new Request('http://localhost/api/auth/signup', {
@@ -79,18 +83,12 @@ describe('auth API', () => {
     }
   });
 
-  it('returns 503 instead of a memory success when the database fails outside tests', async () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    Object.assign(process.env, { NODE_ENV: 'development' });
-    try {
-      const response = await signup(new Request('http://localhost/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'no-db@test.chokro.org', password: 'password123' }),
-      }));
-      expect(response.status).toBe(503);
-      expect(memoryStore.users).toHaveLength(0);
-    } finally {
-      Object.assign(process.env, { NODE_ENV: originalNodeEnv });
-    }
+  it('returns 503 instead of a memory success when the database fails', async () => {
+    jest.spyOn(userRepo, 'findByEmail').mockRejectedValueOnce(new DatabaseUnavailableError());
+    const response = await signup(new Request('http://localhost/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'no-db@test.chokro.org', password: 'password123' }),
+    }));
+    expect(response.status).toBe(503);
   });
 });

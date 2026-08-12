@@ -3,23 +3,26 @@ import { POST as verifyPartner, GET as listPartners } from '../app/api/admin/par
 import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
 describe('partner API', () => {
-  beforeEach(resetTestStore);
+  beforeEach(async () => {
+    await resetTestStore();
+  });
 
   it('requires authentication and enforces the DoE gate on application', async () => {
     const body = { orgName: 'Green Tech', types: ['RECYCLER'], eWasteLicensed: true };
     const missingAuth = await applyPartner(new Request('http://localhost/api/partners/apply', {
       method: 'POST', body: JSON.stringify(body),
     }));
+    const user = await createTestUser();
     const authenticated = await applyPartner(new Request('http://localhost/api/partners/apply', {
-      method: 'POST', headers: authHeaders(tokenFor(createTestUser())), body: JSON.stringify(body),
+      method: 'POST', headers: authHeaders(tokenFor(user)), body: JSON.stringify(body),
     }));
     expect(missingAuth.status).toBe(401);
     expect(authenticated.status).toBe(400);
   });
 
   it('requires admin and grants the e-waste capability only at verification with a DoE document', async () => {
-    const user = createTestUser();
-    const admin = createTestUser('ADMIN');
+    const user = await createTestUser();
+    const admin = await createTestUser('ADMIN');
     const applied = await applyPartner(new Request('http://localhost/api/partners/apply', {
       method: 'POST', headers: authHeaders(tokenFor(user)),
       body: JSON.stringify({ orgName: 'Green Tech', types: ['RECYCLER'], eWasteLicensed: true, doeLicenseDoc: 'doe-ref-42' }),
@@ -48,8 +51,8 @@ describe('partner API', () => {
   });
 
   it('never grants the e-waste capability without a DoE document on file', async () => {
-    const user = createTestUser();
-    const admin = createTestUser('ADMIN');
+    const user = await createTestUser();
+    const admin = await createTestUser('ADMIN');
     const applied = await applyPartner(new Request('http://localhost/api/partners/apply', {
       method: 'POST', headers: authHeaders(tokenFor(user)),
       body: JSON.stringify({ orgName: 'Plain Recycler', types: ['RECYCLER'] }),

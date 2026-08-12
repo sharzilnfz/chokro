@@ -1,20 +1,21 @@
-import { memoryStore } from '@chokro/db';
+import { db, listings } from '@chokro/db';
 import { GET as getFeed } from '../app/api/feed/route';
-import { resetTestStore } from './test-utils';
+import { createTestUser, resetTestStore } from './test-utils';
 
-function listing(id: string, category: string, condition: string, createdAt: string, status = 'ACTIVE') {
-  return { id, owner_id: 'owner', category, unit: 'kg', declared_weight: '1', piece_count: null, declared_condition: condition, photos: [], status, created_at: new Date(createdAt) };
+function listing(id: string, ownerId: string, category: string, condition: string, createdAt: string, status = 'ACTIVE') {
+  return { id, owner_id: ownerId, category, unit: 'kg', declared_weight: '1', piece_count: null, declared_condition: condition, photos: [], status, created_at: new Date(createdAt) };
 }
 
 describe('feed API', () => {
-  beforeEach(() => {
-    resetTestStore();
-    memoryStore.listings.push(
-      listing('00000000-0000-0000-0000-000000000003', 'BOOKS', 'GOOD', '2026-08-06T12:00:00Z'),
-      listing('00000000-0000-0000-0000-000000000002', 'BOOKS', 'FAIR', '2026-08-06T12:00:00Z'),
-      listing('00000000-0000-0000-0000-000000000001', 'PLASTICS', 'GOOD', '2026-08-05T12:00:00Z'),
-      listing('00000000-0000-0000-0000-000000000004', 'BOOKS', 'GOOD', '2026-08-07T12:00:00Z', 'DRAFT'),
-    );
+  beforeEach(async () => {
+    await resetTestStore();
+    const user = await createTestUser();
+    await db.insert(listings).values([
+      listing('00000000-0000-0000-0000-000000000003', user.id, 'BOOKS', 'GOOD', '2026-08-06T12:00:00Z'),
+      listing('00000000-0000-0000-0000-000000000002', user.id, 'BOOKS', 'FAIR', '2026-08-06T12:00:00Z'),
+      listing('00000000-0000-0000-0000-000000000001', user.id, 'PLASTICS', 'GOOD', '2026-08-05T12:00:00Z'),
+      listing('00000000-0000-0000-0000-000000000004', user.id, 'BOOKS', 'GOOD', '2026-08-07T12:00:00Z', 'DRAFT'),
+    ]);
   });
 
   it('returns active listings filtered by category and condition', async () => {
