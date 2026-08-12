@@ -1,5 +1,6 @@
 import { db, listings, eq, desc, and, lt, or } from '@chokro/db';
 import { withDb } from './seam';
+import { KeysetPagination } from '../domain/KeysetPagination';
 
 export interface ListingCursor {
   createdAt: string;
@@ -66,13 +67,9 @@ export const listingRepo = {
         conditions.push(eq(listings.declared_condition, filter.condition));
       }
       if (filter?.cursor) {
-        const cursorDate = new Date(filter.cursor.createdAt);
-        const cursorTiebreak = and(eq(listings.created_at, cursorDate), lt(listings.id, filter.cursor.id));
-        if (cursorTiebreak) {
-          const cursorClause = or(lt(listings.created_at, cursorDate), cursorTiebreak);
-          if (cursorClause) {
-            conditions.push(cursorClause);
-          }
+        const cursorClause = KeysetPagination.buildCursorClause(filter.cursor, listings.created_at, listings.id);
+        if (cursorClause) {
+          conditions.push(cursorClause);
         }
       }
 

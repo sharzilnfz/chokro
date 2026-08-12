@@ -1,24 +1,15 @@
-import { userRepo } from '../../../../lib/repos/users';
-import { requireAuth } from '../../../../lib/auth';
-import { apiData, apiError, safeRoute } from '../../../../lib/http';
+import { AuthDomain } from '@/lib/domain/AuthDomain';
+import { requireAuth } from '@/lib/auth';
+import { apiData, apiError, safeRoute } from '@/lib/http';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
   if (auth.response) return auth.response;
 
-  const user = await userRepo.findById(auth.user.userId);
-
+  const user = await AuthDomain.getUserProfile(auth.user.userId);
   if (!user) {
     return apiError('Unauthorized', 401);
   }
 
-  return apiData({
-    user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      institutionId: user.institution_id,
-      createdAt: user.created_at,
-    },
-  });
+  return apiData({ user });
 });

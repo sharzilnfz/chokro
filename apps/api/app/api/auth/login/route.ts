@@ -1,6 +1,6 @@
-import { userRepo } from '../../../../lib/repos/users';
-import { comparePassword, signToken } from '../../../../lib/auth';
-import { apiError, apiSuccess, safeRoute } from '../../../../lib/http';
+import { AuthDomain } from '@/lib/domain/AuthDomain';
+import { apiError, apiSuccess, safeRoute } from '@/lib/http';
+import { DatabaseUnavailableError } from '@/lib/database';
 import { LoginSchema } from '@chokro/shared';
 
 export const POST = safeRoute(async (req: Request) => {
@@ -10,31 +10,14 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Invalid credentials', 401);
   }
 
-  const { email, password } = parsed.data;
-  const user = await userRepo.findByEmail(email);
-
-  if (!user) {
-    return apiError('Invalid credentials', 401);
+  try {
+    const session = await AuthDomain.authenticate(parsed.data);
+    return apiSuccess('Login successful', session);
+  } catch (error) {
+    if (error instanceof DatabaseUnavailableError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : 'Invalid credentials';
+    return apiError(message, 401);
   }
-
-  const isValid = comparePassword(password, user.password_hash);
-  if (!isValid) {
-    return apiError('Invalid credentials', 401);
-  }
-
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-  });
-
-  return apiSuccess('Login successful', {
-    user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      institutionId: user.institution_id,
-    },
-    token,
-  });
 });

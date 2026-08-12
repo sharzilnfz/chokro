@@ -1,51 +1,32 @@
-import { listingRepo } from '@/lib/repos/listings';
+import { ListingDomain, CreateListingData } from '@/lib/domain/ListingDomain';
 import { ListingStatus } from '@chokro/shared';
-
-const TRANSITIONS: Record<string, string[]> = {
-  DRAFT: ['ACTIVE', 'CANCELLED'],
-  ACTIVE: ['CANCELLED'],
-  CANCELLED: [],
-};
 
 export const listingService = {
   isValidTransition(currentStatus: string, targetStatus: string): boolean {
-    return TRANSITIONS[currentStatus]?.includes(targetStatus) ?? false;
+    return ListingDomain.isValidTransition(currentStatus, targetStatus);
   },
 
   isOwnerOrAdmin(listing: { owner_id: string }, userId: string, userRole: string): boolean {
-    return listing.owner_id === userId || userRole === 'ADMIN';
+    return ListingDomain.isOwnerOrAdmin(listing, userId, userRole);
   },
 
   async getListingById(id: string) {
-    return listingRepo.findById(id);
+    return ListingDomain.getListingById(id);
   },
 
-  async createListing(ownerId: string, data: {
-    category: any;
-    unit: any;
-    declaredWeight?: number | null;
-    pieceCount?: number | null;
-    declaredCondition: any;
-    photos: string[];
-    status: ListingStatus;
-  }) {
-    return listingRepo.create({
-      owner_id: ownerId,
-      category: data.category,
-      unit: data.unit,
-      declared_weight: data.declaredWeight?.toString() ?? null,
-      piece_count: data.pieceCount ?? null,
-      declared_condition: data.declaredCondition,
-      photos: data.photos,
-      status: data.status,
-    });
+  async createListing(ownerId: string, data: CreateListingData) {
+    return ListingDomain.createListing(ownerId, data);
   },
 
-  async updateListingStatus(id: string, status: ListingStatus) {
-    return listingRepo.updateStatus(id, status);
+  async updateListingStatus(id: string, status: ListingStatus, currentStatus?: string) {
+    return ListingDomain.updateListingStatus(id, status, currentStatus);
   },
 
   async getListingsByOwner(ownerId: string) {
-    return listingRepo.findByOwnerId(ownerId);
+    return ListingDomain.getListingsByOwner(ownerId);
+  },
+
+  async findPublished(filter?: any) {
+    return ListingDomain.findPublished(filter);
   },
 };

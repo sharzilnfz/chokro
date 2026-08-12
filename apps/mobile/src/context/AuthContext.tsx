@@ -25,6 +25,8 @@ type AuthContextValue = {
   authMode: AuthMode;
   setAuthMode: (mode: AuthMode) => void;
   login: (session: AuthSession) => Promise<void>;
+  signIn: (credentials: { email: string; password: string }) => Promise<void>;
+  signUp: (credentials: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   retryRestore: () => void;
   clearAndRestart: () => void;
@@ -112,6 +114,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthMode('login');
   }, []);
 
+  const signIn = useCallback(async (credentials: { email: string; password: string }) => {
+    const nextSession = await apiRequest<{ token: string; user: User }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: credentials.email.trim().toLowerCase(), password: credentials.password }),
+    });
+    await login(nextSession);
+  }, [login]);
+
+  const signUp = useCallback(async (credentials: { email: string; password: string }) => {
+    const nextSession = await apiRequest<{ token: string; user: User }>('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email: credentials.email.trim().toLowerCase(), password: credentials.password }),
+    });
+    await login(nextSession);
+  }, [login]);
+
   const clearAndRestart = useCallback(() => {
     void (async () => {
       try {
@@ -133,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authMode,
     setAuthMode,
     login,
+    signIn,
+    signUp,
     logout,
     retryRestore: () => void restoreSession(),
     clearAndRestart,

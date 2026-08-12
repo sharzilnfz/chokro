@@ -1,13 +1,13 @@
-import { requireAdmin } from '../../../../lib/auth';
-import { apiData, apiError, apiSuccess, safeRoute } from '../../../../lib/http';
-import { partnerRepo } from '../../../../lib/repos/partners';
+import { requireAdmin } from '@/lib/auth';
+import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
+import { PartnerDomain } from '@/lib/domain/PartnerDomain';
 import { VerifyPartnerSchema } from '@chokro/shared';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
   if (auth.response) return auth.response;
-  const allPartners = await partnerRepo.findAll();
-  return apiData({ partners: allPartners });
+  const partners = await PartnerDomain.listAllPartners();
+  return apiData({ partners });
 });
 
 export const POST = safeRoute(async (req: Request) => {
@@ -20,13 +20,15 @@ export const POST = safeRoute(async (req: Request) => {
   }
 
   const { partnerId, status } = parsed.data;
-  const existing = await partnerRepo.findById(partnerId);
 
-  if (!existing) {
-    return apiError('Partner not found', 404);
+  try {
+    const partner = await PartnerDomain.updateVerification(partnerId, status);
+    return apiSuccess(`Partner ${status.toLowerCase()}`, { partner });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update partner';
+    if (message === 'Partner not found') {
+      return apiError(message, 404);
+    }
+    return apiError(message, 400);
   }
-
-  const partner = await partnerRepo.updateStatusAndLicense(partnerId, status);
-
-  return apiSuccess(`Partner ${status.toLowerCase()}`, { partner });
 });

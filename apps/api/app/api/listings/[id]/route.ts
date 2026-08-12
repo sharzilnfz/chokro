@@ -40,7 +40,7 @@ export const PATCH = safeRoute(async (req: Request, { params }: { params: Promis
     return apiError('Invalid listing status transition', 400);
   }
 
-  const updatedListing = await listingService.updateListingStatus(id, parsed.data.status);
+  const updatedListing = await listingService.updateListingStatus(id, parsed.data.status, existing.status);
 
   return apiSuccess('Listing updated', { listing: updatedListing });
 });

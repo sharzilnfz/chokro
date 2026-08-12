@@ -1,6 +1,6 @@
-import { requireAuth } from '../../../../lib/auth';
-import { apiError, apiSuccess, safeRoute } from '../../../../lib/http';
-import { partnerRepo } from '../../../../lib/repos/partners';
+import { requireAuth } from '@/lib/auth';
+import { apiError, apiSuccess, safeRoute } from '@/lib/http';
+import { PartnerDomain } from '@/lib/domain/PartnerDomain';
 import { PartnerApplySchema } from '@chokro/shared';
 
 export const POST = safeRoute(async (req: Request) => {
@@ -20,16 +20,18 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('DoE License document is mandatory for e-waste licensing.', 400);
   }
 
-  // SPEC 00 §2.5: the e_waste_licensed capability is granted only by an admin
-  // during verification, never self-asserted at application time.
-  const partner = await partnerRepo.create({
-    user_id: auth.user.userId,
-    org_name: orgName,
-    types,
-    e_waste_licensed: false,
-    doe_license_doc: doeLicenseDoc || null,
-    status: 'APPLIED',
-  });
+  try {
+    const partner = await PartnerDomain.apply({
+      userId: auth.user.userId,
+      orgName,
+      types,
+      eWasteLicensed,
+      doeLicenseDoc,
+    });
 
-  return apiSuccess('Partner application submitted', { partner }, 201);
+    return apiSuccess('Partner application submitted', { partner }, 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Partner application failed';
+    return apiError(message, 400);
+  }
 });

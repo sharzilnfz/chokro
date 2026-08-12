@@ -10,9 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { apiRequest, getErrorMessage } from '@/services/api';
+import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import type { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -23,7 +22,7 @@ type LoginScreenProps = {
 };
 
 export function LoginScreen({ onShowSignup }: LoginScreenProps) {
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,11 +38,7 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
     setLoading(true);
     setError('');
     try {
-      const session = await apiRequest<{ token: string; user: User }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: normalizedEmail, password }),
-      });
-      await login(session);
+      await signIn({ email: normalizedEmail, password });
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not sign in.'));
     } finally {

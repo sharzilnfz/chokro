@@ -1,30 +1,18 @@
-import { walletRepo } from '@/lib/repos/wallet';
+import { WalletDomain, BalanceSummary } from '@/lib/domain/WalletDomain';
 
-export interface BalanceSummary {
-  verified: number;
-  pending: number;
-}
+export type { BalanceSummary };
 
 export const walletService = {
   calculateBalance(transactions: Array<{ amount: string | number; status: string }>): BalanceSummary {
-    let verified = 0;
-    let pending = 0;
-
-    for (const txn of transactions) {
-      const amount = Number(txn.amount);
-      if (txn.status === 'VERIFIED') verified += amount;
-      if (txn.status === 'PENDING') pending += amount;
-    }
-
-    return { verified, pending };
+    return WalletDomain.calculateBalance(transactions);
   },
 
   async getUserBalance(userId: string): Promise<BalanceSummary> {
-    const txns = await walletRepo.findTransactionsByOwner(userId);
-    return this.calculateBalance(txns);
+    return WalletDomain.getUserBalance(userId);
   },
 
   async getUserTransactions(userId: string) {
-    return walletRepo.findTransactionsByOwner(userId);
+    return WalletDomain.getUserTransactions(userId);
   },
 };
+

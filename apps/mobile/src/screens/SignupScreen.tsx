@@ -10,9 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { apiRequest, getErrorMessage } from '@/services/api';
+import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import type { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -23,7 +22,7 @@ type SignupScreenProps = {
 };
 
 export function SignupScreen({ onShowLogin }: SignupScreenProps) {
-  const { login } = useAuth();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,11 +47,7 @@ export function SignupScreen({ onShowLogin }: SignupScreenProps) {
     setLoading(true);
     setError('');
     try {
-      const session = await apiRequest<{ token: string; user: User }>('/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: normalizedEmail, password }),
-      });
-      await login(session);
+      await signUp({ email: normalizedEmail, password });
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not create your account.'));
     } finally {

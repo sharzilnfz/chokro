@@ -1,9 +1,7 @@
 import { WalletAdjustSchema } from '@chokro/shared';
-import { requireAdmin } from '../../../../../lib/auth';
-import { apiError, apiSuccess, safeRoute } from '../../../../../lib/http';
-import { walletRepo } from '../../../../../lib/repos/wallet';
-
-
+import { requireAdmin } from '@/lib/auth';
+import { apiError, apiSuccess, safeRoute } from '@/lib/http';
+import { WalletDomain } from '@/lib/domain/WalletDomain';
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
@@ -14,8 +12,11 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Invalid adjustment data. Reason is mandatory.', 400, parsed.error.format());
   }
 
-  const txn = await walletRepo.createAdjustmentTransaction(parsed.data);
-
-  return apiSuccess('Wallet adjusted successfully', { txn }, 201);
+  try {
+    const txn = await WalletDomain.createAdjustment(parsed.data);
+    return apiSuccess('Wallet adjusted successfully', { txn }, 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Adjustment failed';
+    return apiError(message, 400);
+  }
 });
-
