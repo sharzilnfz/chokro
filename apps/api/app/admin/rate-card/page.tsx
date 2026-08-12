@@ -1,14 +1,15 @@
 'use client';
 
 import { CATEGORIES, CONDITIONS, type Category, type Condition } from '@chokro/shared';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
 import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
-import { useAdminRateCards, usePublishRate } from '../hooks/useAdminRateCards';
+import { useAdminRateCards, usePublishRate, type RateEntry } from '../hooks/useAdminRateCards';
 import { formatDate, formatLabel, formatPrice, unitForCategory } from '../lib/formatters';
 
 const CATEGORY_OPTIONS = CATEGORIES.map((value) => ({
@@ -23,6 +24,10 @@ const CONDITION_OPTIONS = CONDITIONS.map((value) => ({
 
 type Notice = { tone: NoticeTone; text: string } | null;
 
+type RateEntryWithVersion = RateEntry & {
+  isCurrent: boolean;
+};
+
 export default function AdminRateCardPage() {
   const { data: rates = [], isLoading, isError, refetch } = useAdminRateCards();
   const publishRateMutation = usePublishRate();
@@ -30,51 +35,70 @@ export default function AdminRateCardPage() {
   const [category, setCategory] = useState<Category>('PLASTICS');
   const [conditionBand, setConditionBand] = useState<Condition>('GOOD');
   const [priceBdt, setPriceBdt] = useState('');
+  const [priceError, setPriceError] = useState('');
   const [notice, setNotice] = useState<Notice>(null);
 
   const unit = unitForCategory(category);
 
+  // Pure deterministic computation of version status (fixes render-time mutation)
+  const sortedRatesWithVersion = useMemo<RateEntryWithVersion[]>(() => {
+    const sorted = [...rates].sort((first, second) => {
+      return new Date(second.effective_from).getTime() - new Date(first.effective_from).getTime();
+    });
+
+    const seenKeys = new Set<string>();
+    return sorted.map((rate) => {
+      const key = `${rate.category}:${rate.condition_band}`;
+      const isCurrent = !seenKeys.has(key);
+      seenKeys.add(key);
+      return { ...rate, isCurrent };
+    });
+  }, [rates]);
+
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
+    setPriceError('');
+
+    const numericPrice = Number(priceBdt);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      setPriceError('Please enter a valid positive amount.');
+      return;
+    }
 
     try {
       await publishRateMutation.mutateAsync({
         category,
         conditionBand,
         unit,
-        priceBdt: Number(priceBdt),
+        priceBdt: numericPrice,
       });
 
       setNotice({
         tone: 'success',
-        text: `${formatLabel(category)} ${formatLabel(conditionBand)} rate published at ${formatPrice(priceBdt)} per ${unit}.`,
+        text: `${formatLabel(category)} ${formatLabel(conditionBand)} rate published at ${formatPrice(numericPrice)} per ${unit}.`,
       });
       setPriceBdt('');
     } catch (error) {
-      const errMessage = error instanceof Error ? error.message : 'The rate entry could not be published.';
+      const errMessage =
+        error instanceof Error ? error.message : 'The rate entry could not be published.';
       setNotice({ tone: 'error', text: errMessage });
     }
   }
 
-  const sortedRates = [...rates].sort((first, second) => {
-    return new Date(second.effective_from).getTime() - new Date(first.effective_from).getTime();
-  });
-  const currentKeys = new Set<string>();
-
   return (
     <>
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-page-kicker">Pricing operations</p>
-          <h1 className="admin-page-title">Rate card</h1>
-          <p className="admin-page-description">
-            Add an effective rate for a category and condition. Materials use kilograms; appliances and e-waste use pieces.
-          </p>
-        </div>
-      </header>
+      <AdminPageHeader
+        kicker="Pricing operations"
+        title="Rate card"
+        description="Add an effective rate for a category and condition. Materials use kilograms; appliances and e-waste use pieces."
+      />
 
-      {notice && <AdminStatusMessage tone={notice.tone}>{notice.text}</AdminStatusMessage>}
+      {notice && (
+        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
+          {notice.text}
+        </AdminStatusMessage>
+      )}
 
       <div className="admin-workspace-grid">
         <section className="admin-panel admin-form-panel" aria-labelledby="publish-rate-title">
@@ -117,7 +141,11 @@ export default function AdminRateCardPage() {
               step="0.01"
               placeholder="45.00"
               value={priceBdt}
-              onChange={(event) => setPriceBdt(event.target.value)}
+              error={priceError}
+              onChange={(event) => {
+                setPriceBdt(event.target.value);
+                if (priceError) setPriceError('');
+              }}
               hint="Enter a positive amount with up to two decimal places."
               required
             />
@@ -161,7 +189,7 @@ export default function AdminRateCardPage() {
                 </AdminButton>
               </div>
             </div>
-          ) : sortedRates.length === 0 ? (
+          ) : sortedRatesWithVersion.length === 0 ? (
             <div className="admin-state">
               <div className="admin-state-content">
                 <h3 className="admin-state-title">No rate entries yet</h3>
@@ -181,30 +209,25 @@ export default function AdminRateCardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedRates.map((rate) => {
-                    const key = `${rate.category}:${rate.condition_band}`;
-                    const isCurrent = !currentKeys.has(key);
-                    currentKeys.add(key);
-                    return (
-                      <tr key={rate.id}>
-                        <td data-label="Category">
-                          <span className="admin-cell-primary">{formatLabel(rate.category)}</span>
-                        </td>
-                        <td data-label="Condition">{formatLabel(rate.condition_band)}</td>
-                        <td data-label="Rate">
-                          <span className="admin-cell-number">
-                            {formatPrice(rate.price_bdt)} / {rate.unit}
-                          </span>
-                        </td>
-                        <td data-label="Version">
-                          <AdminBadge status={isCurrent ? 'CURRENT' : 'HISTORICAL'}>
-                            {isCurrent ? 'Current' : 'Previous'}
-                          </AdminBadge>
-                        </td>
-                        <td data-label="Effective from">{formatDate(rate.effective_from)}</td>
-                      </tr>
-                    );
-                  })}
+                  {sortedRatesWithVersion.map((rate) => (
+                    <tr key={rate.id}>
+                      <td data-label="Category">
+                        <span className="admin-cell-primary">{formatLabel(rate.category)}</span>
+                      </td>
+                      <td data-label="Condition">{formatLabel(rate.condition_band)}</td>
+                      <td data-label="Rate">
+                        <span className="admin-cell-number">
+                          {formatPrice(rate.price_bdt)} / {rate.unit}
+                        </span>
+                      </td>
+                      <td data-label="Version">
+                        <AdminBadge status={rate.isCurrent ? 'CURRENT' : 'HISTORICAL'}>
+                          {rate.isCurrent ? 'Current' : 'Previous'}
+                        </AdminBadge>
+                      </td>
+                      <td data-label="Effective from">{formatDate(rate.effective_from)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

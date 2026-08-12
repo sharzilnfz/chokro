@@ -19,23 +19,22 @@ export type UpdatePartnerInput = {
   status: 'VERIFIED' | 'REJECTED';
 };
 
+export const ADMIN_PARTNERS_QUERY_KEY = ['admin', 'partners'] as const;
+
 export function useAdminPartners() {
-  const { token } = useAdminAuth();
+  const { status } = useAdminAuth();
 
   return useQuery<Partner[]>({
-    queryKey: ['adminPartners', token],
+    queryKey: ADMIN_PARTNERS_QUERY_KEY,
     queryFn: async () => {
-      const data = await adminApiRequest<{ partners?: Partner[] }>('/api/admin/partners', {
-        token,
-      });
+      const data = await adminApiRequest<{ partners?: Partner[] }>('/api/admin/partners');
       return Array.isArray(data.partners) ? data.partners : [];
     },
-    enabled: !!token,
+    enabled: status === 'signed-in',
   });
 }
 
 export function useUpdatePartnerStatus() {
-  const { token } = useAdminAuth();
   const queryClient = useQueryClient();
 
   return useMutation<Partner | undefined, Error, UpdatePartnerInput>({
@@ -44,12 +43,11 @@ export function useUpdatePartnerStatus() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ partnerId, status }),
-        token,
       });
       return data.partner;
     },
     onSuccess: (updatedPartner, variables) => {
-      queryClient.setQueryData<Partner[]>(['adminPartners', token], (current) => {
+      queryClient.setQueryData<Partner[]>(ADMIN_PARTNERS_QUERY_KEY, (current) => {
         if (!current) return [];
         return current.map((item) =>
           item.id === variables.partnerId
@@ -57,7 +55,7 @@ export function useUpdatePartnerStatus() {
             : item,
         );
       });
-      void queryClient.invalidateQueries({ queryKey: ['adminPartners', token] });
+      void queryClient.invalidateQueries({ queryKey: ADMIN_PARTNERS_QUERY_KEY });
     },
   });
 }

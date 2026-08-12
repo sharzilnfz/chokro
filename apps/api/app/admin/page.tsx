@@ -1,20 +1,19 @@
 import Link from 'next/link';
+import { AdminPageHeader } from './components/layout/AdminPageHeader';
 
 export default function AdminDashboardPage() {
   return (
     <>
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-page-kicker">Operations workspace</p>
-          <h1 className="admin-page-title">Keep Chokro&apos;s network accurate.</h1>
-          <p className="admin-page-description">
-            Publish category pricing and make documented partner verification decisions for the Sprint 1 network.
-          </p>
-        </div>
-      </header>
+      <AdminPageHeader
+        kicker="Operations workspace"
+        title="Keep Chokro's network accurate."
+        description="Publish category pricing, register collection drop zones, and make documented partner verification decisions for the circular economy network."
+      />
 
       <section aria-labelledby="admin-workflows-title">
-        <h2 className="admin-section-heading" id="admin-workflows-title">Admin workflows</h2>
+        <h2 className="admin-section-heading" id="admin-workflows-title">
+          Admin workflows
+        </h2>
         <p className="admin-section-copy">Choose a workflow to review its live records.</p>
 
         <div className="admin-module-grid">

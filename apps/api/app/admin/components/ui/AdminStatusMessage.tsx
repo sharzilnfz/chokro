@@ -1,22 +1,47 @@
 import type { ReactNode } from 'react';
 
-export type NoticeTone = 'success' | 'error';
+export type NoticeTone = 'success' | 'error' | 'warning' | 'info';
 
-type AdminStatusMessageProps = {
+export type AdminStatusMessageProps = {
   tone?: NoticeTone;
   children: ReactNode;
+  className?: string;
+  onDismiss?: () => void;
 };
 
-export function AdminStatusMessage({ tone = 'success', children }: AdminStatusMessageProps) {
+export function AdminStatusMessage({
+  tone = 'success',
+  children,
+  className = '',
+  onDismiss,
+}: AdminStatusMessageProps) {
   if (!children) return null;
 
   return (
-    <p
-      className="admin-status-message"
+    <div
+      className={['admin-status-message', className].filter(Boolean).join(' ')}
       data-tone={tone}
       role={tone === 'error' ? 'alert' : 'status'}
+      aria-live={tone === 'error' ? 'assertive' : 'polite'}
     >
-      {children}
-    </p>
+      <div style={{ flex: 1 }}>{children}</div>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '2px 6px',
+            fontSize: '12px',
+            opacity: 0.8,
+          }}
+          aria-label="Dismiss message"
+        >
+          ✕
+        </button>
+      )}
+    </div>
   );
 }

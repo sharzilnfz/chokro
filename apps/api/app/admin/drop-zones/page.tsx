@@ -1,7 +1,8 @@
 'use client';
 
 import type { Category } from '@chokro/shared';
-import { useState } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
+import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
@@ -23,25 +24,29 @@ export default function AdminDropZonesPage() {
   const { request } = useAdminAuth();
   const { data: zones = [], isLoading, isError, refetch } = useAdminDropZones();
   const createZoneMutation = useCreateDropZone();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [notice, setNotice] = useState<Notice>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
-  async function createZone(formData: FormData) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setNotice(null);
 
+    const formData = new FormData(event.currentTarget);
     const selected = CATEGORY_OPTIONS.filter((category) =>
       formData.getAll('categories').includes(category.value),
     ).map((category) => category.value as Category);
 
+    if (selected.length === 0) {
+      setNotice({ tone: 'error', text: 'Choose at least one accepted category.' });
+      return;
+    }
+
+    const institutionId = String(formData.get('institutionId') || '').trim();
+    const name = String(formData.get('name') || '').trim();
+
     try {
-      if (selected.length === 0) {
-        setNotice({ tone: 'error', text: 'Choose at least one accepted category.' });
-        return;
-      }
-
-      const institutionId = String(formData.get('institutionId') || '').trim();
-      const name = String(formData.get('name') || '').trim();
-
       await createZoneMutation.mutateAsync({
         institutionId,
         name,
@@ -50,10 +55,9 @@ export default function AdminDropZonesPage() {
 
       setNotice({
         tone: 'success',
-        text: 'Drop zone created. Print its poster and display it on-site.',
+        text: 'Drop zone created successfully. Print its poster and display it on-site.',
       });
-      const form = document.getElementById('drop-zone-form') as HTMLFormElement | null;
-      form?.reset();
+      formRef.current?.reset();
     } catch (error) {
       const errMessage =
         error instanceof Error ? error.message : 'Drop zone could not be created.';
@@ -62,7 +66,9 @@ export default function AdminDropZonesPage() {
   }
 
   async function openPoster(zone: DropZone) {
+    setPrintingId(zone.id);
     setNotice(null);
+
     try {
       const response = await request(`/api/drop-zones/${zone.id}/poster`);
       if (!response.ok) {
@@ -72,12 +78,14 @@ export default function AdminDropZonesPage() {
         });
         return;
       }
+
       const html = await response.text();
       const posterWindow = window.open('', '_blank', 'noopener,noreferrer');
       if (!posterWindow) {
         setNotice({ tone: 'error', text: 'Allow pop-ups for this site to open the poster.' });
         return;
       }
+
       posterWindow.document.open();
       posterWindow.document.write(html);
       posterWindow.document.close();
@@ -88,23 +96,24 @@ export default function AdminDropZonesPage() {
         tone: 'error',
         text: 'The poster could not be generated. Check the service and try again.',
       });
+    } finally {
+      setPrintingId(null);
     }
   }
 
   return (
     <>
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-page-kicker">Collections infrastructure</p>
-          <h1 className="admin-page-title">Drop zones</h1>
-          <p className="admin-page-description">
-            Register collection points and print their QR poster. The QR is what a Chokro user scans to recognize a
-            drop zone; it does not create a deposit or credit in Sprint 1.
-          </p>
-        </div>
-      </header>
+      <AdminPageHeader
+        kicker="Collections infrastructure"
+        title="Drop zones"
+        description="Register collection points and print their QR poster. The QR is what a Chokro user scans to recognize a drop zone; it does not create a deposit or credit in Sprint 1."
+      />
 
-      {notice && <AdminStatusMessage tone={notice.tone}>{notice.text}</AdminStatusMessage>}
+      {notice && (
+        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
+          {notice.text}
+        </AdminStatusMessage>
+      )}
 
       <section className="admin-panel" aria-labelledby="create-zone-title">
         <div className="admin-panel-header">
@@ -117,13 +126,11 @@ export default function AdminDropZonesPage() {
             </p>
           </div>
         </div>
+
         <form
-          id="drop-zone-form"
+          ref={formRef}
           className="admin-form admin-form-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createZone(new FormData(event.currentTarget));
-          }}
+          onSubmit={handleSubmit}
         >
           <AdminInput
             id="zone-name"
@@ -228,6 +235,8 @@ export default function AdminDropZonesPage() {
                       <AdminButton
                         variant="secondary"
                         type="button"
+                        loading={printingId === zone.id}
+                        loadingText="Opening..."
                         onClick={() => void openPoster(zone)}
                       >
                         Print poster

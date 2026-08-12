@@ -21,23 +21,22 @@ export type PublishRateInput = {
   priceBdt: number;
 };
 
+export const ADMIN_RATE_CARDS_QUERY_KEY = ['admin', 'rate-cards'] as const;
+
 export function useAdminRateCards() {
-  const { token } = useAdminAuth();
+  const { status } = useAdminAuth();
 
   return useQuery<RateEntry[]>({
-    queryKey: ['adminRateCards', token],
+    queryKey: ADMIN_RATE_CARDS_QUERY_KEY,
     queryFn: async () => {
-      const data = await adminApiRequest<{ entries?: RateEntry[] }>('/api/admin/rate-card', {
-        token,
-      });
+      const data = await adminApiRequest<{ entries?: RateEntry[] }>('/api/admin/rate-card');
       return Array.isArray(data.entries) ? data.entries : [];
     },
-    enabled: !!token,
+    enabled: status === 'signed-in',
   });
 }
 
 export function usePublishRate() {
-  const { token } = useAdminAuth();
   const queryClient = useQueryClient();
 
   return useMutation<RateEntry | undefined, Error, PublishRateInput>({
@@ -46,16 +45,15 @@ export function usePublishRate() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        token,
       });
       return data.entry;
     },
     onSuccess: (newEntry) => {
-      queryClient.setQueryData<RateEntry[]>(['adminRateCards', token], (current) => {
+      queryClient.setQueryData<RateEntry[]>(ADMIN_RATE_CARDS_QUERY_KEY, (current) => {
         if (!current) return newEntry ? [newEntry] : [];
         return newEntry ? [newEntry, ...current] : current;
       });
-      void queryClient.invalidateQueries({ queryKey: ['adminRateCards', token] });
+      void queryClient.invalidateQueries({ queryKey: ADMIN_RATE_CARDS_QUERY_KEY });
     },
   });
 }

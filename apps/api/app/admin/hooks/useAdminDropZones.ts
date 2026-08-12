@@ -21,23 +21,22 @@ export type CreateDropZoneInput = {
   acceptedCategories: Category[];
 };
 
+export const ADMIN_DROP_ZONES_QUERY_KEY = ['admin', 'drop-zones'] as const;
+
 export function useAdminDropZones() {
-  const { token } = useAdminAuth();
+  const { status } = useAdminAuth();
 
   return useQuery<DropZone[]>({
-    queryKey: ['adminDropZones', token],
+    queryKey: ADMIN_DROP_ZONES_QUERY_KEY,
     queryFn: async () => {
-      const data = await adminApiRequest<{ zones?: DropZone[] }>('/api/drop-zones', {
-        token,
-      });
+      const data = await adminApiRequest<{ zones?: DropZone[] }>('/api/drop-zones');
       return Array.isArray(data.zones) ? data.zones : [];
     },
-    enabled: !!token,
+    enabled: status === 'signed-in',
   });
 }
 
 export function useCreateDropZone() {
-  const { token } = useAdminAuth();
   const queryClient = useQueryClient();
 
   return useMutation<DropZone | undefined, Error, CreateDropZoneInput>({
@@ -46,12 +45,17 @@ export function useCreateDropZone() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        token,
       });
       return data.zone;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['adminDropZones', token] });
+    onSuccess: (newZone) => {
+      if (newZone) {
+        queryClient.setQueryData<DropZone[]>(ADMIN_DROP_ZONES_QUERY_KEY, (current) => {
+          if (!current) return [newZone];
+          return [newZone, ...current];
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: ADMIN_DROP_ZONES_QUERY_KEY });
     },
   });
 }

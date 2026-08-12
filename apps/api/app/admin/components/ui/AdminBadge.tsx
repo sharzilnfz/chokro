@@ -1,13 +1,18 @@
 import type { ReactNode } from 'react';
 
-type AdminBadgeProps = {
+export type AdminBadgeProps = {
   status?: string;
   children: ReactNode;
+  className?: string;
 };
 
-export function AdminBadge({ status, children }: AdminBadgeProps) {
+export function AdminBadge({ status, children, className = '' }: AdminBadgeProps) {
   return (
-    <span className="admin-badge" data-status={status}>
+    <span
+      className={['admin-badge', className].filter(Boolean).join(' ')}
+      data-status={status}
+      role="status"
+    >
       {children}
     </span>
   );

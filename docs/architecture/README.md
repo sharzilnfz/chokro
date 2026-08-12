@@ -8,6 +8,8 @@ This directory contains the architecture review, system design analysis, visual 
 
 | Document | Description | Format |
 | :--- | :--- | :--- |
+| **[high-level-architecture-and-intuition.md](./high-level-architecture-and-intuition.md)** | High-level mental models, monorepo layout, and "why it's built this way". | Markdown |
+| **[in-depth-flow-walkthrough.md](./in-depth-flow-walkthrough.md)** | Line-by-line end-to-end trace of a complete slice (Listing Creation -> DB -> Feed). | Markdown |
 | **[architecture-visual-flows.md](./architecture-visual-flows.md)** | Step-by-step visual flows & diagrams (Before vs. After). | Markdown |
 | **[architecture-explained.md](./architecture-explained.md)** | Beginner-friendly explanation of core concepts, problems, and solutions. | Markdown |
 | **[architecture-review.md](./architecture-review.md)** | Detailed engineering review, 5 candidates, and phased execution plan. | Markdown |

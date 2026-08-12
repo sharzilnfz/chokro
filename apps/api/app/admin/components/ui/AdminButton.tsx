@@ -1,8 +1,8 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'quiet';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'quiet';
 
-type AdminButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+export type AdminButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   fullWidth?: boolean;
   loading?: boolean;
@@ -18,6 +18,7 @@ export function AdminButton({
   className = '',
   disabled,
   children,
+  type = 'button',
   ...props
 }: AdminButtonProps) {
   const baseClass = 'admin-button';
@@ -28,8 +29,17 @@ export function AdminButton({
     .filter(Boolean)
     .join(' ');
 
+  const isDisabled = disabled || loading;
+
   return (
-    <button className={combinedClass} disabled={disabled || loading} {...props}>
+    <button
+      className={combinedClass}
+      disabled={isDisabled}
+      aria-disabled={isDisabled ? 'true' : undefined}
+      aria-busy={loading ? 'true' : undefined}
+      type={type}
+      {...props}
+    >
       {loading ? loadingText || 'Loading...' : children}
     </button>
   );

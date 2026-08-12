@@ -1,5 +1,46 @@
-
 # CLAUDE.md
+
+<!-- codebase-memory-mcp:start -->
+# Mandatory Codebase Knowledge Graph (codebase-memory-mcp)
+
+This project uses `codebase-memory-mcp` as the primary and mandatory MCP tool for code discovery and architectural analysis.
+**Project Name in Knowledge Graph:** `Users-sharzilnafis-Desktop-Project-chokro`
+
+## 1. Zero-Grep Code Discovery Rule
+You MUST NEVER use `grep_search`, `list_dir`, or `view_file` as your primary mechanism for finding code definitions, implementations, route handlers, or dependency paths.
+You MUST ALWAYS use `codebase-memory-mcp` via `call_mcp_tool`.
+
+## 2. Tool Selection Hierarchy
+1. `list_projects` / `index_repository`: Verify the index is fresh before exploring.
+2. `get_architecture`: Inspect high-level architecture, packages, and domain modules.
+3. `search_graph`: Find functions, handlers, classes, routes, models by name pattern, query, or semantic keywords.
+4. `trace_path`: Trace call graphs (inbound/outbound calls, callers, callees, data flows).
+5. `get_code_snippet`: Retrieve full source of indexed functions/classes via qualified name.
+6. `query_graph`: Execute Cypher queries for deep architectural dependencies and blast radius.
+7. `detect_changes`: Evaluate impact before and after editing files.
+
+## 3. Fallback to Grep/Glob
+- Searching for raw string literals, environment variable names, error messages, or config files (`.json`, `.yaml`, `.env`).
+- Inspecting unindexed non-code assets, docs, or scripts.
+<!-- codebase-memory-mcp:end -->
+
+<!-- subagents-protocol:start -->
+# Mandatory Subagent Delegation Protocol
+
+For ANY coding, debugging, refactoring, research, or multi-step work:
+
+## 1. Subagent-First Execution
+The main agent acts as the **Lead Architect & Orchestrator**. 
+Do NOT perform heavy multi-step research, broad file exploration, large code reviews, or parallel investigations monolithically in the primary context.
+You MUST delegate these tasks to subagents using `invoke_subagent`.
+
+## 2. When to Delegate
+- **Codebase Exploration & Research**: Launch a `research` or `self` subagent (`role: "Codebase Researcher"`) to investigate graph findings, files, or external docs.
+- **Parallel Tasks & Multi-File Inspection**: When 2+ files, modules, or hypotheses need inspection, launch parallel subagents in a single `invoke_subagent` call.
+- **Implementation Planning**: Launch a `self` subagent (`role: "Planner"`) for architectural breakdown.
+- **Test-Driven Verification**: Launch a `self` subagent (`role: "TDD Guide"`) to write and run tests.
+- **Code Review**: Before finishing any task or making commits, launch a `self` subagent (`role: "Code Reviewer"`) to audit the diff for standards and bugs.
+<!-- subagents-protocol:end -->
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
