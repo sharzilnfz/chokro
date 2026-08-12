@@ -1,7 +1,5 @@
 import React, { useCallback } from 'react';
 import {
-
-
   FlatList,
   Platform,
   RefreshControl,
