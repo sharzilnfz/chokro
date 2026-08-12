@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   Text,
@@ -12,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { CATEGORIES, CONDITIONS, categoryLabel, getCategoryUnit, type Category, type Condition } from '@/types';
+import { PhotoUploader } from '@/components/PhotoUploader';
+import { RateEstimateCard } from '@/components/RateEstimateCard';
 import { useCreateListing } from '@/hooks/useCreateListing';
 import { useEstimate } from '@/hooks/useEstimate';
 import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
@@ -112,46 +113,15 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">List an item</Text>
       <Text className="text-muted text-[14px] leading-[21px] mt-[7px] mb-[22px]">Choose only what you know. Final condition and value are confirmed by a partner later.</Text>
 
-      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
-        <View className="flex-row items-center gap-[9px] mb-[13px]">
-          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">01</Text>
-          <Text className="text-ink text-[17px] font-extrabold">Item photo</Text>
-        </View>
-
-        {photo ? (
-          <View className="h-[220px] rounded-[14px] overflow-hidden bg-surface-muted">
-            <Image source={{ uri: photo.previewUri }} className="w-full h-full" style={{ resizeMode: 'cover' }} accessibilityLabel="Selected item photo" />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Remove selected photo"
-              className="absolute top-[8px] right-[8px] w-[48px] h-[48px] rounded-[24px] bg-overlay items-center justify-center active:opacity-[0.72]"
-              onPress={() => {
-                setPhoto(null);
-                setNotice('');
-              }}
-            >
-              <Ionicons name="close" size={22} color={colors.surface} />
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Choose item photo"
-            accessibilityState={{ busy: preparingPhoto }}
-            className="min-h-[150px] border border-dashed border-leaf rounded-[14px] bg-leaf-soft items-center justify-center p-[18px] active:opacity-[0.72]"
-            disabled={preparingPhoto}
-            onPress={() => void pickPhoto()}
-          >
-            {preparingPhoto ? (
-              <ActivityIndicator color={colors.leaf} />
-            ) : (
-              <Ionicons name="image-outline" size={29} color={colors.leaf} />
-            )}
-            <Text className="text-leaf-dark text-[16px] font-extrabold mt-[7px]">{preparingPhoto ? 'Preparing photo...' : 'Choose from photos'}</Text>
-            <Text className="text-muted text-[12px] leading-[18px] text-center mt-[4px]">Downscaled to 1600 px or less and compressed below 500 KB.</Text>
-          </Pressable>
-        )}
-      </View>
+      <PhotoUploader
+        photo={photo}
+        preparingPhoto={preparingPhoto}
+        onPickPhoto={() => void pickPhoto()}
+        onRemovePhoto={() => {
+          setPhoto(null);
+          setNotice('');
+        }}
+      />
 
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
         <View className="flex-row items-center gap-[9px] mb-[13px]">
@@ -227,41 +197,12 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
         </View>
       </View>
 
-      {/* Rate Card Value Estimate */}
-      {estimateLoading ? (
-        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card min-h-[142px] justify-center items-center" style={{ elevation: 2 }}>
-          <ActivityIndicator size="small" color={colors.leaf} />
-          <Text className="text-leaf-dark text-[13px] font-bold mt-[6px]">Looking up current rate...</Text>
-        </View>
-      ) : estimate ? (
-        <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card min-h-[142px]" style={{ elevation: 2 }}>
-          <View className="flex-row items-center justify-between mb-[4px]">
-            <View className="flex-row items-center gap-[8px]">
-              <Ionicons name="pricetag" size={17} color={colors.leaf} />
-              <Text className="text-leaf-dark text-[16px] font-extrabold">Estimated value</Text>
-            </View>
-            <View className="bg-surface border border-border rounded-full px-[8px] py-[2px]">
-              <Text className="text-leaf-dark text-[11px] font-bold">
-                ৳{Number(estimate.price_bdt).toFixed(2)}/{estimate.unit}
-              </Text>
-            </View>
-          </View>
-
-          <Text className="text-ink text-[28px] font-black tracking-tight leading-[34px]">
-            ৳{totalEstimatedBdt !== null ? totalEstimatedBdt.toFixed(2) : '0.00'}
-          </Text>
-
-          <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[1px]" numberOfLines={1}>
-            {totalEstimatedBdt !== null
-              ? `${parsedQuantity} ${estimate.unit === 'kg' ? 'kg' : parsedQuantity === 1 ? 'piece' : 'pieces'} × ৳${Number(estimate.price_bdt).toFixed(2)}/${estimate.unit}`
-              : `Enter ${estimate.unit === 'kg' ? 'weight' : 'quantity'} above to calculate payout`}
-          </Text>
-
-          <Text className="text-muted text-[11px] leading-[15px] mt-[8px] pt-[6px] border-t border-border/60" numberOfLines={1}>
-            Final {estimate.unit === 'kg' ? 'weight' : 'quantity'} and value confirmed at pickup.
-          </Text>
-        </View>
-      ) : null}
+      <RateEstimateCard
+        estimate={estimate ?? null}
+        isLoading={estimateLoading}
+        parsedQuantity={parsedQuantity}
+        totalEstimatedBdt={totalEstimatedBdt}
+      />
 
       {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text> : null}
       {notice ? <Text accessibilityRole="alert" className="text-leaf-dark bg-leaf-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{notice}</Text> : null}

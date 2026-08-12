@@ -7,11 +7,12 @@ import * as schema from './schema';
 type DrizzleDb = ReturnType<typeof drizzle<typeof schema>> | ReturnType<typeof drizzlePglite<typeof schema>>;
 
 let dbInstance: DrizzleDb;
+let pgliteClient: PGlite | null = null;
 
 if (process.env.NODE_ENV === 'test') {
   // In-memory real Postgres WASM engine for tests (Zero setup required!)
-  const client = new PGlite();
-  dbInstance = drizzlePglite(client, { schema });
+  pgliteClient = new PGlite();
+  dbInstance = drizzlePglite(pgliteClient, { schema });
 } else {
   // Live PostgreSQL for dev / production
   const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/chokro';
@@ -20,5 +21,13 @@ if (process.env.NODE_ENV === 'test') {
 }
 
 export const db = dbInstance;
+
+export async function closeDb() {
+  if (pgliteClient && typeof pgliteClient.close === 'function') {
+    await pgliteClient.close();
+  }
+}
+
 export { eq, and, or, lt, desc, sql } from 'drizzle-orm';
 export * from './schema';
+
