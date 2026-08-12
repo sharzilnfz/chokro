@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
-import { useAuth } from '@/context/AuthContext';
 
 type Rate = {
   id: string;
@@ -38,14 +37,11 @@ function groupRates(rates: Rate[]): RowRate[] {
 }
 
 export function useRateCard() {
-  const { token } = useAuth();
-
   return useQuery<RowRate[]>({
-    queryKey: ['rateCard', token],
+    queryKey: ['rateCard'],
     queryFn: async () => {
-      const data = await apiRequest<{ rates: Rate[] }>('/api/rate-card/published', { token });
+      const data = await apiRequest<{ rates: Rate[] }>('/api/rate-card/published');
       return groupRates(Array.isArray(data.rates) ? data.rates : []);
     },
-    enabled: !!token,
   });
 }

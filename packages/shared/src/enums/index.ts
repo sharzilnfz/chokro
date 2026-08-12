@@ -47,3 +47,30 @@ export const PATHS = PathEnum.options;
 export const PARTNER_STATUSES = PartnerStatusEnum.options;
 export const CREDIT_TXN_KINDS = CreditTxnKindEnum.options;
 export const CREDIT_TXN_STATUSES = CreditTxnStatusEnum.options;
+
+// Category & Unit Domain Rules
+export const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'] as const;
+
+export function isPieceCategory(category: Category | string): boolean {
+  return PIECE_CATEGORIES.includes(category as Category);
+}
+
+export function getCategoryUnit(category: Category | string): Unit {
+  return isPieceCategory(category) ? 'piece' : 'kg';
+}
+
+export function formatQuantityWithUnit(
+  unit: Unit | string,
+  quantity: number | string | null | undefined
+): string {
+  if (quantity === null || quantity === undefined || quantity === '') {
+    return 'Not stated';
+  }
+  if (unit === 'piece') {
+    return `${quantity} ${Number(quantity) === 1 ? 'piece' : 'pieces'}`;
+  }
+  if (unit === 'kg') {
+    return `${quantity} kg`;
+  }
+  return `${quantity} ${unit}`;
+}

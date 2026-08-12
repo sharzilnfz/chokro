@@ -83,3 +83,17 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical 5-role triage label vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` + `docs/adr/` at root). See `docs/agents/domain.md`.

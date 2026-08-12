@@ -1,6 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { storage } from '@/services/storage';
-import { apiRequest, ApiError, getErrorMessage, setOnUnauthorized } from '@/services/api';
+import {
+  apiRequest,
+  ApiError,
+  getErrorMessage,
+  setOnUnauthorized,
+  setAuthToken,
+  setAuthTokenProvider,
+} from '@/services/api';
 import { queryClient } from '@/lib/queryClient';
 import type { AuthSession, User } from '@/types';
 
@@ -41,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await storage.deleteItem(TOKEN_KEY);
     } finally {
+      setAuthToken(null);
       queryClient.clear();
       setSession(null);
       setAuthMode('login');
@@ -54,11 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await storage.getItem(TOKEN_KEY);
       if (!token) {
+        setAuthToken(null);
         setSession(null);
         setRestoreState('ready');
         return;
       }
 
+      setAuthToken(token);
       const data = await apiRequest<{ user: User }>('/api/auth/me', { token });
       setSession({ token, user: data.user });
       setRestoreState('ready');
@@ -69,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           // The rejected token remains unusable even if device storage cannot be updated.
         }
+        setAuthToken(null);
         setSession(null);
         setRestoreState('ready');
         return;
@@ -88,8 +99,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setOnUnauthorized(null);
   }, [logout]);
 
+  // Register auth token provider with the API layer
+  useEffect(() => {
+    setAuthTokenProvider(() => session?.token ?? null);
+    return () => setAuthTokenProvider(null);
+  }, [session]);
+
   const login = useCallback(async (nextSession: AuthSession) => {
     await storage.setItem(TOKEN_KEY, nextSession.token);
+    setAuthToken(nextSession.token);
     setSession(nextSession);
     setAuthMode('login');
   }, []);
@@ -99,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await storage.deleteItem(TOKEN_KEY);
       } finally {
+        setAuthToken(null);
         setSession(null);
         setRestoreState('ready');
       }

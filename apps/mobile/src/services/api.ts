@@ -22,6 +22,27 @@ export function setOnUnauthorized(cb: (() => void) | null) {
   onUnauthorized = cb;
 }
 
+let currentToken: string | null = null;
+let tokenProvider: (() => string | null | undefined) | null = null;
+
+export function setAuthToken(token: string | null | undefined): void {
+  currentToken = token ?? null;
+}
+
+export function setAuthTokenProvider(provider: (() => string | null | undefined) | null): void {
+  tokenProvider = provider;
+}
+
+export function getAuthToken(): string | null {
+  if (tokenProvider) {
+    const provided = tokenProvider();
+    if (provided !== undefined) {
+      return provided ?? null;
+    }
+  }
+  return currentToken;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -39,12 +60,19 @@ type ApiRequestOptions = Omit<RequestInit, 'headers'> & {
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { token, headers, ...requestOptions } = options;
+  const activeToken = token ?? getAuthToken();
+
+  const authHeader: Record<string, string> = {};
+  if (activeToken && (!headers || (!headers.Authorization && !headers.authorization))) {
+    authHeader.Authorization = `Bearer ${activeToken}`;
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     ...requestOptions,
     headers: {
       Accept: 'application/json',
       ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...authHeader,
       ...headers,
     },
   });

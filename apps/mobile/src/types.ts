@@ -2,12 +2,18 @@ export {
   CategoryEnum,
   ConditionEnum,
   ListingStatusEnum,
+  UnitEnum,
   type Category,
   type Condition,
   type ListingStatus,
+  type Unit,
   CATEGORIES,
   CONDITIONS,
   LISTING_STATUSES,
+  PIECE_CATEGORIES,
+  isPieceCategory,
+  getCategoryUnit,
+  formatQuantityWithUnit,
 } from '@chokro/shared';
 
 export type User = {

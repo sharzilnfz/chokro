@@ -1,9 +1,9 @@
-import type { Category } from '@chokro/shared';
+import { getCategoryUnit, type Category, type Unit } from '@chokro/shared';
 
-export type Unit = 'kg' | 'piece';
+export type { Unit };
 
 export function unitForCategory(category: Category | string): Unit {
-  return category === 'E_WASTE' || category === 'APPLIANCES' ? 'piece' : 'kg';
+  return getCategoryUnit(category);
 }
 
 export function formatLabel(value: string): string {

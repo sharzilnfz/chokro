@@ -12,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '@/types';
+import { CATEGORIES, CONDITIONS, categoryLabel, formatQuantityWithUnit, type Category, type Condition } from '@/types';
+import { StateView } from '@/components/ui/StateView';
 import { useFeed, type Listing } from '@/hooks/useFeed';
 
 type FeedFilter = 'ALL' | Category;
@@ -26,9 +27,7 @@ function ListingCard({ item }: { item: Listing }) {
   const quantity = item.unit === 'piece'
     ? item.piece_count ?? item.declared_weight
     : item.declared_weight;
-  const quantityText = item.unit === 'piece'
-    ? `${quantity ?? 'Not stated'} ${Number(quantity) === 1 ? 'piece' : 'pieces'}`
-    : `${quantity ?? 'Not stated'} kg`;
+  const quantityText = formatQuantityWithUnit(item.unit, quantity);
   const photo = item.photos?.[0];
 
   return (
@@ -149,32 +148,20 @@ export function FeedScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? (
-            <View className="flex-1 min-h-[240px] items-center justify-center px-[22px] py-[34px]" accessibilityLiveRegion="polite">
-              <ActivityIndicator color={colors.leaf} size="large" />
-              <Text className="text-ink text-[18px] font-extrabold text-center mt-[10px]">Loading active listings</Text>
-            </View>
-          ) : errorMessage ? (
-            <View className="flex-1 min-h-[240px] items-center justify-center px-[22px] py-[34px]" accessibilityRole="alert">
-              <Ionicons name="cloud-offline-outline" size={31} color={colors.danger} />
-              <Text className="text-ink text-[18px] font-extrabold text-center mt-[10px]">Browse is unavailable</Text>
-              <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">{errorMessage}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Retry loading listings"
-                className="min-w-[132px] min-h-[48px] rounded-[14px] bg-leaf items-center justify-center mt-[16px] active:opacity-[0.72]"
-                onPress={() => void refetch()}
-              >
-                <Text className="text-surface text-[14px] font-extrabold">Try again</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View className="flex-1 min-h-[240px] items-center justify-center px-[22px] py-[34px]">
-              <Ionicons name="leaf-outline" size={32} color={colors.leaf} />
-              <Text className="text-ink text-[18px] font-extrabold text-center mt-[10px]">No listings found</Text>
-              <Text className="text-muted text-[14px] leading-[20px] text-center mt-[6px]">Try another category or condition, or pull down to refresh.</Text>
-            </View>
-          )
+          <StateView
+            isLoading={isLoading}
+            loadingTitle="Loading active listings"
+            error={error}
+            errorTitle="Browse is unavailable"
+            errorMessage={errorMessage}
+            onRetry={() => void refetch()}
+            retryLabel="Try again"
+            isEmpty={items.length === 0}
+            emptyIcon="leaf-outline"
+            emptyTitle="No listings found"
+            emptyMessage="Try another category or condition, or pull down to refresh."
+            containerClassName="flex-1 min-h-[240px] px-[22px] py-[34px]"
+          />
         }
         ListFooterComponent={
           items.length > 0 ? (

@@ -20,8 +20,7 @@ export function useEstimate(category: Category, condition: Condition) {
       );
       return data.estimate;
     },
-    // Re-fetch when category or condition change (they're in queryKey)
-    // Don't retry on 404 — just means no rate exists yet
+
     retry: (failureCount, error) => {
       if (error && 'status' in error && (error as any).status === 404) return false;
       return failureCount < 2;

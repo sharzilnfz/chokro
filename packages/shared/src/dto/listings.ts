@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CategoryEnum, ConditionEnum } from '../enums';
+import { CategoryEnum, ConditionEnum, isPieceCategory } from '../enums';
 
 export const CreateListingSchema = z.object({
   category: CategoryEnum,
@@ -10,11 +10,11 @@ export const CreateListingSchema = z.object({
   photos: z.array(z.string()).default([]),
   status: z.enum(['DRAFT', 'ACTIVE']).default('ACTIVE'),
 }).superRefine((listing, context) => {
-  const isPieceCategory = listing.category === 'APPLIANCES' || listing.category === 'E_WASTE';
-  if (isPieceCategory && (listing.unit !== 'piece' || listing.pieceCount === undefined || listing.declaredWeight !== undefined)) {
+  const pieceCategory = isPieceCategory(listing.category);
+  if (pieceCategory && (listing.unit !== 'piece' || listing.pieceCount === undefined || listing.declaredWeight !== undefined)) {
     context.addIssue({ code: 'custom', message: 'Appliances and e-waste require piece unit and pieceCount' });
   }
-  if (!isPieceCategory && (listing.unit !== 'kg' || listing.declaredWeight === undefined || listing.pieceCount !== undefined)) {
+  if (!pieceCategory && (listing.unit !== 'kg' || listing.declaredWeight === undefined || listing.pieceCount !== undefined)) {
     context.addIssue({ code: 'custom', message: 'This category requires kg unit and declaredWeight' });
   }
 });

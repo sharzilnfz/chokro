@@ -1,4 +1,5 @@
 import { db, rateCardEntries, memoryStore } from '@chokro/db';
+import { getCategoryUnit } from '@chokro/shared';
 import crypto from 'crypto';
 import { databaseOrTestStore } from '../database';
 
@@ -14,9 +15,6 @@ export interface CreateRateCardData {
   updatedBy?: string;
   updated_by?: string;
 }
-
-const categoryUnit = (category: string): 'kg' | 'piece' =>
-  category === 'APPLIANCES' || category === 'E_WASTE' ? 'piece' : 'kg';
 
 export const rateCardRepo = {
   async findPublished() {
@@ -50,7 +48,7 @@ export const rateCardRepo = {
   async create(data: CreateRateCardData) {
     const category = data.category;
     const conditionBand = (data.condition_band ?? data.conditionBand)!;
-    const unit = data.unit ?? categoryUnit(category);
+    const unit = data.unit ?? getCategoryUnit(category);
     const priceBdt = (data.price_bdt ?? data.priceBdt ?? 0).toString();
     const effectiveFrom = data.effective_from ?? data.effectiveFrom ?? new Date();
     const updatedBy = data.updated_by ?? data.updatedBy;

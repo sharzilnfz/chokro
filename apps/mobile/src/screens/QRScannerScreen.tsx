@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
-import { useAuth } from '@/context/AuthContext';
+import { parseDropZoneToken } from '@/lib/qr';
 
 type DropZone = {
   id: string;
@@ -26,18 +26,7 @@ type DropZone = {
 
 const EMPTY_CATEGORIES: string[] = [];
 
-function extractToken(payload: string): string {
-  const trimmed = payload.trim();
-  try {
-    const url = new URL(trimmed);
-    return url.searchParams.get('token')?.trim() || trimmed;
-  } catch {
-    return trimmed;
-  }
-}
-
 export function QRScannerScreen() {
-  const { token } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [manualToken, setManualToken] = useState('');
   const [scanning, setScanning] = useState(true);
@@ -48,7 +37,7 @@ export function QRScannerScreen() {
 
   const resolveToken = useCallback(
     async (rawToken: string) => {
-      const zoneToken = extractToken(rawToken);
+      const zoneToken = parseDropZoneToken(rawToken);
       if (!zoneToken) {
         setError('Enter or scan a Drop Zone token.');
         return;
@@ -61,7 +50,7 @@ export function QRScannerScreen() {
       setError('');
       setZone(null);
       try {
-        const data = await apiRequest<{ zone: DropZone }>(`/api/drop-zones/resolve?token=${encodeURIComponent(zoneToken)}`, { token });
+        const data = await apiRequest<{ zone: DropZone }>(`/api/drop-zones/resolve?token=${encodeURIComponent(zoneToken)}`);
         if (!data.zone) throw new Error('The API did not return a Drop Zone.');
         setZone(data.zone);
         setManualToken(zoneToken);
@@ -72,7 +61,7 @@ export function QRScannerScreen() {
         setLoading(false);
       }
     },
-    [token],
+    [],
   );
 
   const handleBarcode = useCallback(

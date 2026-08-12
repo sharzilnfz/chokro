@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
-import { useAuth } from '@/context/AuthContext';
 
 type Balance = { verified: number; pending: number };
 type CreditTransaction = {
@@ -21,14 +20,12 @@ type WalletData = {
 export type { Balance, CreditTransaction };
 
 export function useWallet() {
-  const { token } = useAuth();
-
   return useQuery<WalletData>({
-    queryKey: ['wallet', token],
+    queryKey: ['wallet'],
     queryFn: async () => {
       const [balanceData, transactionData] = await Promise.all([
-        apiRequest<{ balance: Balance }>('/api/wallet/balance', { token }),
-        apiRequest<{ transactions: CreditTransaction[] }>('/api/wallet/transactions', { token }),
+        apiRequest<{ balance: Balance }>('/api/wallet/balance'),
+        apiRequest<{ transactions: CreditTransaction[] }>('/api/wallet/transactions'),
       ]);
       return {
         balance: {
@@ -38,6 +35,5 @@ export function useWallet() {
         transactions: Array.isArray(transactionData.transactions) ? transactionData.transactions : [],
       };
     },
-    enabled: !!token,
   });
 }
