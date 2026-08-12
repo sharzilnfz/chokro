@@ -1,7 +1,7 @@
-import { db, listings, memoryStore } from '@chokro/db';
-import { databaseOrTestStore } from '../database';
+import { listings, memoryStore } from '@chokro/db';
 import { and, desc, eq, lt, or } from 'drizzle-orm';
 import crypto from 'crypto';
+import { withDb, createRepoSeam } from './seam';
 
 export type CreateListingInput = {
   owner_id: string;
@@ -21,47 +21,29 @@ export type FindFeedItemsParams = {
   limit: number;
 };
 
-export const listingRepo = {
+export interface ListingRepo {
+  create(values: CreateListingInput): Promise<typeof listings.$inferSelect>;
+  findByOwnerId(ownerId: string): Promise<Array<typeof listings.$inferSelect>>;
+  findById(id: string): Promise<typeof listings.$inferSelect | undefined | null>;
+  updateStatus(id: string, status: string): Promise<typeof listings.$inferSelect | undefined | null>;
+  findFeedItems(params: FindFeedItemsParams): Promise<Array<typeof listings.$inferSelect>>;
+}
+
+export const drizzleListingRepo: ListingRepo = {
   async create(values: CreateListingInput) {
-    return databaseOrTestStore(
-      async () => (await db.insert(listings).values(values).returning())[0],
-      () => {
-        const listing = {
-          id: crypto.randomUUID(),
-          ...values,
-          created_at: new Date(),
-        };
-        memoryStore.listings.push(listing);
-        return listing;
-      },
-    );
+    return withDb(async (db) => (await db.insert(listings).values(values).returning())[0]);
   },
 
   async findByOwnerId(ownerId: string) {
-    return databaseOrTestStore(
-      () => db.select().from(listings).where(eq(listings.owner_id, ownerId)),
-      () => memoryStore.listings.filter((item) => item.owner_id === ownerId),
-    );
+    return withDb(async (db) => db.select().from(listings).where(eq(listings.owner_id, ownerId)));
   },
 
   async findById(id: string) {
-    return databaseOrTestStore(
-      async () => (await db.select().from(listings).where(eq(listings.id, id)))[0],
-      () => memoryStore.listings.find((item) => item.id === id),
-    );
+    return withDb(async (db) => (await db.select().from(listings).where(eq(listings.id, id)))[0] ?? null);
   },
 
   async updateStatus(id: string, status: string) {
-    return databaseOrTestStore(
-      async () => (await db.update(listings).set({ status }).where(eq(listings.id, id)).returning())[0],
-      () => {
-        const existing = memoryStore.listings.find((item) => item.id === id);
-        if (existing) {
-          existing.status = status;
-        }
-        return existing;
-      },
-    );
+    return withDb(async (db) => (await db.update(listings).set({ status }).where(eq(listings.id, id)).returning())[0] ?? null);
   },
 
   async findFeedItems({ category, condition, cursor, limit }: FindFeedItemsParams) {
@@ -78,19 +60,56 @@ export const listingRepo = {
       );
     }
 
-    return databaseOrTestStore(
-      () => db.select().from(listings).where(and(...filters)).orderBy(desc(listings.created_at), desc(listings.id)).limit(limit + 1),
-      () =>
-        memoryStore.listings
-          .filter((item) => {
-            if (item.status !== 'ACTIVE' || (category && item.category !== category) || (condition && item.declared_condition !== condition)) return false;
-            if (!cursor) return true;
-            const itemTime = new Date(item.created_at).getTime();
-            const cursorTime = new Date(cursor.createdAt).getTime();
-            return itemTime < cursorTime || (itemTime === cursorTime && item.id < cursor.id);
-          })
-          .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime() || right.id.localeCompare(left.id))
-          .slice(0, limit + 1),
+    return withDb(async (db) =>
+      db
+        .select()
+        .from(listings)
+        .where(and(...filters))
+        .orderBy(desc(listings.created_at), desc(listings.id))
+        .limit(limit + 1),
     );
   },
 };
+
+export const memoryListingRepo: ListingRepo = {
+  async create(values: CreateListingInput) {
+    const listing = {
+      id: crypto.randomUUID(),
+      ...values,
+      created_at: new Date(),
+    };
+    memoryStore.listings.push(listing);
+    return listing as any;
+  },
+
+  async findByOwnerId(ownerId: string) {
+    return memoryStore.listings.filter((item) => item.owner_id === ownerId);
+  },
+
+  async findById(id: string) {
+    return memoryStore.listings.find((item) => item.id === id) ?? null;
+  },
+
+  async updateStatus(id: string, status: string) {
+    const existing = memoryStore.listings.find((item) => item.id === id);
+    if (existing) {
+      existing.status = status;
+    }
+    return existing ?? null;
+  },
+
+  async findFeedItems({ category, condition, cursor, limit }: FindFeedItemsParams) {
+    return memoryStore.listings
+      .filter((item) => {
+        if (item.status !== 'ACTIVE' || (category && item.category !== category) || (condition && item.declared_condition !== condition)) return false;
+        if (!cursor) return true;
+        const itemTime = new Date(item.created_at).getTime();
+        const cursorTime = new Date(cursor.createdAt).getTime();
+        return itemTime < cursorTime || (itemTime === cursorTime && item.id < cursor.id);
+      })
+      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime() || right.id.localeCompare(left.id))
+      .slice(0, limit + 1);
+  },
+};
+
+export const listingRepo: ListingRepo = createRepoSeam(drizzleListingRepo, memoryListingRepo);
