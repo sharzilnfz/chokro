@@ -39,11 +39,11 @@ export function apiError(message: string, status: number, details?: unknown): Ne
   return NextResponse.json(body, { status, headers: CORS_HEADERS });
 }
 
-export function apiSuccess(message: string, data?: Record<string, unknown>, status = 200): NextResponse {
+export function apiSuccess(message: string, data?: Record<string, any>, status = 200): NextResponse {
   return NextResponse.json({ message, ...data }, { status, headers: CORS_HEADERS });
 }
 
-export function apiData(data: Record<string, unknown>, status = 200): NextResponse {
+export function apiData(data: Record<string, any>, status = 200): NextResponse {
   return NextResponse.json(data, { status, headers: CORS_HEADERS });
 }
 
