@@ -1,11 +1,11 @@
 # Chokro — Product Requirements Document (PRD v2.0)
 
 **Status:** Ratified baseline — pending team sign-off on open decisions OD-1…OD-6 (§14)
-**Supersedes:** `chokro-IDEAS.txt` (v1.0 ideas document, kept for history)
+**Supersedes:** [`../archive/chokro-IDEAS.txt`](../archive/chokro-IDEAS.txt) (v1.0 ideas document, kept for history)
 **Date:** 2026-08-02
-**Synthesized from:** v1.0 ideas doc · `docs/prd-review.md` (gaps G1–G12, amendments A1–A10) · `docs/competitive-analysis.md` · `docs/validation-report.md` · `docs/specs/00–04` · `docs/sprint-plan.md`
+**Synthesized from:** v1.0 ideas doc · [`./prd-review.md`](./prd-review.md) (gaps G1–G12, amendments A1–A10) · [`./competitive-analysis.md`](./competitive-analysis.md) · [`./validation-report.md`](./validation-report.md) · [`../specs/`](../specs/) · [`../planning/sprint-plan.md`](../planning/sprint-plan.md)
 
-**Reading rule:** this PRD states **what and why**. Engineering constraints live in `docs/specs/00-product-capability.md`; detailed requirements live in specs 01–04; delivery lives in `docs/sprint-plan.md`. On conflict: this PRD wins on product intent, SPEC 00 wins on engineering constraint.
+**Reading rule:** this PRD states **what and why**. Engineering constraints live in [`../specs/00-product-capability.md`](../specs/00-product-capability.md); detailed requirements live in specs 01–04; delivery lives in [`../planning/sprint-plan.md`](../planning/sprint-plan.md). On conflict: this PRD wins on product intent, SPEC 00 wins on engineering constraint.
 
 ---
 
@@ -23,7 +23,7 @@ Chokro is a mobile circular-economy platform (Android-first) that answers all th
 
 One system, not three disconnected rules: decision support, verification, and rewards are bound by a single ledger where no credit exists without a verified real-world outcome.
 
-## 3. Differentiators (validated against the market — see `docs/competitive-analysis.md`)
+## 3. Differentiators (validated against the market — see [`./competitive-analysis.md`](./competitive-analysis.md))
 
 | Claim | Status |
 |---|---|
@@ -46,7 +46,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 
 > There is deliberately **no individual-collector actor at MVP** (Decision A5): pickup work is dispatched by admins to partner organizations; informal-sector integration is post-MVP.
 
-## 6. Validated Ground Truths (evidence in `docs/validation-report.md`)
+## 6. Validated Ground Truths (evidence in [`./validation-report.md`](./validation-report.md))
 
 - Android ≈91% of Bangladesh's mobile OS share → Android-first build is correct.
 - bKash: 82M+ users; agent cash-out fee 1.85% → micro-payouts are bad UX; minimum threshold required.
@@ -55,7 +55,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 - Off-the-shelf vision classifies item **category** well and cheaply (~$0.002–0.01/image) but **cannot reliably grade condition** → AI suggests; humans confirm condition/price at pickup.
 - Reward-fraud is documented and existential (RVM exploits, GPS spoofing, self-dealing) → Trust Gate runs an explicit signal stack with random audits.
 
-## 7. Product Decisions Adopted (from `docs/prd-review.md`, amendments A1–A10)
+## 7. Product Decisions Adopted (from [`./prd-review.md`](./prd-review.md), amendments A1–A10)
 
 1. **A1 — AI advises, humans decide value.** Agent output = category + *suggested* condition + value range + path + rationale. Final condition/price confirmed by the partner at pickup, with price adjustment.
 2. **A2 — Rate card:** dual-unit (per-kg / per-piece with condition bands), versioned, weekly admin review, launch with 8–10 SKUs.
@@ -156,7 +156,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 - Vision pipeline tested against recorded golden-set fixtures (real low-end-phone photos) — no live API in CI; accuracy tracked as a trend artifact.
 - Ledger invariants (balance == SUM(ledger); no negative under concurrency) tested explicitly; 100-concurrent-deposit load spot-check.
 - `verification-loop` (build/types/lint/tests/security/diff) before every merge; coverage ≥80% on Trust Gate + wallet.
-- Sprint-exit V&V gates 1–4 per `docs/sprint-plan.md` §S1–S4 — verification (did we build it right) + validation (did we build the right thing: timed user tasks, auto-clear-rate targets, pilot dry-run).
+- Sprint-exit V&V gates 1–4 per [`../planning/sprint-plan.md`](../planning/sprint-plan.md) §S1–S4 — verification (did we build it right) + validation (did we build the right thing: timed user tasks, auto-clear-rate targets, pilot dry-run).
 
 ## 13. Non-Functional Requirements
 
@@ -178,7 +178,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 | OD-5 | Pilot credit funding | Campus/sponsor budget (A8) | Sprint 3 |
 | OD-6 | Credit economics ratification | 1 credit = ৳1; min ৳300; cap ৳50k/mo | Sprint 3 |
 
-## 15. Delivery Plan (4 members × 4 sprints × 2 weeks — full detail in `docs/sprint-plan.md`)
+## 15. Delivery Plan (4 members × 4 sprints × 2 weeks — full detail in [`../planning/sprint-plan.md`](../planning/sprint-plan.md))
 
 | Member | Capability area (spec) | S1 | S2 | S3 | S4 |
 |---|---|---|---|---|---|
@@ -188,7 +188,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 | D | Collections & Wallet (04) | Ledger, QR zones | Deposits, pickup tasks | **Trust Gate**, redemption, e-waste | Tuning, load, audits |
 | ALL | — | Scaffold (T0) | — | — | E2E V&V + pilot dry-run (T1) |
 
-## 16. Top Risks (full list: `docs/validation-report.md` §3)
+## 16. Top Risks (full list: [`./validation-report.md`](./validation-report.md) §3)
 
 1. Condition-assessment disputes → A1 human-confirmation design
 2. Reward fraud draining the credit pool → A4 signal stack + delayed credits + audits
@@ -206,11 +206,11 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 
 | Document | Role |
 |---|---|
-| `docs/PRD.md` (this file) | Product truth: what & why |
-| `docs/specs/00-product-capability.md` | Engineering constraints: states, invariants, interfaces, entities |
-| `docs/specs/01–04` | Detailed requirements per capability area (100+ user stories) |
-| `docs/sprint-plan.md` | 26 tickets (TA1–TD8) with blocking edges; V&V gates; 25-feature traceability |
-| `docs/prd-review.md` | Why v1.0 changed: gaps G1–G12, amendments A1–A10 |
-| `docs/competitive-analysis.md` | Market evidence: 11 platforms, patterns, failure modes, white space |
-| `docs/validation-report.md` | Ground-truth evidence: assumption ledger, risks, sources |
-| `chokro-IDEAS.txt` | v1.0 — superseded, kept for history |
+| [`./PRD.md`](./PRD.md) (this file) | Product truth: what & why |
+| [`../specs/00-product-capability.md`](../specs/00-product-capability.md) | Engineering constraints: states, invariants, interfaces, entities |
+| [`../specs/`](../specs/) | Detailed requirements per capability area (100+ user stories, 01–04) |
+| [`../planning/sprint-plan.md`](../planning/sprint-plan.md) | 26 tickets (TA1–TD8) with blocking edges; V&V gates; 25-feature traceability |
+| [`./prd-review.md`](./prd-review.md) | Why v1.0 changed: gaps G1–G12, amendments A1–A10 |
+| [`./competitive-analysis.md`](./competitive-analysis.md) | Market evidence: 11 platforms, patterns, failure modes, white space |
+| [`./validation-report.md`](./validation-report.md) | Ground-truth evidence: assumption ledger, risks, sources |
+| [`../archive/chokro-IDEAS.txt`](../archive/chokro-IDEAS.txt) | v1.0 — superseded, kept for history |

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chokro — Architecture Review</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: { 50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 700: '#3f3f46', 800: '#27272a', 900: '#18181b' },
+            accent: { green: '#22c55e', amber: '#f59e0b', red: '#ef4444', blue: '#3b82f6', purple: '#a855f7' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    };
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } });
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { background: #fafafa; }
+    .badge-strong { background: #dcfce7; color: #166534; }
+    .badge-exploring { background: #fef3c7; color: #92400e; }
+    .badge-speculative { background: #e0e7ff; color: #3730a3; }
+    .depth-bar { transition: width 0.6s ease-out; }
+    .card-hover:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.08); transform: translateY(-1px); transition: all 0.2s ease; }
+    .code-block { font-size: 0.8rem; line-height: 1.5; overflow-x: auto; }
+    .diagram-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
+    .before-after { display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; }
+    .arrow-divider { font-size: 2rem; color: #94a3b8; font-weight: 800; }
+    @media (max-width: 768px) { .before-after { grid-template-columns: 1fr; } .arrow-divider { transform: rotate(90deg); } }
+    .module-shallow { background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%); border-left: 4px solid #ef4444; }
+    .module-deep { background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-left: 4px solid #22c55e; }
+    .file-link { color: #3b82f6; text-decoration: underline; text-decoration-style: dotted; }
+    .toc a { color: #3f3f46; text-decoration: none; border-bottom: 1px solid #e4e4e7; }
+    .toc a:hover { color: #3b82f6; border-color: #3b82f6; }
+  </style>
+</head>
+<body class="font-sans text-surface-800 antialiased">
+
+  <!-- Header -->
+  <header class="bg-surface-900 text-white py-12">
+    <div class="max-w-5xl mx-auto px-6">
+      <p class="text-sm font-mono text-surface-200 mb-2 tracking-wider uppercase">Architecture Review</p>
+      <h1 class="text-4xl font-extrabold tracking-tight mb-3">Chokro Monorepo</h1>
+      <p class="text-surface-200 text-lg max-w-2xl">Circular-economy platform — deepening opportunities identified across API, mobile, and shared modules.</p>
+      <div class="mt-6 flex gap-4 text-sm font-mono">
+        <span class="bg-surface-800 px-3 py-1 rounded-lg">2026-08-11</span>
+        <span class="bg-surface-800 px-3 py-1 rounded-lg">branch: refactor/architecture-review</span>
+        <span class="bg-surface-800 px-3 py-1 rounded-lg">5 candidates</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Current Architecture Overview -->
+  <section class="max-w-5xl mx-auto px-6 mt-12">
+    <h2 class="text-2xl font-bold mb-6">Current Architecture</h2>
+    <div class="diagram-box mb-8">
+      <pre class="mermaid">
+graph TB
+  subgraph Mobile["apps/mobile"]
+    Screens["Screens<br/><small>7 screens</small>"]
+    Hooks["Hooks<br/><small>5 hooks</small>"]
+    AuthCtx["AuthContext"]
+    MobileAPI["services/api.ts"]
+    MobileStorage["services/storage.ts"]
+    Screens --> Hooks
+    Hooks --> AuthCtx
+    Hooks --> MobileAPI
+    AuthCtx --> MobileAPI
+    AuthCtx --> MobileStorage
+  end
+
+  subgraph API["apps/api"]
+    Routes["Route Handlers<br/><small>17 routes</small>"]
+    Services["Services<br/><small>2 modules</small>"]
+    Repos["Repositories<br/><small>6 repos</small>"]
+    HTTP["lib/http.ts"]
+    Auth["lib/auth.ts"]
+    DBHelper["lib/database.ts<br/><small>databaseOrTestStore</small>"]
+    Routes --> Services
+    Routes --> Repos
+    Routes --> HTTP
+    Routes --> Auth
+    Services --> Repos
+    Repos --> DBHelper
+  end
+
+  subgraph Packages["packages/"]
+    SharedPkg["@chokro/shared<br/><small>DTOs + enums</small>"]
+    DBPkg["@chokro/db<br/><small>schema + connection</small>"]
+  end
+
+  MobileAPI -.->|HTTP| Routes
+  Routes --> SharedPkg
+  Repos --> DBPkg
+  DBHelper --> DBPkg
+
+  style Mobile fill:#eff6ff,stroke:#93c5fd
+  style API fill:#fefce8,stroke:#fde047
+  style Packages fill:#f0fdf4,stroke:#86efac
+      </pre>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="bg-white rounded-xl border border-surface-200 p-6 toc">
+      <h3 class="font-bold text-sm uppercase tracking-wider text-surface-700 mb-4">Candidates</h3>
+      <ol class="space-y-2 text-sm">
+        <li><a href="#c1" class="flex items-center gap-3 py-1"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span> Eliminate dual-implementation repos — deepen <code>@chokro/db</code></a></li>
+        <li><a href="#c2" class="flex items-center gap-3 py-1"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span> Deepen route handlers — absorb shallow services into domain modules</a></li>
+        <li><a href="#c3" class="flex items-center gap-3 py-1"><span class="badge-exploring text-xs font-semibold px-2 py-0.5 rounded-full">Worth exploring</span> Seal the mobile network seam — encapsulate auth tokens</a></li>
+        <li><a href="#c4" class="flex items-center gap-3 py-1"><span class="badge-exploring text-xs font-semibold px-2 py-0.5 rounded-full">Worth exploring</span> Consolidate category/unit domain logic into <code>@chokro/shared</code></a></li>
+        <li><a href="#c5" class="flex items-center gap-3 py-1"><span class="badge-speculative text-xs font-semibold px-2 py-0.5 rounded-full">Speculative</span> Delete dead re-export files in mobile</a></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════ CANDIDATE 1 ═══════════════════════════════════ -->
+  <section id="c1" class="max-w-5xl mx-auto px-6 mt-16">
+    <div class="bg-white rounded-2xl border border-surface-200 p-8 card-hover">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <span class="badge-strong text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Strong</span>
+          <h3 class="text-xl font-bold mt-3">Eliminate dual-implementation repos — deepen <code class="text-accent-blue">@chokro/db</code></h3>
+        </div>
+      </div>
+
+      <!-- Files -->
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-2">Files involved</h4>
+        <div class="flex flex-wrap gap-2">
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">packages/db/src/index.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/lib/database.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/lib/repos/*.ts</code>
+        </div>
+      </div>
+
+      <!-- Problem -->
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-red-700 mb-2">Problem</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Every repository method contains <strong>two complete implementations</strong> — one for Drizzle SQL, one for in-memory arrays — selected at runtime by <code>databaseOrTestStore()</code> which checks <code>NODE_ENV === 'test'</code>. This means:
+        </p>
+        <ul class="text-sm text-surface-700 mt-2 space-y-1 list-disc list-inside">
+          <li>Adding a new query filter requires editing <strong>both branches</strong> in the same function</li>
+          <li>The in-memory branch silently diverges from the SQL branch (different sort behaviour, missing constraints)</li>
+          <li>The <code>memoryStore</code> uses <code>any[]</code> — zero type safety for test data</li>
+          <li><code>@chokro/db</code> exports raw Drizzle table symbols, forcing every repo to build raw queries</li>
+        </ul>
+        <div class="mt-4 code-block bg-surface-900 text-green-300 p-4 rounded-lg font-mono">
+          <p class="text-xs text-surface-200 mb-2">// listings.ts L26-37 — Every method has this dual-path structure</p>
+          <pre>async create(values: CreateListingInput) {
+  return databaseOrTestStore(
+    async () => (await db.insert(listings).values(values).returning())[0],
+    () => {
+      const listing = { id: crypto.randomUUID(), ...values, created_at: new Date() };
+      memoryStore.listings.push(listing);  // ← second implementation
+      return listing;
+    },
+  );
+}</pre>
+        </div>
+      </div>
+
+      <!-- Solution -->
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-green-700 mb-2">Solution</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Define a <strong>repository interface</strong> (TypeScript type) in <code>@chokro/db</code>, then provide two <strong>adapters</strong>: a <code>DrizzleListingRepo</code> and a <code>MemoryListingRepo</code>. Route handlers accept the repo through their module's interface — production wires the Drizzle adapter; tests wire the memory adapter. Delete <code>databaseOrTestStore</code> entirely.
+        </p>
+      </div>
+
+      <!-- Benefits -->
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">Benefits — Locality & Leverage</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Locality</p>
+            <p class="text-xs text-green-700">A new query filter is one change in one adapter. The SQL and memory implementations are isolated — they can't silently diverge.</p>
+          </div>
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Leverage</p>
+            <p class="text-xs text-green-700">The interface is the test surface. Tests swap the adapter at the seam — no <code>NODE_ENV</code> checks, no global mutable state, no <code>any[]</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Before / After Diagram -->
+      <div class="mb-4">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-4">Before → After</h4>
+        <div class="before-after">
+          <div class="diagram-box module-shallow">
+            <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-3">Before — Shallow</p>
+            <pre class="mermaid">
+graph TB
+  Route["Route Handler"] --> Repo["listingRepo<br/><small>dual branches</small>"]
+  Repo --> DOTS["databaseOrTestStore()"]
+  DOTS -->|prod| Drizzle["db.insert(...)"]
+  DOTS -->|test| Mem["memoryStore.push(...)"]
+  Repo -.->|imports| DBPkg["@chokro/db<br/>exports raw tables + memoryStore"]
+
+  style DOTS fill:#fef2f2,stroke:#ef4444,stroke-width:2
+  style Repo fill:#fff7ed,stroke:#f97316
+            </pre>
+          </div>
+          <div class="arrow-divider text-center">→</div>
+          <div class="diagram-box module-deep">
+            <p class="text-xs font-bold text-green-700 uppercase tracking-wider mb-3">After — Deep</p>
+            <pre class="mermaid">
+graph TB
+  Route["Route Handler"] --> Interface["ListingRepo<br/><small>interface</small>"]
+  Interface -->|prod| DrizzleAdapter["DrizzleListingRepo"]
+  Interface -->|test| MemAdapter["MemoryListingRepo"]
+  DrizzleAdapter --> DB["@chokro/db<br/>private Drizzle internals"]
+
+  style Interface fill:#f0fdf4,stroke:#22c55e,stroke-width:2
+  style DrizzleAdapter fill:#ecfdf5,stroke:#86efac
+  style MemAdapter fill:#ecfdf5,stroke:#86efac
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Depth visualization -->
+      <div class="mt-6">
+        <p class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-2">Depth comparison</p>
+        <div class="space-y-2">
+          <div>
+            <div class="flex justify-between text-xs text-surface-700 mb-1"><span>Before: listingRepo (interface ≈ implementation)</span><span class="text-red-600">Shallow</span></div>
+            <div class="h-3 bg-surface-200 rounded-full overflow-hidden">
+              <div class="depth-bar h-full bg-red-400 rounded-full" style="width: 85%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-surface-700 mb-1"><span>After: ListingRepo interface (small surface, deep impl)</span><span class="text-green-600">Deep</span></div>
+            <div class="h-3 bg-surface-200 rounded-full overflow-hidden">
+              <div class="depth-bar h-full bg-green-500 rounded-full" style="width: 25%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════ CANDIDATE 2 ═══════════════════════════════════ -->
+  <section id="c2" class="max-w-5xl mx-auto px-6 mt-12">
+    <div class="bg-white rounded-2xl border border-surface-200 p-8 card-hover">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <span class="badge-strong text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Strong</span>
+          <h3 class="text-xl font-bold mt-3">Deepen route handlers — absorb shallow services into domain modules</h3>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-2">Files involved</h4>
+        <div class="flex flex-wrap gap-2">
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/lib/services/listingService.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/lib/services/walletService.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/app/api/listings/route.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/app/api/auth/*/route.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/lib/auth.ts</code>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-red-700 mb-2">Problem</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          The current layer structure is <strong>Route → Service → Repo</strong>, but the services are <strong>pass-throughs that fail the deletion test</strong>. Meanwhile, the route handlers are doing the real work: Zod parsing, auth checks, business rules, and response formatting.
+        </p>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="module-shallow rounded-lg p-4">
+            <p class="font-semibold text-sm text-red-800 mb-2">listingService — pass-through</p>
+            <div class="code-block bg-surface-900 text-green-300 p-3 rounded font-mono text-xs">
+              <pre>// 4 of 5 methods are 1-line forwarding calls:
+async getListingById(id: string) {
+  return listingRepo.findById(id);
+}
+async getListingsByOwner(ownerId: string) {
+  return listingRepo.findByOwnerId(ownerId);
+}
+async updateListingStatus(id: string, status) {
+  return listingRepo.updateStatus(id, status);
+}</pre>
+            </div>
+          </div>
+          <div class="module-shallow rounded-lg p-4">
+            <p class="font-semibold text-sm text-red-800 mb-2">Route handler — too fat</p>
+            <div class="code-block bg-surface-900 text-green-300 p-3 rounded font-mono text-xs">
+              <pre>// auth/login/route.ts does ALL of this:
+// 1. Zod parse body
+// 2. Look up user by email (repo)
+// 3. Compare password hash (bcrypt)
+// 4. Sign JWT
+// 5. Format response
+// No authService exists!</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-green-700 mb-2">Solution</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Create <strong>domain modules</strong> (e.g., <code>listingDomain</code>, <code>authDomain</code>) that own validation, business rules, state transitions, and repo interaction. Route handlers become thin HTTP adapters: parse request → call domain module → format response. The shallow <code>listingService</code> and <code>walletService</code> get absorbed.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">Benefits — Locality & Leverage</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Locality</p>
+            <p class="text-xs text-green-700">All listing business rules (transitions, ownership, validation) live in one file. Currently split between route handler, service, and repo.</p>
+          </div>
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Leverage</p>
+            <p class="text-xs text-green-700">Domain modules are testable without HTTP. Auth logic (hash, JWT, token validation) becomes reusable across REST routes, admin, and future websocket handlers.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-4">Before → After</h4>
+        <div class="before-after">
+          <div class="diagram-box module-shallow">
+            <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-3">Before — Fat handlers, shallow services</p>
+            <pre class="mermaid">
+graph TB
+  Route["Route Handler<br/><small>Zod + auth + logic + response</small>"]
+  Service["listingService<br/><small>pass-through</small>"]
+  Repo["listingRepo"]
+
+  Route -->|"calls"| Service
+  Route -->|"also calls directly"| Repo
+  Route -->|"inline logic"| Auth["bcrypt + JWT"]
+
+  style Service fill:#fef2f2,stroke:#ef4444,stroke-dasharray: 5,stroke-width:2
+  style Route fill:#fff7ed,stroke:#f97316,stroke-width:2
+            </pre>
+          </div>
+          <div class="arrow-divider text-center">→</div>
+          <div class="diagram-box module-deep">
+            <p class="text-xs font-bold text-green-700 uppercase tracking-wider mb-3">After — Thin routes, deep domains</p>
+            <pre class="mermaid">
+graph TB
+  Route["Route Handler<br/><small>HTTP adapter only</small>"]
+  Domain["listingDomain<br/><small>validation + transitions +<br/>ownership + repo calls</small>"]
+  Repo["ListingRepo<br/><small>interface</small>"]
+
+  Route -->|"one call"| Domain
+  Domain --> Repo
+
+  style Domain fill:#f0fdf4,stroke:#22c55e,stroke-width:2
+  style Route fill:#ecfdf5,stroke:#86efac
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════ CANDIDATE 3 ═══════════════════════════════════ -->
+  <section id="c3" class="max-w-5xl mx-auto px-6 mt-12">
+    <div class="bg-white rounded-2xl border border-surface-200 p-8 card-hover">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <span class="badge-exploring text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Worth exploring</span>
+          <h3 class="text-xl font-bold mt-3">Seal the mobile network seam — encapsulate auth tokens</h3>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-2">Files involved</h4>
+        <div class="flex flex-wrap gap-2">
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/mobile/src/services/api.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/mobile/src/context/AuthContext.tsx</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/mobile/src/hooks/*.ts</code>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-red-700 mb-2">Problem</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          The network module (<code>services/api.ts</code>) forces every caller to manually pass <code>{ token }</code>. Every hook must: <strong>(1)</strong> import <code>useAuth</code>, <strong>(2)</strong> destructure <code>token</code>, <strong>(3)</strong> pass it to <code>apiRequest</code>. This is a <strong>leaky seam</strong> — auth knowledge bleeds into every data-fetching module.
+        </p>
+        <div class="mt-4 code-block bg-surface-900 text-green-300 p-4 rounded-lg font-mono">
+          <p class="text-xs text-surface-200 mb-2">// useFeed.ts — this pattern repeats in ALL 5 hooks</p>
+          <pre>export function useFeed(category, condition) {
+  const { token } = useAuth();           // ← every hook does this
+  return useInfiniteQuery({
+    queryFn: async ({ pageParam }) => {
+      return apiRequest('/api/feed?...', { token });  // ← and this
+    },
+    enabled: !!token,                     // ← and this
+  });
+}</pre>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-green-700 mb-2">Solution</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Make <code>apiRequest</code> a <strong>deep module</strong> that internally resolves the auth token (e.g., by reading from storage or accepting a token-provider function at initialization). Hooks drop the <code>useAuth</code> import, the <code>token</code> destructuring, and the <code>enabled: !!token</code> guard. If auth changes (token refresh, new header format), the fix is one file — not five hooks.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">Benefits — Locality & Leverage</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Locality</p>
+            <p class="text-xs text-green-700">Auth token threading changes once in the network module, not across 5+ hooks and every future hook.</p>
+          </div>
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Leverage</p>
+            <p class="text-xs text-green-700">Adding token refresh, retry-on-401, or switching to cookie-based auth becomes a single-module change. Hooks get simpler interfaces.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-4">Before → After</h4>
+        <div class="before-after">
+          <div class="diagram-box module-shallow">
+            <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-3">Before — Token threaded everywhere</p>
+            <pre class="mermaid">
+graph TB
+  Hook1["useFeed"] --> Auth["useAuth()"]
+  Hook2["useWallet"] --> Auth
+  Hook3["useRateCard"] --> Auth
+  Hook4["useCreateListing"] --> Auth
+  Hook5["useEstimate"] --> Auth
+  Hook1 -->|"{ token }"| API["apiRequest()"]
+  Hook2 -->|"{ token }"| API
+  Hook3 -->|"{ token }"| API
+  Hook4 -->|"{ token }"| API
+  Hook5 -->|"{ token }"| API
+
+  style Auth fill:#fef2f2,stroke:#ef4444,stroke-width:2
+            </pre>
+          </div>
+          <div class="arrow-divider text-center">→</div>
+          <div class="diagram-box module-deep">
+            <p class="text-xs font-bold text-green-700 uppercase tracking-wider mb-3">After — Token encapsulated</p>
+            <pre class="mermaid">
+graph TB
+  Hook1["useFeed"] --> API["apiRequest()<br/><small>auto-attaches token</small>"]
+  Hook2["useWallet"] --> API
+  Hook3["useRateCard"] --> API
+  Hook4["useCreateListing"] --> API
+  Hook5["useEstimate"] --> API
+  API --> TokenStore["Token Provider<br/><small>reads from storage</small>"]
+
+  style API fill:#f0fdf4,stroke:#22c55e,stroke-width:2
+  style TokenStore fill:#ecfdf5,stroke:#86efac
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════ CANDIDATE 4 ═══════════════════════════════════ -->
+  <section id="c4" class="max-w-5xl mx-auto px-6 mt-12">
+    <div class="bg-white rounded-2xl border border-surface-200 p-8 card-hover">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <span class="badge-exploring text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Worth exploring</span>
+          <h3 class="text-xl font-bold mt-3">Consolidate category/unit domain logic into <code class="text-accent-blue">@chokro/shared</code></h3>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-2">Files involved</h4>
+        <div class="flex flex-wrap gap-2">
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">packages/shared/src/dto/listings.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/mobile/src/types.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/app/admin/lib/formatters.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/api/app/admin/drop-zones/categories.ts</code>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-red-700 mb-2">Problem</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          The rule "APPLIANCES and E_WASTE use <code>piece</code>; everything else uses <code>kg</code>" is a core domain invariant that's implemented <strong>three times in three different places</strong>:
+        </p>
+        <div class="mt-3 space-y-3">
+          <div class="bg-surface-100 rounded-lg p-3">
+            <p class="text-xs font-mono text-surface-700"><strong>1.</strong> <code>packages/shared/src/dto/listings.ts:L12-20</code> — Zod <code>.superRefine()</code></p>
+          </div>
+          <div class="bg-surface-100 rounded-lg p-3">
+            <p class="text-xs font-mono text-surface-700"><strong>2.</strong> <code>apps/mobile/src/types.ts:L25-32</code> — <code>unitForCategory()</code> function</p>
+          </div>
+          <div class="bg-surface-100 rounded-lg p-3">
+            <p class="text-xs font-mono text-surface-700"><strong>3.</strong> <code>apps/api/app/admin/lib/formatters.ts:L5-14</code> — another <code>unitForCategory()</code></p>
+          </div>
+        </div>
+        <p class="text-sm text-surface-700 mt-3">Adding a new category (e.g., TEXTILES) requires touching all three files. Locality is zero.</p>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-green-700 mb-2">Solution</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Move <code>unitForCategory()</code>, <code>formatLabel()</code>, and the category→unit mapping into <code>@chokro/shared</code> as a single <strong>category domain module</strong>. All three consumers import from one place.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">Benefits — Locality & Leverage</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Locality</p>
+            <p class="text-xs text-green-700">Adding a new category is one change in <code>@chokro/shared</code>. The Zod validation, mobile UI, and admin formatters all derive from the same source.</p>
+          </div>
+          <div class="module-deep rounded-lg p-4">
+            <p class="font-semibold text-sm text-green-800 mb-1">Leverage</p>
+            <p class="text-xs text-green-700">3 consumers today, N consumers tomorrow. The category module becomes the canonical source of truth for the rate card, listing creation, and admin management.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-4">Before → After</h4>
+        <div class="before-after">
+          <div class="diagram-box module-shallow">
+            <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-3">Before — Triplicated</p>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                <code class="text-xs font-mono">shared/dto/listings.ts</code>
+                <span class="text-xs text-surface-700">— superRefine (Zod)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                <code class="text-xs font-mono">mobile/src/types.ts</code>
+                <span class="text-xs text-surface-700">— unitForCategory()</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                <code class="text-xs font-mono">admin/lib/formatters.ts</code>
+                <span class="text-xs text-surface-700">— unitForCategory()</span>
+              </div>
+            </div>
+          </div>
+          <div class="arrow-divider text-center">→</div>
+          <div class="diagram-box module-deep">
+            <p class="text-xs font-bold text-green-700 uppercase tracking-wider mb-3">After — Single source</p>
+            <pre class="mermaid">
+graph TB
+  Shared["@chokro/shared<br/>category module<br/><small>unitForCategory + formatLabel +<br/>Zod refinement</small>"]
+  Mobile["mobile/types.ts"] --> Shared
+  Admin["admin/formatters.ts"] --> Shared
+  API["listings/route.ts"] --> Shared
+
+  style Shared fill:#f0fdf4,stroke:#22c55e,stroke-width:2
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════ CANDIDATE 5 ═══════════════════════════════════ -->
+  <section id="c5" class="max-w-5xl mx-auto px-6 mt-12">
+    <div class="bg-white rounded-2xl border border-surface-200 p-8 card-hover">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <span class="badge-speculative text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Speculative</span>
+          <h3 class="text-xl font-bold mt-3">Delete dead re-export files in mobile</h3>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-surface-700 mb-2">Files involved</h4>
+        <div class="flex flex-wrap gap-2">
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/mobile/src/api.ts</code>
+          <code class="text-xs bg-surface-100 px-2 py-1 rounded font-mono">apps/mobile/src/storage.ts</code>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-red-700 mb-2">Problem</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Two files exist at the root <code>src/</code> level that simply re-export from <code>src/services/</code>:
+        </p>
+        <div class="mt-3 code-block bg-surface-900 text-green-300 p-4 rounded-lg font-mono">
+          <pre>// src/api.ts — entire contents
+export * from './services/api';
+
+// src/storage.ts — entire contents
+export * from './services/storage';</pre>
+        </div>
+        <p class="text-sm text-surface-700 mt-3">
+          <strong>Deletion test:</strong> deleting these files would not scatter complexity — it would simply require callers to import from the canonical <code>services/</code> path. Zero depth, zero leverage.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-green-700 mb-2">Solution</h4>
+        <p class="text-sm text-surface-700 leading-relaxed">
+          Delete both files. Update any imports that reference <code>@/api</code> or <code>@/storage</code> to use <code>@/services/api</code> and <code>@/services/storage</code> directly. This is a 5-minute cleanup.
+        </p>
+      </div>
+
+      <div class="mb-4">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">Why speculative?</h4>
+        <p class="text-sm text-surface-700">Low impact — this is cosmetic cleanup. Modules with zero depth are harmless when they're small. Pursue only if you're already touching these files.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════ TOP RECOMMENDATION ═══════════════════════════════════ -->
+  <section class="max-w-5xl mx-auto px-6 mt-16 mb-20">
+    <div class="bg-surface-900 text-white rounded-2xl p-8">
+      <h2 class="text-2xl font-bold mb-4">🎯 Top Recommendation</h2>
+      <div class="bg-surface-800 rounded-xl p-6 mb-6">
+        <h3 class="text-lg font-bold text-green-400 mb-2">Start with Candidate #1: Eliminate dual-implementation repos</h3>
+        <p class="text-surface-200 text-sm leading-relaxed">
+          This is the <strong>highest-leverage, highest-locality</strong> fix in the codebase. Every feature you build touches the repository layer. Every time you add a query filter, you write it twice. Every test runs against an <code>any[]</code> memory store that silently diverges from your actual SQL.
+        </p>
+        <p class="text-surface-200 text-sm leading-relaxed mt-3">
+          Candidate #2 (deepening route handlers) follows naturally — once repos have clean interfaces, services can be absorbed into domain modules that own the full vertical: validation → business rules → persistence.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div class="bg-surface-800 rounded-lg p-4">
+          <p class="text-green-400 font-bold mb-1">Sequence</p>
+          <p class="text-surface-200">#1 → #2 → #3. Each candidate unlocks the next.</p>
+        </div>
+        <div class="bg-surface-800 rounded-lg p-4">
+          <p class="text-green-400 font-bold mb-1">Risk</p>
+          <p class="text-surface-200">#1 and #2 touch ~20 files. Plan for a focused sprint, not a drive-by fix.</p>
+        </div>
+        <div class="bg-surface-800 rounded-lg p-4">
+          <p class="text-green-400 font-bold mb-1">Quick win</p>
+          <p class="text-surface-200">#4 (consolidate category logic) can be done in parallel — small, safe, high locality payoff.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-xs text-surface-700 py-8 border-t border-surface-200">
+    Generated by architecture review · branch <code>refactor/architecture-review</code> · vocabulary from <code>/codebase-design</code>
+  </footer>
+
+</body>
+</html>

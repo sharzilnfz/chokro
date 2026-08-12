@@ -1,7 +1,7 @@
 # Chokro — Project Task & Progress Tracker
 
 > **Purpose:** Single source of truth for where every ticket stands across the project.
-> **Source plan:** `docs/sprint-plan.md` (tickets TA1–TD8, T0, T1) · requirements in `docs/PRD.md` + `docs/specs/00–04`.
+> **Source plan:** [`sprint-plan.md`](./sprint-plan.md) (tickets TA1–TD8, T0, T1) · requirements in [`../product/PRD.md`](../product/PRD.md) + [`../specs/`](../specs/).
 > **Status legend:** `[x]` done/verified · `[~]` in progress / partial · `[ ]` not started · `[be]` blocked.
 > **Last updated:** 2026-08-06 (Sprint 1 code complete, uncommitted).
 
@@ -176,9 +176,9 @@
 ## Document map (for context)
 | File | Role |
 |---|---|
-| `docs/PRD.md` | Product truth (what & why) |
-| `docs/specs/00–04` | Engineering constraints + detailed requirements |
-| `docs/sprint-plan.md` | Tickets TA1–TD8, M1–M4, V&V gates, 25-feature traceability |
-| `docs/manual-testing.md` | Manual test guide (backend + web admin + mobile) |
+| [`../product/PRD.md`](../product/PRD.md) | Product truth (what & why) |
+| [`../specs/`](../specs/) | Engineering constraints + detailed requirements (00–04) |
+| [`sprint-plan.md`](./sprint-plan.md) | Tickets TA1–TD8, M1–M4, V&V gates, 25-feature traceability |
+| [`../guides/manual-testing.md`](../guides/manual-testing.md) | Manual test guide (backend + web admin + mobile) |
 
 *Open decisions:* OD-1 Ratified · OD-2 Ratified (2026-08-06) · OD-3 pending (Sprint 2) · OD-4 pending (Sprint 2) · OD-5 pending (Sprint 3) · OD-6 pending (Sprint 3)

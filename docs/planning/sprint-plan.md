@@ -2,14 +2,14 @@
 
 **Baseline:** SPEC 00 manifest + specs 01–04 · **Team:** 4 full-stack, each owns a capability area across all 4 sprints · **Method:** tracer-bullet vertical slices with declared blocking edges (to-tickets); V&V gate at every sprint exit.
 
-**ID conventions:** Tickets = `T<member><n>` (TA1…TD8) plus shared `T0`/`T1`. PRD amendments = `A1`–`A10` (see `docs/prd-review.md`). Gaps = `G1`–`G12`. Open decisions = `OD-1`–`OD-6`.
+**ID conventions:** Tickets = `T<member><n>` (TA1…TD8) plus shared `T0`/`T1`. PRD amendments = `A1`–`A10` (see [`../product/prd-review.md`](../product/prd-review.md)). Gaps = `G1`–`G12`. Open decisions = `OD-1`–`OD-6`.
 
 | Member | Capability area | Spec |
 |---|---|---|
-| **A** | Identity, Trust & Partners | `docs/specs/01-identity-and-trust.md` |
-| **B** | Circular Marketplace | `docs/specs/02-marketplace.md` |
-| **C** | Intelligence & Engagement | `docs/specs/03-intelligence-and-engagement.md` |
-| **D** | Collections, E-Waste, Trust Gate & Wallet | `docs/specs/04-collections-and-wallet.md` |
+| **A** | Identity, Trust & Partners | [`../specs/01-identity-and-trust.md`](../specs/01-identity-and-trust.md) |
+| **B** | Circular Marketplace | [`../specs/02-marketplace.md`](../specs/02-marketplace.md) |
+| **C** | Intelligence & Engagement | [`../specs/03-intelligence-and-engagement.md`](../specs/03-intelligence-and-engagement.md) |
+| **D** | Collections, E-Waste, Trust Gate & Wallet | [`../specs/04-collections-and-wallet.md`](../specs/04-collections-and-wallet.md) |
 
 **Working agreements:** every ticket lands via PR with API-level tests (harness built in T0); `verification-loop` before every merge; OD-1/OD-2 ratified on day 1; rate card sanity-checked weekly against BanglaBin's published rates; Trust Gate (TD5) is project-critical — if it slips, Member C pairs with Member D.
 

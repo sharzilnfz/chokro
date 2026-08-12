@@ -1,7 +1,7 @@
 # Chokro — PRD Review & Optimization
 
-**Source reviewed:** `chokro-IDEAS.txt` (77 lines, 25 features, 5 capability areas)
-**Review method:** Verification (is the PRD specified *right* — complete, consistent, testable?) + Validation (is it the *right product* — evidence from `docs/competitive-analysis.md` and `docs/validation-report.md`)
+**Source reviewed:** [`../archive/chokro-IDEAS.txt`](../archive/chokro-IDEAS.txt) (77 lines, 25 features, 5 capability areas)
+**Review method:** Verification (is the PRD specified *right* — complete, consistent, testable?) + Validation (is it the *right product* — evidence from [`./competitive-analysis.md`](./competitive-analysis.md) and [`./validation-report.md`](./validation-report.md))
 **Date:** 2026-08-02
 
 ---
@@ -10,7 +10,7 @@
 
 The PRD is **above average for an ideas document**: it has a coherent core loop, two genuinely defensible differentiators (Next-Life Agent's cross-path reasoning; Trust Gate triage), and an unusually disciplined "explicitly excluded from MVP" list. It is **not yet implementable**: it lacks state machines, data ownership, credit economics, Trust Gate decision rules, non-functional requirements, and success metrics. Two PRD assumptions are challenged by evidence (AI condition grading; collector app adoption) and must be amended before build.
 
-**Recommended flow:** adopt amendments A1–A10 → build from `docs/specs/` → execute `docs/sprint-plan.md`.
+**Recommended flow:** adopt amendments A1–A10 → build from [`../specs/`](../specs/) → execute [`../planning/sprint-plan.md`](../planning/sprint-plan.md).
 
 ---
 
@@ -31,11 +31,11 @@ Severity: 🔴 blocks implementation · 🟡 blocks quality · 🟢 nice to have
 
 ### G1 🔴 No state machines or lifecycle definitions
 The PRD implies lifecycles but defines none. Without canonical states, four engineers will build four inconsistent versions of: Listing, Deposit, Pickup Task, Credit Transaction, Redemption, Partner, Dispute.
-→ **Fixed in** `docs/specs/00-product-capability.md` §6 (canonical state machines adopted across all specs).
+→ **Fixed in** [`../specs/00-product-capability.md`](../specs/00-product-capability.md) §6 (canonical state machines adopted across all specs).
 
 ### G2 🔴 Trust Gate has no decision rules
 "Checks the deposit against the reported category, weight, and photo evidence" — but what *signals* justify auto-clear? What thresholds escalate? Only redemption gets hints (velocity, amount, history). Fraud research (reverse-vending exploits, deposit-return fraud literature, GPS-spoof documentation) shows this is existential, not edge-case.
-→ **Amendment A4** defines the signal stack; `docs/specs/04-collections-and-wallet.md` specs it.
+→ **Amendment A4** defines the signal stack; [`../specs/04-collections-and-wallet.md`](../specs/04-collections-and-wallet.md) specs it.
 
 ### G3 🔴 Green Credit economics are undefined
 No credit-to-taka conversion, no minimum cash-out, no funding source, no liability cap, no expiry. bKash cash-out costs users 1.85% at agents — small payouts feel bad and bleed value. Every rewards-for-recycling player that failed (Cashify ₹148 Cr FY23 loss; ThredUp structural losses) died on unit economics.
@@ -43,7 +43,7 @@ No credit-to-taka conversion, no minimum cash-out, no funding source, no liabili
 
 ### G4 🔴 Next-Life Agent contract is unspecified
 No input/output schema, no confidence handling, no fallback when the vision call fails, no latency/cost budget, no definition of "condition" the AI may claim. Validation research shows off-the-shelf vision classifies *category* well but **cannot reliably grade condition** — and condition sets payout, making it a dispute magnet.
-→ **Amendment A1** narrows the AI's authority; contract spec'd in `docs/specs/03-intelligence-and-engagement.md`.
+→ **Amendment A1** narrows the AI's authority; contract spec'd in [`../specs/03-intelligence-and-engagement.md`](../specs/03-intelligence-and-engagement.md).
 
 ### G5 🔴 Rate card pricing model doesn't fit e-waste
 "Category, condition, and weight pricing" — but Dhaka's market convention (verified: BanglaBin's published rate card) prices **e-waste and appliances per piece**, materials per kg. Weight-only pricing breaks 2 of 9 categories on day one.
@@ -51,7 +51,7 @@ No input/output schema, no confidence handling, no fallback when the vision call
 
 ### G6 🟡 Actor model is under-specified
 "Individual, verified partner, admin" collapses collectors, recyclers, repair shops, vendors, and NGOs into one "partner" blob. They have different capabilities (a repair shop doesn't collect; an NGO doesn't buy). Also: can a user be both seller and buyer? (Must be yes.)
-→ Partner *types* with capability flags defined in `docs/specs/00` §4 and `docs/specs/01`.
+→ Partner *types* with capability flags defined in [`../specs/00-product-capability.md`](../specs/00-product-capability.md) §4 and [`../specs/01-identity-and-trust.md`](../specs/01-identity-and-trust.md).
 
 ### G7 🟡 Collector-side channel is a risky assumption
 The PRD assumes collectors use the app. Evidence: Dhaka's successful scrap operators (E-Vangariwala, 2,400+ pickups) run on **WhatsApp + web forms**, and Dhaka's ~120,000 informal waste pickers skew low-literacy. A collector-facing native app is the riskiest UX bet in the PRD.
@@ -59,7 +59,7 @@ The PRD assumes collectors use the app. Evidence: Dhaka's successful scrap opera
 
 ### G8 🟡 Non-functional requirements are absent
 Nothing on: platform (now decided: mobile app), UI language (Bangla/English — unresolved), offline tolerance, photo size/upload on ৳10k Android phones over 23 Mbps median, data privacy (photo EXIF carries GPS!), account deletion, notification channels.
-→ NFRs added in `docs/specs/00` §9; **Amendment A9** covers photo privacy.
+→ NFRs added in [`../specs/00-product-capability.md`](../specs/00-product-capability.md) §9; **Amendment A9** covers photo privacy.
 
 ### G9 🟡 Offer/bid boundary contradicts the exclusion list
 Feature 12 allows "offer/bid flow" while exclusions ban "complex bid auctions and escrow." The line between them is undefined.
@@ -75,7 +75,7 @@ Deposits record "estimated weight" — a photo cannot weigh. Who estimates, and 
 
 ### G12 🟢 Impact math undefined
 "Estimated environmental impact" with certified calculations excluded — good — but the simple heuristic table (kg diverted × material factor) still needs to exist somewhere.
-→ Defined as an admin-editable factor table in `docs/specs/03`.
+→ Defined as an admin-editable factor table in [`../specs/03-intelligence-and-engagement.md`](../specs/03-intelligence-and-engagement.md).
 
 ---
 
