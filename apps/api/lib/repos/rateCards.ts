@@ -1,4 +1,5 @@
 import { db, rateCardEntries, desc, lt } from '@chokro/db';
+import { getCategoryUnit } from '@chokro/shared';
 import { withDb } from './seam';
 
 export type RateCardEntry = typeof rateCardEntries.$inferSelect;
@@ -20,7 +21,7 @@ export const rateCardRepo = {
         .values({
           category: input.category,
           condition_band: input.condition_band || 'GOOD',
-          unit: input.unit || (['E_WASTE', 'APPLIANCES'].includes(input.category) ? 'piece' : 'kg'),
+          unit: input.unit || getCategoryUnit(input.category),
           price_bdt: String(input.price_bdt ?? 0),
           effective_from: input.effective_from || new Date(),
           updated_by: input.updated_by || null,

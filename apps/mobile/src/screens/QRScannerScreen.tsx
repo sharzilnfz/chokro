@@ -56,10 +56,9 @@ export function QRScannerScreen() {
 
   const handleBarcode = useCallback(
     (result: BarcodeScanningResult) => {
-      if (!scanning || loading) return;
       void resolveToken(result.data);
     },
-    [loading, resolveToken, scanning],
+    [resolveToken],
   );
 
   const scanAgain = useCallback(() => {
@@ -69,7 +68,7 @@ export function QRScannerScreen() {
     setScanning(true);
   }, []);
 
-  const acceptedCategories = zone?.acceptedCategories ?? zone?.accepted_categories ?? EMPTY_CATEGORIES;
+  const acceptedCategories = zone?.acceptedCategories ?? EMPTY_CATEGORIES;
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-[20px] pb-[36px]" keyboardShouldPersistTaps="handled">
@@ -107,7 +106,7 @@ export function QRScannerScreen() {
           />
           <View pointerEvents="none" className="absolute top-0 right-0 bottom-0 left-0 items-center justify-center bg-[#0a160f]/16">
             <View className="w-[205px] h-[205px] border-[3px] border-surface rounded-[22px]" />
-            <Text className="absolute bottom-[18px] text-surface text-[12px] font-extrabold bg-overlay px-[12px] py-[8px] rounded-pill overflow-hidden">{scanning ? 'Hold the poster QR inside the frame' : loading ? 'Resolving signed token...' : 'Scan paused'}</Text>
+            <Text className="absolute bottom-[18px] text-surface text-[12px] font-extrabold bg-overlay px-[12px] py-[8px] rounded-pill overflow-hidden">{loading ? 'Resolving signed token...' : scanning ? 'Hold the poster QR inside the frame' : 'Scan paused'}</Text>
           </View>
         </View>
       )}

@@ -70,16 +70,15 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    const numericQuantity = Number(quantity);
     if (!photo) {
       setError('Add a real item photo before publishing.');
       return;
     }
-    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+    if (!hasValidQuantity) {
       setError(unit === 'kg' ? 'Enter a weight greater than 0 kg.' : 'Enter at least 1 piece.');
       return;
     }
-    if (unit === 'piece' && !Number.isInteger(numericQuantity)) {
+    if (unit === 'piece' && !Number.isInteger(parsedQuantity)) {
       setError('Piece count must be a whole number.');
       return;
     }
@@ -91,8 +90,8 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
         category,
         unit,
         ...(unit === 'kg'
-          ? { declaredWeight: numericQuantity }
-          : { pieceCount: numericQuantity }),
+          ? { declaredWeight: parsedQuantity }
+          : { pieceCount: parsedQuantity }),
         declaredCondition: condition,
         photos: [photo.dataUri],
       });
@@ -101,7 +100,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not publish this listing.'));
     }
-  }, [category, condition, createListing, onCreated, photo, quantity, unit]);
+  }, [category, condition, createListing, hasValidQuantity, onCreated, parsedQuantity, photo, unit]);
 
   return (
     <ScrollView

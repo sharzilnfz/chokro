@@ -15,6 +15,7 @@ const TOKEN_KEY = 'chokro.authToken';
 
 type RestoreState = 'loading' | 'ready' | 'error';
 type AuthMode = 'login' | 'signup';
+type Credentials = { email: string; password: string };
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -25,8 +26,8 @@ type AuthContextValue = {
   authMode: AuthMode;
   setAuthMode: (mode: AuthMode) => void;
   login: (session: AuthSession) => Promise<void>;
-  signIn: (credentials: { email: string; password: string }) => Promise<void>;
-  signUp: (credentials: { email: string; password: string }) => Promise<void>;
+  signIn: (credentials: Credentials) => Promise<void>;
+  signUp: (credentials: Credentials) => Promise<void>;
   logout: () => Promise<void>;
   retryRestore: () => void;
   clearAndRestart: () => void;
@@ -114,21 +115,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthMode('login');
   }, []);
 
-  const signIn = useCallback(async (credentials: { email: string; password: string }) => {
-    const nextSession = await apiRequest<{ token: string; user: User }>('/api/auth/login', {
+  const authenticate = useCallback(
+  async (path: '/api/auth/login' | '/api/auth/signup', credentials: Credentials) => {
+    const nextSession = await apiRequest<{ token: string; user: User }>(path, {
       method: 'POST',
       body: JSON.stringify({ email: credentials.email.trim().toLowerCase(), password: credentials.password }),
     });
     await login(nextSession);
-  }, [login]);
+  },
+  [login],
+);
 
-  const signUp = useCallback(async (credentials: { email: string; password: string }) => {
-    const nextSession = await apiRequest<{ token: string; user: User }>('/api/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({ email: credentials.email.trim().toLowerCase(), password: credentials.password }),
-    });
-    await login(nextSession);
-  }, [login]);
+const signIn = useCallback(
+  (credentials: Credentials) => authenticate('/api/auth/login', credentials),
+  [authenticate],
+);
+
+const signUp = useCallback(
+  (credentials: Credentials) => authenticate('/api/auth/signup', credentials),
+  [authenticate],
+);
 
   const clearAndRestart = useCallback(() => {
     void (async () => {
@@ -144,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextValue = {
     session,
-    token: session?.token ?? undefined,
+    token: session?.token,
     user: session?.user ?? null,
     restoreState,
     restoreError,

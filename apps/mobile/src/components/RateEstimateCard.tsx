@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
+import { formatQuantityWithUnit } from '@/types';
 import type { Estimate } from '@/hooks/useEstimate';
 
 export interface RateEstimateCardProps {
@@ -31,6 +32,9 @@ export function RateEstimateCard({
 
   if (!estimate) return null;
 
+  const unitLabel = estimate.unit === 'kg' ? 'weight' : 'quantity';
+  const quantityText = formatQuantityWithUnit(estimate.unit, parsedQuantity);
+
   return (
     <View className="bg-leaf-soft border border-leaf rounded-md p-[16px] mb-[13px] shadow-card min-h-[142px]" style={{ elevation: 2 }}>
       <View className="flex-row items-center justify-between mb-[4px]">
@@ -51,12 +55,12 @@ export function RateEstimateCard({
 
       <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[1px]" numberOfLines={1}>
         {totalEstimatedBdt !== null
-          ? `${parsedQuantity} ${estimate.unit === 'kg' ? 'kg' : parsedQuantity === 1 ? 'piece' : 'pieces'} × ৳${Number(estimate.price_bdt).toFixed(2)}/${estimate.unit}`
-          : `Enter ${estimate.unit === 'kg' ? 'weight' : 'quantity'} above to calculate payout`}
+          ? `${quantityText} × ৳${Number(estimate.price_bdt).toFixed(2)}/${estimate.unit}`
+          : `Enter ${unitLabel} above to calculate payout`}
       </Text>
 
       <Text className="text-muted text-[11px] leading-[15px] mt-[8px] pt-[6px] border-t border-border/60" numberOfLines={1}>
-        Final {estimate.unit === 'kg' ? 'weight' : 'quantity'} and value confirmed at pickup.
+        Final {unitLabel} and value confirmed at pickup.
       </Text>
     </View>
   );
