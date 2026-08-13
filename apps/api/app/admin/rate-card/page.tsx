@@ -1,7 +1,7 @@
 'use client';
 
-import { CATEGORIES, CONDITIONS, type Category, type Condition } from '@chokro/shared';
-import { useMemo, useState, type FormEvent } from 'react';
+import { CONDITIONS, type Category, type Condition } from '@chokro/shared';
+import { useState, type FormEvent } from 'react';
 import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
@@ -9,13 +9,9 @@ import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
 import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
-import { useAdminRateCards, usePublishRate, type RateEntry } from '../hooks/useAdminRateCards';
-import { formatDate, formatLabel, formatPrice, unitForCategory } from '../lib/formatters';
-
-const CATEGORY_OPTIONS = CATEGORIES.map((value) => ({
-  value,
-  label: formatLabel(value),
-}));
+import { useAdminRateCards, usePublishRate } from '../hooks/useAdminRateCards';
+import { formatDate, formatLabel, formatPrice, getErrorMessage, unitForCategory } from '../lib/formatters';
+import { CATEGORY_OPTIONS } from '../drop-zones/categories';
 
 const CONDITION_OPTIONS = CONDITIONS.map((value) => ({
   value,
@@ -23,10 +19,6 @@ const CONDITION_OPTIONS = CONDITIONS.map((value) => ({
 }));
 
 type Notice = { tone: NoticeTone; text: string } | null;
-
-type RateEntryWithVersion = RateEntry & {
-  isCurrent: boolean;
-};
 
 export default function AdminRateCardPage() {
   const { data: rates = [], isLoading, isError, refetch } = useAdminRateCards();
@@ -40,20 +32,17 @@ export default function AdminRateCardPage() {
 
   const unit = unitForCategory(category);
 
-  // Pure deterministic computation of version status (fixes render-time mutation)
-  const sortedRatesWithVersion = useMemo<RateEntryWithVersion[]>(() => {
-    const sorted = [...rates].sort((first, second) => {
+  const sortedRatesWithVersion = [...rates]
+    .sort((first, second) => {
       return new Date(second.effective_from).getTime() - new Date(first.effective_from).getTime();
-    });
-
-    const seenKeys = new Set<string>();
-    return sorted.map((rate) => {
-      const key = `${rate.category}:${rate.condition_band}`;
-      const isCurrent = !seenKeys.has(key);
-      seenKeys.add(key);
+    })
+    .map((rate, index, sorted) => {
+      const isCurrent =
+        index === 0 ||
+        sorted[index - 1].category !== rate.category ||
+        sorted[index - 1].condition_band !== rate.condition_band;
       return { ...rate, isCurrent };
     });
-  }, [rates]);
 
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,9 +69,10 @@ export default function AdminRateCardPage() {
       });
       setPriceBdt('');
     } catch (error) {
-      const errMessage =
-        error instanceof Error ? error.message : 'The rate entry could not be published.';
-      setNotice({ tone: 'error', text: errMessage });
+      setNotice({
+        tone: 'error',
+        text: getErrorMessage(error, 'The rate entry could not be published.'),
+      });
     }
   }
 

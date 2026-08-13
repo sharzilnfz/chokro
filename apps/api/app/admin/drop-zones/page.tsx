@@ -1,6 +1,5 @@
 'use client';
 
-import type { Category } from '@chokro/shared';
 import { useRef, useState, type FormEvent } from 'react';
 import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
@@ -14,7 +13,7 @@ import {
   useCreateDropZone,
   type DropZone,
 } from '../hooks/useAdminDropZones';
-import { formatLabel } from '../lib/formatters';
+import { formatLabel, getErrorMessage } from '../lib/formatters';
 import { parseApiError } from '../services/adminApi';
 import { CATEGORY_OPTIONS } from './categories';
 
@@ -36,7 +35,7 @@ export default function AdminDropZonesPage() {
     const formData = new FormData(event.currentTarget);
     const selected = CATEGORY_OPTIONS.filter((category) =>
       formData.getAll('categories').includes(category.value),
-    ).map((category) => category.value as Category);
+    ).map((category) => category.value);
 
     if (selected.length === 0) {
       setNotice({ tone: 'error', text: 'Choose at least one accepted category.' });
@@ -59,9 +58,10 @@ export default function AdminDropZonesPage() {
       });
       formRef.current?.reset();
     } catch (error) {
-      const errMessage =
-        error instanceof Error ? error.message : 'Drop zone could not be created.';
-      setNotice({ tone: 'error', text: errMessage });
+      setNotice({
+        tone: 'error',
+        text: getErrorMessage(error, 'Drop zone could not be created.'),
+      });
     }
   }
 
@@ -223,10 +223,7 @@ export default function AdminDropZonesPage() {
                     <td data-label="Institution">{zone.institution_id}</td>
                     <td data-label="Accepted categories">
                       <div className="admin-capabilities">
-                        {(Array.isArray(zone.accepted_categories)
-                          ? zone.accepted_categories
-                          : []
-                        ).map((category) => (
+                        {zone.accepted_categories.map((category) => (
                           <AdminBadge key={category}>{formatLabel(category)}</AdminBadge>
                         ))}
                       </div>

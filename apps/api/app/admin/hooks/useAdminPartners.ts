@@ -8,7 +8,7 @@ import { adminApiRequest } from '../services/adminApi';
 export type Partner = {
   id: string;
   org_name: string;
-  types: string[] | string;
+  types: string[];
   e_waste_licensed: boolean;
   doe_license_doc: string | null;
   status: PartnerStatus;
@@ -46,15 +46,7 @@ export function useUpdatePartnerStatus() {
       });
       return data.partner;
     },
-    onSuccess: (updatedPartner, variables) => {
-      queryClient.setQueryData<Partner[]>(ADMIN_PARTNERS_QUERY_KEY, (current) => {
-        if (!current) return [];
-        return current.map((item) =>
-          item.id === variables.partnerId
-            ? updatedPartner || { ...item, status: variables.status }
-            : item,
-        );
-      });
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ADMIN_PARTNERS_QUERY_KEY });
     },
   });

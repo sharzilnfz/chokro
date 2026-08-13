@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { AdminButton, type ButtonVariant } from './AdminButton';
 
 export type AdminConfirmModalProps = {
@@ -26,8 +26,6 @@ export function AdminConfirmModal({
   onConfirm,
   onCancel,
 }: AdminConfirmModalProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -66,7 +64,6 @@ export function AdminConfirmModal({
       }}
     >
       <div
-        ref={dialogRef}
         className="admin-panel"
         style={{
           width: '100%',

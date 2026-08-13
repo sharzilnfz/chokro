@@ -1,3 +1,5 @@
+import { cx } from '../../lib/formatters';
+
 export type AdminSkeletonProps = {
   rowCount?: number;
   colCount?: number;
@@ -13,7 +15,7 @@ export function AdminSkeleton({
 }: AdminSkeletonProps) {
   return (
     <div
-      className={['admin-skeleton-list', className].filter(Boolean).join(' ')}
+      className={cx('admin-skeleton-list', className)}
       role="status"
       aria-label={label}
       aria-busy="true"

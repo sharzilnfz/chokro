@@ -1,4 +1,5 @@
 import type { ReactNode, SelectHTMLAttributes } from 'react';
+import { cx } from '../../lib/formatters';
 
 export type Option = {
   value: string;
@@ -25,9 +26,7 @@ export function AdminSelect({
   const hintId = hint && id ? `${id}-hint` : undefined;
   const errorId = error && id ? `${id}-error` : undefined;
 
-  const describedBy = [hintId, errorId, explicitDescribedBy]
-    .filter(Boolean)
-    .join(' ') || undefined;
+  const describedBy = cx(hintId, errorId, explicitDescribedBy) || undefined;
 
   return (
     <div className="admin-field">
@@ -37,9 +36,7 @@ export function AdminSelect({
         </label>
       )}
       <select
-        className={['admin-select', error ? 'admin-select-error' : '', className]
-          .filter(Boolean)
-          .join(' ')}
+        className={cx('admin-select', error && 'admin-select-error', className)}
         id={id}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}

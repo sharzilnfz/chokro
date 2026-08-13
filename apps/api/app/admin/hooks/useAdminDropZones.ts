@@ -48,13 +48,7 @@ export function useCreateDropZone() {
       });
       return data.zone;
     },
-    onSuccess: (newZone) => {
-      if (newZone) {
-        queryClient.setQueryData<DropZone[]>(ADMIN_DROP_ZONES_QUERY_KEY, (current) => {
-          if (!current) return [newZone];
-          return [newZone, ...current];
-        });
-      }
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ADMIN_DROP_ZONES_QUERY_KEY });
     },
   });

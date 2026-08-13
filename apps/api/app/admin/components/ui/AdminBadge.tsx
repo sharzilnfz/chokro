@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cx } from '../../lib/formatters';
 
 export type AdminBadgeProps = {
   status?: string;
@@ -9,7 +10,7 @@ export type AdminBadgeProps = {
 export function AdminBadge({ status, children, className = '' }: AdminBadgeProps) {
   return (
     <span
-      className={['admin-badge', className].filter(Boolean).join(' ')}
+      className={cx('admin-badge', className)}
       data-status={status}
       role="status"
     >
