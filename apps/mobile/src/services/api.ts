@@ -63,7 +63,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const activeToken = token ?? getAuthToken();
 
   const authHeader: Record<string, string> = {};
-  if (activeToken && (!headers || (!headers.Authorization && !headers.authorization))) {
+  if (activeToken && !headers?.Authorization && !headers?.authorization) {
     authHeader.Authorization = `Bearer ${activeToken}`;
   }
 

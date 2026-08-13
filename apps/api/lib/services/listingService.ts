@@ -1,5 +1,6 @@
 import { ListingDomain, CreateListingData } from '@/lib/domain/ListingDomain';
 import { ListingStatus } from '@chokro/shared';
+import type { ListingFilter } from '@/lib/repos/listings';
 
 export const listingService = {
   isValidTransition(currentStatus: string, targetStatus: string): boolean {
@@ -26,7 +27,7 @@ export const listingService = {
     return ListingDomain.getListingsByOwner(ownerId);
   },
 
-  async findPublished(filter?: any) {
+  async findPublished(filter?: ListingFilter) {
     return ListingDomain.findPublished(filter);
   },
 };

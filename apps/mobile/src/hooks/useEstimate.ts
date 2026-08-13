@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/services/api';
+import { apiRequest, ApiError } from '@/services/api';
 import type { Category, Condition } from '@/types';
 
 type Estimate = {
@@ -22,7 +22,7 @@ export function useEstimate(category: Category, condition: Condition) {
     },
 
     retry: (failureCount, error) => {
-      if (error && 'status' in error && (error as any).status === 404) return false;
+      if (error instanceof ApiError && error.status === 404) return false;
       return failureCount < 2;
     },
   });

@@ -1,22 +1,14 @@
-import { db, listings, eq, desc, and, lt, or } from '@chokro/db';
+import { db, listings, eq, desc, and } from '@chokro/db';
 import { withDb } from './seam';
 import { KeysetPagination } from '../domain/KeysetPagination';
-
-export interface ListingCursor {
-  createdAt: string;
-  id: string;
-}
+import type { KeysetCursor } from '../domain/KeysetPagination';
 
 export interface CreateListingInput {
-  ownerId?: string;
-  owner_id?: string;
+  owner_id: string;
   category: string;
   unit: string;
-  declaredWeight?: number | string | null;
   declared_weight?: number | string | null;
-  pieceCount?: number | null;
   piece_count?: number | null;
-  declaredCondition?: string;
   declared_condition?: string;
   photos?: string[];
   status?: string;
@@ -26,7 +18,7 @@ export interface ListingFilter {
   category?: string;
   status?: string;
   condition?: string;
-  cursor?: ListingCursor | null;
+  cursor?: KeysetCursor | null;
   limit?: number;
 }
 
@@ -50,10 +42,6 @@ export const listingRepo = {
         .where(eq(listings.owner_id, ownerId))
         .orderBy(desc(listings.created_at));
     });
-  },
-
-  async findByOwnerId(ownerId: string) {
-    return this.findByOwner(ownerId);
   },
 
   async findPublished(filter?: ListingFilter) {
@@ -88,26 +76,17 @@ export const listingRepo = {
     });
   },
 
-  async findFeedItems(filter?: ListingFilter) {
-    return this.findPublished(filter);
-  },
-
   async create(input: CreateListingInput) {
     return withDb(async () => {
-      const ownerId = input.owner_id || input.ownerId || '';
-      const declaredWeight = input.declared_weight ?? input.declaredWeight;
-      const pieceCount = input.piece_count ?? input.pieceCount ?? null;
-      const declaredCondition = input.declared_condition || input.declaredCondition || 'GOOD';
-
       const [listing] = await db
         .insert(listings)
         .values({
-          owner_id: ownerId,
+          owner_id: input.owner_id,
           category: input.category,
           unit: input.unit,
-          declared_weight: declaredWeight != null ? String(declaredWeight) : null,
-          piece_count: pieceCount,
-          declared_condition: declaredCondition,
+          declared_weight: input.declared_weight != null ? String(input.declared_weight) : null,
+          piece_count: input.piece_count ?? null,
+          declared_condition: input.declared_condition || 'GOOD',
           photos: input.photos || [],
           status: input.status || 'ACTIVE',
         })

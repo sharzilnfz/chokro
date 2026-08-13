@@ -7,6 +7,13 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
 };
 
+function withCors<R extends Response>(response: R): R {
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  return response;
+}
+
 export function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -19,17 +26,9 @@ export function safeRoute<TArgs extends unknown[]>(
 ) {
   return async (...args: TArgs): Promise<Response> => {
     try {
-      const res = await handler(...args);
-      Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-        res.headers.set(key, value);
-      });
-      return res;
+      return withCors(await handler(...args));
     } catch (error) {
-      const res = routeError(error);
-      Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-        res.headers.set(key, value);
-      });
-      return res;
+      return withCors(routeError(error));
     }
   };
 }
@@ -39,11 +38,11 @@ export function apiError(message: string, status: number, details?: unknown): Ne
   return NextResponse.json(body, { status, headers: CORS_HEADERS });
 }
 
-export function apiSuccess(message: string, data?: Record<string, any>, status = 200): NextResponse {
+export function apiSuccess(message: string, data?: object, status = 200): NextResponse {
   return NextResponse.json({ message, ...data }, { status, headers: CORS_HEADERS });
 }
 
-export function apiData(data: Record<string, any>, status = 200): NextResponse {
+export function apiData(data: object, status = 200): NextResponse {
   return NextResponse.json(data, { status, headers: CORS_HEADERS });
 }
 

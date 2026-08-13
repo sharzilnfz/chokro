@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cx } from '../../lib/formatters';
 
 export type NoticeTone = 'success' | 'error' | 'warning' | 'info';
 
@@ -19,7 +20,7 @@ export function AdminStatusMessage({
 
   return (
     <div
-      className={['admin-status-message', className].filter(Boolean).join(' ')}
+      className={cx('admin-status-message', className)}
       data-tone={tone}
       role={tone === 'error' ? 'alert' : 'status'}
       aria-live={tone === 'error' ? 'assertive' : 'polite'}

@@ -13,7 +13,7 @@ export const GET = safeRoute(async (req: Request) => {
 
   let zone = null;
   if (lat && lng) {
-    zone = await dropZoneRepo.resolveByLocation(Number(lat), Number(lng));
+    zone = await dropZoneRepo.resolveByLocation();
   } else {
     if (!token || !isValidQrToken(token)) {
       return apiError('Invalid drop zone token', 400);

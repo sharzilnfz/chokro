@@ -2,6 +2,14 @@ import { getCategoryUnit, type Category, type Unit } from '@chokro/shared';
 
 export type { Unit };
 
+export function cx(...parts: Array<string | false | 0 | 0n | null | undefined>): string {
+  return parts.filter(Boolean).join(' ');
+}
+
+export function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function unitForCategory(category: Category | string): Unit {
   return getCategoryUnit(category);
 }

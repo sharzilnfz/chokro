@@ -49,10 +49,8 @@ export const CREDIT_TXN_KINDS = CreditTxnKindEnum.options;
 export const CREDIT_TXN_STATUSES = CreditTxnStatusEnum.options;
 
 // Category & Unit Domain Rules
-export const PIECE_CATEGORIES: ReadonlyArray<Category> = ['APPLIANCES', 'E_WASTE'] as const;
-
 export function isPieceCategory(category: Category | string): boolean {
-  return PIECE_CATEGORIES.includes(category as Category);
+  return category === 'APPLIANCES' || category === 'E_WASTE';
 }
 
 export function getCategoryUnit(category: Category | string): Unit {

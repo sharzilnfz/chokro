@@ -5,7 +5,7 @@ import { AdminShell } from './components/layout/AdminShell';
 import { useAdminAuth } from './context/AdminAuthContext';
 import { AdminProviders } from './providers/AdminProviders';
 
-export { useAdminAuth, useAdminAuth as useAdminSession };
+export { useAdminAuth };
 
 export function AdminConsole({ children }: { children: ReactNode }) {
   return (

@@ -10,7 +10,6 @@ export {
   CATEGORIES,
   CONDITIONS,
   LISTING_STATUSES,
-  PIECE_CATEGORIES,
   isPieceCategory,
   getCategoryUnit,
   formatQuantityWithUnit,

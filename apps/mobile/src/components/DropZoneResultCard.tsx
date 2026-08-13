@@ -9,9 +9,7 @@ export interface DropZone {
   name: string;
   status: string;
   acceptedCategories?: string[];
-  accepted_categories?: string[];
   institutionId?: string;
-  institution_id?: string;
 }
 
 export interface DropZoneResultCardProps {

@@ -1,4 +1,5 @@
 import { lt, eq, and, or } from '@chokro/db';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 export interface KeysetCursor {
   createdAt: string;
@@ -24,7 +25,7 @@ export const KeysetPagination = {
     }
   },
 
-  buildCursorClause(cursor: KeysetCursor | null | undefined, createdAtColumn: any, idColumn: any) {
+  buildCursorClause(cursor: KeysetCursor | null | undefined, createdAtColumn: AnyPgColumn, idColumn: AnyPgColumn) {
     if (!cursor) return null;
     const cursorDate = new Date(cursor.createdAt);
     const cursorTiebreak = and(eq(createdAtColumn, cursorDate), lt(idColumn, cursor.id));

@@ -9,7 +9,7 @@ import { AdminConfirmModal } from '../components/ui/AdminConfirmModal';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
 import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
 import { useAdminPartners, useUpdatePartnerStatus, type Partner } from '../hooks/useAdminPartners';
-import { formatLabel } from '../lib/formatters';
+import { formatLabel, getErrorMessage } from '../lib/formatters';
 
 const FILTERS = ['ALL', ...PARTNER_STATUSES] as const;
 type Filter = (typeof FILTERS)[number];
@@ -45,9 +45,10 @@ export default function AdminPartnersPage() {
             : `${partner.org_name} rejected and moved to Rejected status.`,
       });
     } catch (error) {
-      const errMessage =
-        error instanceof Error ? error.message : `${partner.org_name} could not be updated.`;
-      setNotice({ tone: 'error', text: errMessage });
+      setNotice({
+        tone: 'error',
+        text: getErrorMessage(error, `${partner.org_name} could not be updated.`),
+      });
     } finally {
       setPendingAction(null);
     }
@@ -56,6 +57,9 @@ export default function AdminPartnersPage() {
   const filteredPartners = partners.filter(
     (partner) => filter === 'ALL' || partner.status === filter,
   );
+
+  const isVerify = pendingAction?.status === 'VERIFIED';
+  const pendingOrg = pendingAction?.partner.org_name ?? '';
 
   return (
     <>
@@ -134,16 +138,14 @@ export default function AdminPartnersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPartners.map((partner) => {
-                  const types = Array.isArray(partner.types) ? partner.types : [partner.types];
-                  return (
+                {filteredPartners.map((partner) => (
                     <tr key={partner.id}>
                       <td data-label="Organization">
                         <span className="admin-cell-primary">{partner.org_name}</span>
                       </td>
                       <td data-label="Capabilities">
                         <div className="admin-capabilities">
-                          {types.filter(Boolean).map((type) => (
+                          {partner.types.map((type) => (
                             <AdminBadge key={type}>{formatLabel(type)}</AdminBadge>
                           ))}
                         </div>
@@ -189,8 +191,7 @@ export default function AdminPartnersPage() {
                         )}
                       </td>
                     </tr>
-                  );
-                })}
+                  ))}
               </tbody>
             </table>
           </div>
@@ -200,18 +201,14 @@ export default function AdminPartnersPage() {
       {/* Confirmation modal for partner verification decisions */}
       <AdminConfirmModal
         isOpen={pendingAction !== null}
-        title={
-          pendingAction?.status === 'VERIFIED'
-            ? `Approve ${pendingAction?.partner.org_name}?`
-            : `Reject ${pendingAction?.partner.org_name}?`
-        }
+        title={isVerify ? `Approve ${pendingOrg}?` : `Reject ${pendingOrg}?`}
         description={
-          pendingAction?.status === 'VERIFIED'
-            ? `This will grant ${pendingAction?.partner.org_name} verified status across the Chokro recycling network.`
-            : `This will reject the application submitted by ${pendingAction?.partner.org_name}.`
+          isVerify
+            ? `This will grant ${pendingOrg} verified status across the Chokro recycling network.`
+            : `This will reject the application submitted by ${pendingOrg}.`
         }
-        confirmLabel={pendingAction?.status === 'VERIFIED' ? 'Approve partner' : 'Reject application'}
-        confirmVariant={pendingAction?.status === 'VERIFIED' ? 'primary' : 'danger'}
+        confirmLabel={isVerify ? 'Approve partner' : 'Reject application'}
+        confirmVariant={isVerify ? 'primary' : 'danger'}
         loading={updateStatusMutation.isPending}
         onConfirm={executeStatusUpdate}
         onCancel={() => setPendingAction(null)}

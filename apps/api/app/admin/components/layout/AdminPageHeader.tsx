@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cx } from '../../lib/formatters';
 
 export type AdminPageHeaderProps = {
   kicker: string;
@@ -16,7 +17,7 @@ export function AdminPageHeader({
   className = '',
 }: AdminPageHeaderProps) {
   return (
-    <header className={['admin-page-header', className].filter(Boolean).join(' ')}>
+    <header className={cx('admin-page-header', className)}>
       <div>
         <p className="admin-page-kicker">{kicker}</p>
         <h1 className="admin-page-title">{title}</h1>

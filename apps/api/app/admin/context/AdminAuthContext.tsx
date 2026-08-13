@@ -63,31 +63,29 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const endSession = useCallback(
+    (sessionMessage: string) => {
+      try {
+        window.sessionStorage.removeItem(TOKEN_KEY);
+      } catch {
+        // Ignore storage errors in restricted contexts
+      }
+      setToken(null);
+      setPermissionMessage('');
+      setSessionMessage(sessionMessage);
+      setStatus('signed-out');
+      queryClient.clear();
+    },
+    [queryClient],
+  );
+
   const logout = useCallback(() => {
-    try {
-      window.sessionStorage.removeItem(TOKEN_KEY);
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
-    setToken(null);
-    setPermissionMessage('');
-    setSessionMessage('You have signed out.');
-    setStatus('signed-out');
-    queryClient.clear();
-  }, [queryClient]);
+    endSession('You have signed out.');
+  }, [endSession]);
 
   const handleUnauthorized = useCallback(() => {
-    try {
-      window.sessionStorage.removeItem(TOKEN_KEY);
-    } catch {
-      // Ignore storage errors
-    }
-    setToken(null);
-    setPermissionMessage('');
-    setSessionMessage('Your session has expired. Sign in again to continue.');
-    setStatus('signed-out');
-    queryClient.clear();
-  }, [queryClient]);
+    endSession('Your session has expired. Sign in again to continue.');
+  }, [endSession]);
 
   const handleForbidden = useCallback((message?: string) => {
     setPermissionMessage(

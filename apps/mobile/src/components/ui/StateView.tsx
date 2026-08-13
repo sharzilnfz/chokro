@@ -8,7 +8,7 @@ export type StateViewProps = {
   isLoading?: boolean;
   loadingTitle?: string;
   loadingSubtitle?: string;
-  error?: unknown | string | null;
+  error?: unknown;
   errorTitle?: string;
   errorMessage?: string;
   onRetry?: () => void;
@@ -42,13 +42,7 @@ export function StateView({
   fullScreen = false,
 }: StateViewProps) {
   const hasError = Boolean(error || errorMessage);
-  const resolvedErrorMessage = errorMessage
-    ? errorMessage
-    : typeof error === 'string'
-      ? error
-      : error
-        ? getErrorMessage(error, 'Something went wrong')
-        : '';
+  const resolvedErrorMessage = errorMessage ?? (typeof error === 'string' ? error : getErrorMessage(error, 'Something went wrong'));
 
   const baseContainerClass = fullScreen
     ? 'flex-1 items-center justify-center bg-background p-[28px]'

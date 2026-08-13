@@ -19,20 +19,3 @@ export const colors = {
   dangerSoft: '#F5DEDE',
   overlay: 'rgba(10, 22, 15, 0.55)',
 } as const;
-
-export const radii = {
-  small: 10,
-  medium: 16,
-  large: 24,
-  pill: 999,
-} as const;
-
-export const shadows = {
-  card: {
-    shadowColor: '#17231D',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-} as const;

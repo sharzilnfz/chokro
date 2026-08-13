@@ -48,11 +48,7 @@ export function usePublishRate() {
       });
       return data.entry;
     },
-    onSuccess: (newEntry) => {
-      queryClient.setQueryData<RateEntry[]>(ADMIN_RATE_CARDS_QUERY_KEY, (current) => {
-        if (!current) return newEntry ? [newEntry] : [];
-        return newEntry ? [newEntry, ...current] : current;
-      });
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ADMIN_RATE_CARDS_QUERY_KEY });
     },
   });

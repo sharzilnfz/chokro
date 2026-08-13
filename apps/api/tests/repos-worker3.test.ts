@@ -26,7 +26,7 @@ describe('Worker 3 Repositories (dropZoneRepo & walletRepo)', () => {
       const all = await dropZoneRepo.findAll();
       expect(all).toHaveLength(1);
 
-      const resolved = await dropZoneRepo.resolveByLocation(23.8103, 90.4125);
+      const resolved = await dropZoneRepo.resolveByLocation();
       expect(resolved).toBeDefined();
       expect(resolved?.id).toBe(created.id);
     });

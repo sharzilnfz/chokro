@@ -23,7 +23,6 @@ describe('Domain Modules Unit & Integration Tests', () => {
       expect(session.token).toBeDefined();
       expect(session.user.role).toBe('INDIVIDUAL');
       expect(session.user.institutionId).toBe('inst-123');
-      expect(session.user.institution_id).toBe('inst-123');
     });
 
     it('rejects registration if email already exists', async () => {

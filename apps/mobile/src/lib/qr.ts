@@ -7,8 +7,3 @@ export function parseDropZoneToken(payload: string): string {
     return trimmed;
   }
 }
-
-export function isValidDropZoneToken(token: string): boolean {
-  if (!token || typeof token !== 'string') return false;
-  return parseDropZoneToken(token).length > 0;
-}

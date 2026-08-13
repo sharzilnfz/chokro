@@ -10,13 +10,10 @@ import {
 } from 'react-native';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, type Category, type Condition } from '@/types';
+import { CATEGORIES, CONDITIONS, categoryLabel } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { StateView } from '@/components/ui/StateView';
-import { useFeed, type Listing } from '@/hooks/useFeed';
-
-type FeedFilter = 'ALL' | Category;
-type ConditionFilter = 'ALL' | Condition;
+import { useFeed, type FeedFilter, type ConditionFilter, type Listing } from '@/hooks/useFeed';
 
 
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];

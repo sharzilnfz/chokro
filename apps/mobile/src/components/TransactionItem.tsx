@@ -9,11 +9,17 @@ export interface TransactionItemProps {
   item: CreditTransaction;
 }
 
+const STATUS_COLORS: Record<CreditTransaction['status'], string> = {
+  VERIFIED: colors.leafDark,
+  PENDING: colors.amber,
+  REJECTED: colors.danger,
+};
+
 export const TransactionItem = React.memo(function TransactionItem({ item }: TransactionItemProps) {
   const amount = Number(item.amount ?? 0);
   const isDebit = amount < 0;
   const sign = isDebit ? '-' : '+';
-  const statusColor = item.status === 'VERIFIED' ? colors.leafDark : item.status === 'PENDING' ? colors.amber : colors.danger;
+  const statusColor = STATUS_COLORS[item.status];
 
   return (
     <View
