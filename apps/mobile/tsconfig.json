@@ -3,6 +3,7 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
+      "@chokro/shared": ["../../packages/shared/src"],
       "@/*": ["./src/*"]
     }
   },
