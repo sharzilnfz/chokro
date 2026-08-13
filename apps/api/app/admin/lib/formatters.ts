@@ -2,7 +2,7 @@ import { getCategoryUnit, type Category, type Unit } from '@chokro/shared';
 
 export type { Unit };
 
-export function cx(...parts: Array<string | false | 0 | 0n | null | undefined>): string {
+export function cx(...parts: unknown[]): string {
   return parts.filter(Boolean).join(' ');
 }
 

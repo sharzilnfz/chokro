@@ -61,8 +61,7 @@ export const partnerRepo = {
 
   async updateVerification(id: string, status: string, eWasteLicensed?: boolean) {
     return withDb(async () => {
-      const existing = await this.findById(id);
-      const license = eWasteLicensed ?? Boolean(existing?.doe_license_doc);
+      const license = eWasteLicensed ?? Boolean((await this.findById(id))?.doe_license_doc);
       const [updated] = await db
         .update(partners)
         .set({
