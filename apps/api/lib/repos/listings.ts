@@ -1,4 +1,4 @@
-import { db, listings, eq, desc, and, lt, or } from '@chokro/db';
+import { db, listings, eq, desc, and } from '@chokro/db';
 import { withDb } from './seam';
 import { KeysetPagination } from '../domain/KeysetPagination';
 import type { KeysetCursor } from '../domain/KeysetPagination';

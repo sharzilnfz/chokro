@@ -1,5 +1,5 @@
 import { userRepo } from '@/lib/repos/users';
-import { hashPassword, comparePassword, signToken, TokenPayload } from '@/lib/auth';
+import { hashPassword, comparePassword, signToken } from '@/lib/auth';
 import type { Role } from '@chokro/shared';
 
 export interface RegisterInput {
