@@ -2,18 +2,14 @@ import { db, users, eq } from '@chokro/db';
 import type { Role } from '@chokro/shared';
 import { withDb } from './seam';
 
-export type { Role };
-
 export type User = typeof users.$inferSelect & {
   role: Role;
 };
 
 export interface CreateUserInput {
   email: string;
-  passwordHash?: string;
   password_hash?: string;
   role?: Role;
-  institutionId?: string | null;
   institution_id?: string | null;
 }
 
@@ -42,15 +38,13 @@ export const userRepo = {
 
   async create(input: CreateUserInput): Promise<User> {
     return withDb(async () => {
-      const passwordHash = input.password_hash || input.passwordHash || '';
-      const institutionId = input.institution_id || input.institutionId || null;
       const [user] = await db
         .insert(users)
         .values({
           email: input.email.toLowerCase(),
-          password_hash: passwordHash,
+          password_hash: input.password_hash || '',
           role: input.role || 'INDIVIDUAL',
-          institution_id: institutionId,
+          institution_id: input.institution_id || null,
         })
         .returning();
       return user as User;

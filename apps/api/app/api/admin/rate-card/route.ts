@@ -14,11 +14,11 @@ export const POST = safeRoute(async (req: Request) => {
   }
 
   const { category, conditionBand, priceBdt } = parsed.data;
-  const entry = await rateCardRepo.create({
+  const entry = await rateCardRepo.createEntry({
     category,
-    conditionBand,
-    priceBdt,
-    updatedBy: auth.user.userId,
+    condition_band: conditionBand,
+    price_bdt: priceBdt,
+    updated_by: auth.user.userId,
   });
 
   return apiSuccess('Rate card updated', { entry }, 201);
@@ -27,6 +27,6 @@ export const POST = safeRoute(async (req: Request) => {
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
   if (auth.response) return auth.response;
-  const entries = await rateCardRepo.findCurrent();
+  const entries = await rateCardRepo.findAll();
   return apiData({ entries });
 });

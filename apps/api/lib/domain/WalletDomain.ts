@@ -35,7 +35,7 @@ export const WalletDomain = {
     reason?: string | null;
     description?: string | null;
   }) {
-    const numAmount = typeof input.amount === 'number' ? input.amount : parseFloat(String(input.amount));
+    const numAmount = Number(input.amount);
     if (!Number.isFinite(numAmount)) {
       throw new Error('Invalid adjustment amount');
     }

@@ -31,7 +31,7 @@ export const PartnerDomain = {
     }
 
     // SPEC 00 §2.5: e_waste_licensed capability is granted only by an admin during verification
-    return partnerRepo.create({
+    return partnerRepo.apply({
       user_id: input.userId,
       org_name: input.orgName,
       types: input.types,
@@ -63,10 +63,6 @@ export const PartnerDomain = {
       throw new Error(`Invalid partner status transition from ${existing.status} to ${status}`);
     }
 
-    if (eWasteLicensed !== undefined) {
-      return partnerRepo.updateVerification(id, status, eWasteLicensed);
-    }
-
-    return partnerRepo.updateStatusAndLicense(id, status);
+    return partnerRepo.updateVerification(id, status, eWasteLicensed);
   },
 };

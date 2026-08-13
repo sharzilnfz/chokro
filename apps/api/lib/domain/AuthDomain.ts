@@ -19,14 +19,22 @@ export interface AuthUser {
   email: string;
   role: Role;
   institutionId?: string | null;
-  institution_id?: string | null;
   createdAt?: Date | string;
-  created_at?: Date | string;
 }
 
 export interface AuthSession {
   token: string;
   user: AuthUser;
+}
+
+function toAuthUser(user: { id: string; email: string; role: Role; institution_id?: string | null; created_at?: Date | string }): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    institutionId: user.institution_id,
+    createdAt: user.created_at,
+  };
 }
 
 export const AuthDomain = {
@@ -44,25 +52,8 @@ export const AuthDomain = {
       institution_id: input.institutionId ?? null,
     });
 
-    const payload: TokenPayload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const token = signToken(payload);
-    return {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        institutionId: user.institution_id,
-        institution_id: user.institution_id,
-        createdAt: user.created_at,
-        created_at: user.created_at,
-      },
-    };
+    const token = signToken({ userId: user.id, email: user.email, role: user.role });
+    return { token, user: toAuthUser(user) };
   },
 
   async authenticate(input: LoginInput): Promise<AuthSession> {
@@ -76,40 +67,12 @@ export const AuthDomain = {
       throw new Error('Invalid credentials');
     }
 
-    const payload: TokenPayload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const token = signToken(payload);
-    return {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        institutionId: user.institution_id,
-        institution_id: user.institution_id,
-        createdAt: user.created_at,
-        created_at: user.created_at,
-      },
-    };
+    const token = signToken({ userId: user.id, email: user.email, role: user.role });
+    return { token, user: toAuthUser(user) };
   },
 
   async getUserProfile(userId: string): Promise<AuthUser | null> {
     const user = await userRepo.findById(userId);
-    if (!user) {
-      return null;
-    }
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      institutionId: user.institution_id,
-      institution_id: user.institution_id,
-      createdAt: user.created_at,
-      created_at: user.created_at,
-    };
+    return user ? toAuthUser(user) : null;
   },
 };

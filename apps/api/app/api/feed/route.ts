@@ -17,7 +17,7 @@ export const GET = safeRoute(async (req: Request) => {
   const condition = conditionResult?.data;
   const limit = limitResult.data;
 
-  const allItems = await listingRepo.findFeedItems({ category, condition, cursor, limit });
+  const allItems = await listingRepo.findPublished({ category, condition, cursor, limit });
   const hasMore = allItems.length > limit;
   const items = allItems.slice(0, limit);
 

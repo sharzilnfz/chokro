@@ -1,5 +1,5 @@
 import { listingRepo, ListingFilter } from '@/lib/repos/listings';
-import { ListingStatus } from '@chokro/shared';
+import { ListingStatus, type Category, type Condition, type Unit } from '@chokro/shared';
 
 const TRANSITIONS: Record<string, string[]> = {
   DRAFT: ['ACTIVE', 'CANCELLED'],
@@ -8,11 +8,11 @@ const TRANSITIONS: Record<string, string[]> = {
 };
 
 export interface CreateListingData {
-  category: any;
-  unit: any;
+  category: Category;
+  unit: Unit;
   declaredWeight?: number | null;
   pieceCount?: number | null;
-  declaredCondition: any;
+  declaredCondition: Condition;
   photos: string[];
   status?: ListingStatus;
 }
@@ -61,7 +61,7 @@ export const ListingDomain = {
   },
 
   async getListingsByOwner(ownerId: string) {
-    return listingRepo.findByOwnerId(ownerId);
+    return listingRepo.findByOwner(ownerId);
   },
 
   async findPublished(filter?: ListingFilter) {

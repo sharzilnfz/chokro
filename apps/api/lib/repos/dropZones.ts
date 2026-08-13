@@ -41,7 +41,7 @@ export const dropZoneRepo = {
     });
   },
 
-  async resolveByLocation(_lat: number, _lng: number) {
+  async resolveByLocation() {
     return withDb(async () => {
       const rows = await db
         .select()
