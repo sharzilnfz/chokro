@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { TransactionItem } from '@/components/TransactionItem';
@@ -19,7 +20,15 @@ export function WalletScreen() {
   const transactions = data?.transactions ?? [];
   const errorMessage = error ? getErrorMessage(error, 'Could not load your wallet.') : '';
 
-  const renderItem = useCallback(({ item }: { item: CreditTransaction }) => <TransactionItem item={item} />, []);
+  const renderItem = useCallback(
+    ({ item }: { item: CreditTransaction }) => (
+      <Animated.View entering={FadeInUp.duration(200)}>
+        <TransactionItem item={item} />
+      </Animated.View>
+    ),
+    [],
+  );
+
 
   return (
     <StateView
@@ -57,14 +66,15 @@ export function WalletScreen() {
             <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Green Credits</Text>
             <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">One credit equals ৳1. Only verified outcomes count toward spendable balance.</Text>
 
-            <View className="bg-leaf-dark rounded-lg p-[20px] min-h-[190px] justify-end shadow-card" style={{ elevation: 2 }} accessibilityLabel={`Verified balance ${balance.verified.toFixed(2)} Green Credits`}>
+            <Animated.View entering={FadeInDown.duration(350)} className="bg-leaf-dark rounded-lg p-[20px] min-h-[190px] justify-end shadow-card" style={{ elevation: 2 }} accessibilityLabel={`Verified balance ${balance.verified.toFixed(2)} Green Credits`}>
               <View className="absolute top-[18px] right-[18px] w-[48px] h-[48px] rounded-[16px] bg-leaf items-center justify-center">
                 <Ionicons name="shield-checkmark" size={23} color={colors.surface} />
               </View>
               <Text className="text-[#BBD5C5] text-[11px] font-extrabold tracking-[1.2px]">VERIFIED BALANCE</Text>
               <Text className="text-surface text-[47px] leading-[53px] font-extrabold tracking-[-1.8px] mt-[4px]">{balance.verified.toFixed(2)}</Text>
               <Text className="text-[#DCEADF] text-[13px] font-semibold">Green Credits</Text>
-            </View>
+            </Animated.View>
+
 
             <View className="flex-row items-center justify-between gap-[14px] border border-[#E4C991] rounded-md bg-amber-soft p-[16px] mt-[12px]" accessibilityLabel={`Pending balance ${balance.pending.toFixed(2)} Green Credits`}>
               <View>

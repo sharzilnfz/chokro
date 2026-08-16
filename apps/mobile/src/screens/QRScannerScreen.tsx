@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,6 +7,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { apiRequest, getErrorMessage } from '@/services/api';
@@ -24,6 +33,28 @@ export function QRScannerScreen() {
   const [error, setError] = useState('');
   const [zone, setZone] = useState<DropZone | null>(null);
   const resolvingRef = useRef(false);
+
+  const scanLineY = useSharedValue(0);
+
+  useEffect(() => {
+    if (scanning && !loading) {
+      scanLineY.value = withRepeat(
+        withSequence(
+          withTiming(195, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      scanLineY.value = 0;
+    }
+  }, [scanning, loading, scanLineY]);
+
+  const scanLineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: scanLineY.value }],
+  }));
+
 
   const resolveToken = useCallback(
     async (rawToken: string) => {
@@ -105,11 +136,19 @@ export function QRScannerScreen() {
             accessibilityLabel="QR camera view"
           />
           <View pointerEvents="none" className="absolute top-0 right-0 bottom-0 left-0 items-center justify-center bg-[#0a160f]/16">
-            <View className="w-[205px] h-[205px] border-[3px] border-surface rounded-[22px]" />
+            <View className="w-[205px] h-[205px] border-[3px] border-surface rounded-[22px] overflow-hidden relative">
+              {scanning && !loading ? (
+                <Animated.View
+                  style={scanLineStyle}
+                  className="w-full h-[3px] bg-leaf rounded-full shadow-lg"
+                />
+              ) : null}
+            </View>
             <Text className="absolute bottom-[18px] text-surface text-[12px] font-extrabold bg-overlay px-[12px] py-[8px] rounded-pill overflow-hidden">{loading ? 'Resolving signed token...' : scanning ? 'Hold the poster QR inside the frame' : 'Scan paused'}</Text>
           </View>
         </View>
       )}
+
 
       <View className="bg-surface border border-border rounded-md p-[15px] mt-[13px]">
         <Text className="text-ink text-[14px] font-extrabold mb-[8px]">Enter a token instead</Text>
@@ -156,12 +195,15 @@ export function QRScannerScreen() {
       ) : null}
 
       {zone ? (
-        <DropZoneResultCard
-          zone={zone}
-          acceptedCategories={acceptedCategories}
-          onScanAgain={scanAgain}
-        />
+        <Animated.View entering={FadeInUp.duration(300)}>
+          <DropZoneResultCard
+            zone={zone}
+            acceptedCategories={acceptedCategories}
+            onScanAgain={scanAgain}
+          />
+        </Animated.View>
       ) : null}
     </ScrollView>
   );
 }
+

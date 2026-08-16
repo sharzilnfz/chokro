@@ -6,9 +6,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/theme';
+
 import { useAuth } from '@/context/AuthContext';
 import { FeedScreen } from '@/screens/FeedScreen';
 import { CreateListingScreen } from '@/screens/CreateListingScreen';
@@ -111,15 +113,16 @@ export function AppShell() {
         </Pressable>
       </View>
 
-      <View className="flex-1">
-        {activeTab === 'browse' && <FeedScreen />}
-        {activeTab === 'list' && (
+      <Animated.View key={activeTab} entering={FadeIn.duration(180)} className="flex-1">
+        {activeTab === 'browse' ? <FeedScreen /> : null}
+        {activeTab === 'list' ? (
           <CreateListingScreen onCreated={() => setActiveTab('browse')} />
-        )}
-        {activeTab === 'rates' && <RateCardScreen />}
-        {activeTab === 'wallet' && <WalletScreen />}
-        {activeTab === 'scan' && <QRScannerScreen />}
-      </View>
+        ) : null}
+        {activeTab === 'rates' ? <RateCardScreen /> : null}
+        {activeTab === 'wallet' ? <WalletScreen /> : null}
+        {activeTab === 'scan' ? <QRScannerScreen /> : null}
+      </Animated.View>
+
 
       <View className="min-h-[72px] flex-row px-2 pt-1.5 pb-1 bg-surface border-t border-border" accessibilityRole="tablist">
         {TABS.map((tab) => {

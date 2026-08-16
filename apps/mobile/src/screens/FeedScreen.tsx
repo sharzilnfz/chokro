@@ -1,25 +1,24 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import { CATEGORIES, CONDITIONS, categoryLabel } from '@/types';
+import { CATEGORIES, CONDITIONS, categoryLabel, type Listing } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { StateView } from '@/components/ui/StateView';
-import { useFeed, type FeedFilter, type ConditionFilter, type Listing } from '@/hooks/useFeed';
-
+import { useFeed, type FeedFilter, type ConditionFilter } from '@/hooks/useFeed';
 
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
 const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
-
-
 
 export function FeedScreen() {
   const [category, setCategory] = useState<FeedFilter>('ALL');
@@ -29,14 +28,35 @@ export function FeedScreen() {
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const errorMessage = error ? getErrorMessage(error, 'Could not load listings.') : '';
 
-  const renderCard = ({ item }: { item: Listing }) => <ListingCard item={item} />;
+  const renderCard = useCallback(
+    ({ item }: { item: Listing }) => (
+      <Animated.View entering={FadeInUp.duration(250)}>
+        <ListingCard item={item} />
+      </Animated.View>
+    ),
+    [],
+  );
+
+  const keyExtractor = useCallback((item: Listing) => item.id, []);
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <View className="flex-1 bg-background">
       <FlatList
         data={items}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderCard}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={[{ padding: 20, paddingBottom: 32 }, items.length === 0 && { flexGrow: 1 }]}
         refreshControl={
           <RefreshControl
@@ -46,6 +66,7 @@ export function FeedScreen() {
             tintColor={colors.leaf}
           />
         }
+
         ListHeaderComponent={
           <View>
             <Text className="text-leaf text-[11px] font-extrabold tracking-tight">COMMUNITY CIRCULATION</Text>

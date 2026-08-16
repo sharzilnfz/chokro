@@ -1,15 +1,15 @@
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
-import { categoryLabel, formatQuantityWithUnit } from '@/types';
-import type { Listing } from '@/hooks/useFeed';
+import { categoryLabel, formatQuantityWithUnit, type Listing } from '@/types';
 
 export interface ListingCardProps {
   item: Listing;
 }
 
-export function ListingCard({ item }: ListingCardProps) {
+export const ListingCard = React.memo(function ListingCard({ item }: ListingCardProps) {
   const quantity = item.unit === 'piece'
     ? item.piece_count ?? item.declared_weight
     : item.declared_weight;
@@ -26,7 +26,9 @@ export function ListingCard({ item }: ListingCardProps) {
         <Image
           source={{ uri: photo }}
           className="w-full h-[178px] bg-surface-muted"
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
+          cachePolicy="disk"
           accessibilityLabel={`${categoryLabel(item.category)} listing photo`}
         />
       ) : (
@@ -59,4 +61,5 @@ export function ListingCard({ item }: ListingCardProps) {
       </View>
     </View>
   );
-}
+});
+

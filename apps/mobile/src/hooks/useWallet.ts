@@ -1,23 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
+import type { Balance, CreditTransaction, WalletData } from '@/types';
 
-type Balance = { verified: number; pending: number };
-type CreditTransaction = {
-  id: string;
-  amount: string | number;
-  kind: 'EARN' | 'REDEEM' | 'ADJUST';
-  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
-  reason?: string | null;
-  source_id?: string | null;
-  created_at?: string;
-};
+export type { Balance, CreditTransaction, WalletData };
 
-type WalletData = {
-  balance: Balance;
-  transactions: CreditTransaction[];
-};
-
-export type { Balance, CreditTransaction };
 
 export function useWallet() {
   return useQuery<WalletData>({

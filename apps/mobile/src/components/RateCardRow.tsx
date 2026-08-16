@@ -1,7 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { categoryLabel } from '@/types';
-import type { RowRate } from '@/hooks/useRateCard';
+import { categoryLabel, type RowRate } from '@/types';
 
 export interface RateCardRowProps {
   item: RowRate;

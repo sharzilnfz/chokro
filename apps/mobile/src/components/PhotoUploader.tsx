@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import type { PreparedPhoto } from '@/lib/photo';
@@ -29,7 +30,9 @@ export function PhotoUploader({
           <Image
             source={{ uri: photo.previewUri }}
             className="w-full h-full"
-            style={{ resizeMode: 'cover' }}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="disk"
             accessibilityLabel="Selected item photo"
           />
           <Pressable

@@ -1,21 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
-
-type Rate = {
-  id: string;
-  category: string;
-  condition_band: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
-  unit: 'kg' | 'piece';
-  price_bdt: string | number;
-  effective_from: string;
-};
-
-type RowRate = {
-  category: string;
-  entries: Rate[];
-};
+import type { Rate, RowRate } from '@/types';
 
 export type { Rate, RowRate };
+
 
 function conditionOrder(condition: Rate['condition_band']) {
   return ['EXCELLENT', 'GOOD', 'FAIR', 'POOR'].indexOf(condition);

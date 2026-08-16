@@ -1,27 +1,9 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
-import type { Category, Condition } from '@/types';
-
-type ListingStatus = 'DRAFT' | 'ACTIVE' | 'CANCELLED' | 'MATCHED' | 'EXPIRED';
-
-type Listing = {
-  id: string;
-  category: Category;
-  unit: 'kg' | 'piece';
-  declared_weight?: string | number | null;
-  piece_count?: string | number | null;
-  declared_condition: Condition;
-  photos?: string[];
-  status: ListingStatus;
-  created_at?: string;
-};
-
-type FeedResponse = {
-  items: Listing[];
-  nextCursor?: string | null;
-};
+import type { Category, Condition, Listing, FeedResponse } from '@/types';
 
 export type { Listing };
+
 
 type FeedFilter = 'ALL' | Category;
 type ConditionFilter = 'ALL' | Condition;

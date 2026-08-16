@@ -2,15 +2,9 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
-import { categoryLabel } from '@/types';
+import { categoryLabel, type DropZone } from '@/types';
 
-export interface DropZone {
-  id: string;
-  name: string;
-  status: string;
-  acceptedCategories?: string[];
-  institutionId?: string;
-}
+export type { DropZone };
 
 export interface DropZoneResultCardProps {
   zone: DropZone;
@@ -18,7 +12,7 @@ export interface DropZoneResultCardProps {
   onScanAgain: () => void;
 }
 
-export function DropZoneResultCard({
+export const DropZoneResultCard = React.memo(function DropZoneResultCard({
   zone,
   acceptedCategories,
   onScanAgain,
@@ -57,4 +51,4 @@ export function DropZoneResultCard({
       </Pressable>
     </View>
   );
-}
+});

@@ -37,4 +37,7 @@ pnpm-debug.log*
 # Local agents & scratch
 .superpowers/
 .freebuff/
+.nx/
+.codebase-memory/
+*.tsbuildinfo
 

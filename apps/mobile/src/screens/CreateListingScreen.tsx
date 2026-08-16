@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
@@ -16,6 +17,7 @@ import { RateEstimateCard } from '@/components/RateEstimateCard';
 import { useCreateListing } from '@/hooks/useCreateListing';
 import { useEstimate } from '@/hooks/useEstimate';
 import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
+
 
 type CreateListingScreenProps = {
   onCreated: () => void;
@@ -196,15 +198,26 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
         </View>
       </View>
 
-      <RateEstimateCard
-        estimate={estimate ?? null}
-        isLoading={estimateLoading}
-        parsedQuantity={parsedQuantity}
-        totalEstimatedBdt={totalEstimatedBdt}
-      />
+      <Animated.View layout={LinearTransition.springify()}>
+        <RateEstimateCard
+          estimate={estimate ?? null}
+          isLoading={estimateLoading}
+          parsedQuantity={parsedQuantity}
+          totalEstimatedBdt={totalEstimatedBdt}
+        />
+      </Animated.View>
 
-      {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text> : null}
-      {notice ? <Text accessibilityRole="alert" className="text-leaf-dark bg-leaf-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{notice}</Text> : null}
+      {error ? (
+        <Animated.View entering={FadeInUp.duration(200)}>
+          <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text>
+        </Animated.View>
+      ) : null}
+      {notice ? (
+        <Animated.View entering={FadeInUp.duration(200)}>
+          <Text accessibilityRole="alert" className="text-leaf-dark bg-leaf-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{notice}</Text>
+        </Animated.View>
+      ) : null}
+
 
       <Pressable
         accessibilityRole="button"

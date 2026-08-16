@@ -1,14 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
+import type { CreateListingInput } from '@/types';
 
-type CreateListingPayload = {
-  category: string;
-  unit: 'kg' | 'piece';
-  declaredWeight?: number;
-  pieceCount?: number;
-  declaredCondition: string;
-  photos: string[];
-};
+export type CreateListingPayload = CreateListingInput;
+
 
 export function useCreateListing() {
   const queryClient = useQueryClient();

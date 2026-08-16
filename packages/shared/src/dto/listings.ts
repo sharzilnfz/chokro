@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CategoryEnum, ConditionEnum, isPieceCategory } from '../enums';
+import { CategoryEnum, ConditionEnum, isPieceCategory, type Category, type Condition, type ListingStatus } from '../enums';
 
 export const CreateListingSchema = z.object({
   category: CategoryEnum,
@@ -18,7 +18,26 @@ export const CreateListingSchema = z.object({
     context.addIssue({ code: 'custom', message: 'This category requires kg unit and declaredWeight' });
   }
 });
-export type CreateListingInput = z.infer<typeof CreateListingSchema>;
+export type CreateListingInput = z.input<typeof CreateListingSchema>;
+export type CreateListingOutput = z.output<typeof CreateListingSchema>;
 
 export const UpdateListingSchema = z.object({ status: z.enum(['DRAFT', 'ACTIVE', 'CANCELLED']) });
 export type UpdateListingInput = z.infer<typeof UpdateListingSchema>;
+
+export type Listing = {
+  id: string;
+  category: Category;
+  unit: 'kg' | 'piece';
+  declared_weight?: string | number | null;
+  piece_count?: string | number | null;
+  declared_condition: Condition;
+  photos?: string[];
+  status: ListingStatus;
+  created_at?: string;
+};
+
+export type FeedResponse = {
+  items: Listing[];
+  nextCursor?: string | null;
+};
+
