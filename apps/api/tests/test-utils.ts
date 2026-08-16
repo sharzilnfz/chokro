@@ -1,3 +1,5 @@
+// Shared test helpers: bootstrap the DB schema, reset tables between tests,
+// and mint users, tokens, headers, and route params for route tests.
 import crypto from 'crypto';
 import { db, users, sql } from '@chokro/db';
 import type { Role } from '@chokro/shared';
@@ -14,12 +16,14 @@ const TABLE_DDLS = [
   );`,
   `CREATE TABLE IF NOT EXISTS partners (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL REFERENCES users(id),
+    user_id uuid NOT NULL UNIQUE REFERENCES users(id),
     org_name varchar(255) NOT NULL,
     types jsonb NOT NULL,
     e_waste_licensed boolean NOT NULL DEFAULT false,
     status varchar(50) NOT NULL DEFAULT 'APPLIED',
     doe_license_doc text,
+    reason text,
+    capability_flags jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS listings (
@@ -63,6 +67,35 @@ const TABLE_DDLS = [
     reason text,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS user_streaks (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL UNIQUE REFERENCES users(id),
+    current_streak_days integer NOT NULL DEFAULT 0,
+    longest_streak_days integer NOT NULL DEFAULT 0,
+    last_active_at timestamp,
+    streak_multiplier decimal(4, 2) NOT NULL DEFAULT '1.00',
+    leaderboard_opt_out boolean NOT NULL DEFAULT false,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS badge_awards (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES users(id),
+    badge_type varchar(50) NOT NULL,
+    award_points decimal(10, 2) NOT NULL,
+    meta jsonb NOT NULL DEFAULT '{}'::jsonb,
+    awarded_at timestamp NOT NULL DEFAULT NOW(),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS campus_leaderboards (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    period varchar(20) NOT NULL,
+    campus_id varchar(255) NOT NULL,
+    total_points decimal(12, 2) NOT NULL DEFAULT '0',
+    member_count integer NOT NULL DEFAULT 0,
+    top_scorer_user_id uuid REFERENCES users(id),
+    snapshot_date date NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -79,21 +112,25 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
   `);
 }
 
-export async function createTestUser(role: Role = 'INDIVIDUAL', email = `${crypto.randomUUID()}@test.chokro.org`) {
+export async function createTestUser(
+  role: Role = 'INDIVIDUAL',
+  email = `${crypto.randomUUID()}@test.chokro.org`,
+  institutionId?: string | null
+) {
   await ensureTestDbSchema();
   const user = {
     id: crypto.randomUUID(),
     email,
     password_hash: hashPassword('password123'),
     role,
-    institution_id: null,
+    institution_id: institutionId || null,
   };
   const rows = await db.insert(users).values(user).returning();
-  return rows[0] as { id: string; email: string; role: Role };
+  return rows[0] as { id: string; email: string; role: Role; institution_id: string | null };
 }
 
 export function tokenFor(user: { id: string; email: string; role: Role }) {

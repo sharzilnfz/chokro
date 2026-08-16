@@ -1,6 +1,8 @@
+// Dismissible status/alerts banner that adapts its tone, ARIA role, and live region to the message type.
 import type { ReactNode } from 'react';
 import { cx } from '../../lib/formatters';
 
+// Visual and semantic tone for the message; error is announced assertively.
 export type NoticeTone = 'success' | 'error' | 'warning' | 'info';
 
 export type AdminStatusMessageProps = {
@@ -10,6 +12,7 @@ export type AdminStatusMessageProps = {
   onDismiss?: () => void;
 };
 
+// Renders nothing when empty; otherwise the tone-styled message plus an opt-in dismiss button.
 export function AdminStatusMessage({
   tone = 'success',
   children,

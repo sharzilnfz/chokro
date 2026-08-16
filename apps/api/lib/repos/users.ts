@@ -1,11 +1,17 @@
+// users repo: persistence for registered user accounts, with result rows narrowed
+// to the shared Role type.
+//
+// Drizzle user table + equality comparator, shared role type, and the DB seam.
 import { db, users, eq } from '@chokro/db';
 import type { Role } from '@chokro/shared';
 import { withDb } from './seam';
 
+// Row type with the role column pinned to the shared Role union.
 export type User = typeof users.$inferSelect & {
   role: Role;
 };
 
+// Persistence payload; optional fields fall back to safe defaults on insert.
 export interface CreateUserInput {
   email: string;
   password_hash?: string;
@@ -14,6 +20,7 @@ export interface CreateUserInput {
 }
 
 export const userRepo = {
+  // Lookup by normalized email, e.g. for login and duplicate detection.
   async findByEmail(email: string): Promise<User | null> {
     return withDb(async () => {
       const rows = await db
@@ -25,6 +32,7 @@ export const userRepo = {
     });
   },
 
+  // Lookup by primary key.
   async findById(id: string): Promise<User | null> {
     return withDb(async () => {
       const rows = await db
@@ -36,6 +44,8 @@ export const userRepo = {
     });
   },
 
+  // Insert a new account: emails are stored lowercase, the hash defaults to empty,
+  // and without a role the user lands as INDIVIDUAL.
   async create(input: CreateUserInput): Promise<User> {
     return withDb(async () => {
       const [user] = await db
@@ -48,6 +58,18 @@ export const userRepo = {
         })
         .returning();
       return user as User;
+    });
+  },
+
+  // Update a user's role (e.g. promoting to PARTNER upon verification or resetting to INDIVIDUAL on rejection).
+  async updateRole(id: string, role: Role): Promise<User | null> {
+    return withDb(async () => {
+      const [updated] = await db
+        .update(users)
+        .set({ role })
+        .where(eq(users.id, id))
+        .returning();
+      return (updated as User) || null;
     });
   },
 };

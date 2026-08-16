@@ -1,12 +1,17 @@
+// Covers the public feed: filtering, composite-cursor pagination, and status
+// visibility for seeded listings.
 import { db, listings } from '@chokro/db';
 import { GET as getFeed } from '../app/api/feed/route';
 import { createTestUser, resetTestStore } from './test-utils';
 
+// Row factory for seeding the listings table with known ids and timestamps.
 function listing(id: string, ownerId: string, category: string, condition: string, createdAt: string, status = 'ACTIVE') {
   return { id, owner_id: ownerId, category, unit: 'kg', declared_weight: '1', piece_count: null, declared_condition: condition, photos: [], status, created_at: new Date(createdAt) };
 }
 
+// Feed API: deterministic seeded rows drive filter and cursor checks.
 describe('feed API', () => {
+  // Seed four listings with known ids and sort order once per case.
   beforeEach(async () => {
     await resetTestStore();
     const user = await createTestUser();
@@ -18,6 +23,7 @@ describe('feed API', () => {
     ]);
   });
 
+  // Category + condition filters narrow the feed to the matching ACTIVE listing.
   it('returns active listings filtered by category and condition', async () => {
     const response = await getFeed(new Request('http://localhost/api/feed?category=BOOKS&condition=GOOD'));
     const data = await response.json();
@@ -26,6 +32,7 @@ describe('feed API', () => {
     expect(data.items[0].id).toBe('00000000-0000-0000-0000-000000000003');
   });
 
+  // The (created_at, id) cursor pages without gaps, duplicates, or a trailing cursor.
   it('uses a stable composite cursor without duplicates', async () => {
     const firstResponse = await getFeed(new Request('http://localhost/api/feed?limit=2'));
     const first = await firstResponse.json();

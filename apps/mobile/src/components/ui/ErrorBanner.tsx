@@ -1,12 +1,16 @@
+// Inline alert banner for surfacing errors at the top of a screen or form.
+// Third-party and app modules used to render the banner.
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
+// Props: the error text to display.
 type ErrorBannerProps = {
   message: string;
 };
 
+// Renders a dismissible-free alert row with icon and message.
 export function ErrorBanner({ message }: ErrorBannerProps) {
   return (
     <View accessibilityRole="alert" className="flex-row items-center gap-[8px] bg-danger-soft rounded-sm p-[12px] mb-[14px]">

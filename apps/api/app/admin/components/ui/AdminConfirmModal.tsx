@@ -1,8 +1,11 @@
+// Confirmation dialog for destructive-irreversible admin decisions, shown over a blurred backdrop.
 'use client';
 
+// Escape-key handling plus the shared button component for cancel/confirm.
 import { useEffect, type ReactNode } from 'react';
 import { AdminButton, type ButtonVariant } from './AdminButton';
 
+// Props for the modal: visibility, copy, button variants, and confirm/cancel callbacks.
 export type AdminConfirmModalProps = {
   isOpen: boolean;
   title: string;
@@ -26,6 +29,7 @@ export function AdminConfirmModal({
   onConfirm,
   onCancel,
 }: AdminConfirmModalProps) {
+  // Closes on Escape when open and not currently submitting, keeping the modal keyboard-accessible.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -39,6 +43,7 @@ export function AdminConfirmModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, loading, onCancel]);
 
+  // Backdrop click also cancels unless the confirm action is in flight; returns null when closed.
   if (!isOpen) return null;
 
   return (
@@ -63,6 +68,7 @@ export function AdminConfirmModal({
         }
       }}
     >
+      {/* Dialog surface with the description and the cancel/confirm action row */}
       <div
         className="admin-panel"
         style={{

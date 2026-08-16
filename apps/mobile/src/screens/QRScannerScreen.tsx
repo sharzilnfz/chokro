@@ -1,3 +1,7 @@
+// QRScannerScreen recognizes Drop Zones: it can read the signed QR on a zone
+// poster through the camera or accept a typed token, then resolves the zone.
+
+// Expo camera, shared icon set, and the token/zone modules used for resolution.
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,17 +18,21 @@ import { colors } from '@/theme';
 import { parseDropZoneToken } from '@/lib/qr';
 import { DropZoneResultCard, type DropZone } from '@/components/DropZoneResultCard';
 
+// Fallback so acceptedCategories is never undefined before a zone resolves.
 const EMPTY_CATEGORIES: string[] = [];
 
 export function QRScannerScreen() {
+  // Camera permission, manual token input, and the current scan/lookup session.
   const [permission, requestPermission] = useCameraPermissions();
   const [manualToken, setManualToken] = useState('');
   const [scanning, setScanning] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [zone, setZone] = useState<DropZone | null>(null);
+  // Set while a resolution is in flight so scans can't stack identical calls.
   const resolvingRef = useRef(false);
 
+  // Parses and resolves a scanned/typed token into a DropZone; no-op while busy.
   const resolveToken = useCallback(
     async (rawToken: string) => {
       const zoneToken = parseDropZoneToken(rawToken);
@@ -54,6 +62,7 @@ export function QRScannerScreen() {
     [],
   );
 
+  // Camera callback that forwards every scanned barcode into the resolver.
   const handleBarcode = useCallback(
     (result: BarcodeScanningResult) => {
       void resolveToken(result.data);
@@ -61,6 +70,7 @@ export function QRScannerScreen() {
     [resolveToken],
   );
 
+  // Resets the session so the user can scan or enter another token.
   const scanAgain = useCallback(() => {
     setZone(null);
     setError('');
@@ -70,18 +80,21 @@ export function QRScannerScreen() {
 
   const acceptedCategories = zone?.acceptedCategories ?? EMPTY_CATEGORIES;
 
+  // Screen is one scrollable column: header copy, camera, manual entry, result.
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-[20px] pb-[36px]" keyboardShouldPersistTaps="handled">
       <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">SIGNED ZONE RECOGNITION</Text>
       <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Scan a Drop Zone</Text>
       <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">Recognize a registered zone before you visit. Sprint 1 does not create a deposit or Green Credits.</Text>
 
+      {/* Camera surface: permission pending, denied-with-prompt, or live scanner. */}
       {!permission ? (
         <View className="h-[300px] rounded-lg bg-surface-muted items-center justify-center" accessibilityLiveRegion="polite">
           <ActivityIndicator color={colors.leaf} />
           <Text className="text-muted text-[13px] mt-[9px]">Checking camera permission</Text>
         </View>
       ) : !permission.granted ? (
+        // Permission denied — explain the need and offer an allow-camera button.
         <View className="min-h-[260px] border border-border rounded-lg bg-surface items-center justify-center p-[24px] shadow-card" style={{ elevation: 2 }}>
           <Ionicons name="camera-outline" size={31} color={colors.leaf} />
           <Text className="text-ink text-[18px] font-extrabold mt-[10px]">Camera permission needed</Text>
@@ -96,6 +109,7 @@ export function QRScannerScreen() {
           </Pressable>
         </View>
       ) : (
+        // Live scanner: rear camera preview capped to QR-only reading.
         <View className="h-[310px] rounded-lg overflow-hidden bg-ink shadow-card" style={{ elevation: 2 }}>
           <CameraView
             className="flex-1"
@@ -104,6 +118,7 @@ export function QRScannerScreen() {
             onBarcodeScanned={scanning && !loading ? handleBarcode : undefined}
             accessibilityLabel="QR camera view"
           />
+          {/* Overlay target frame plus a status pill (waiting / resolving / paused). */}
           <View pointerEvents="none" className="absolute top-0 right-0 bottom-0 left-0 items-center justify-center bg-[#0a160f]/16">
             <View className="w-[205px] h-[205px] border-[3px] border-surface rounded-[22px]" />
             <Text className="absolute bottom-[18px] text-surface text-[12px] font-extrabold bg-overlay px-[12px] py-[8px] rounded-pill overflow-hidden">{loading ? 'Resolving signed token...' : scanning ? 'Hold the poster QR inside the frame' : 'Scan paused'}</Text>
@@ -111,6 +126,7 @@ export function QRScannerScreen() {
         </View>
       )}
 
+      {/* Manual fallback: type the poster token instead of scanning it. */}
       <View className="bg-surface border border-border rounded-md p-[15px] mt-[13px]">
         <Text className="text-ink text-[14px] font-extrabold mb-[8px]">Enter a token instead</Text>
         <TextInput
@@ -137,6 +153,7 @@ export function QRScannerScreen() {
         </Pressable>
       </View>
 
+      {/* Resolution-failure banner, with a one-tap way back to scanning. */}
       {error ? (
         <View accessibilityRole="alert" className="flex-row items-start gap-[10px] bg-danger-soft rounded-md p-[14px] mt-[13px]">
           <Ionicons name="alert-circle-outline" size={22} color={colors.danger} />
@@ -155,6 +172,7 @@ export function QRScannerScreen() {
         </View>
       ) : null}
 
+      {/* Successful resolution: shows the recognized zone's details and next step. */}
       {zone ? (
         <DropZoneResultCard
           zone={zone}

@@ -1,3 +1,5 @@
+// App-side domain types, shared re-exports, and label formatting helpers.
+// Re-export shared domain enums, types, and category/unit helpers for local use.
 export {
   CategoryEnum,
   ConditionEnum,
@@ -15,6 +17,7 @@ export {
   formatQuantityWithUnit,
 } from '@chokro/shared';
 
+// Authenticated app user with role and optional institution link.
 export type User = {
   id: string;
   email: string;
@@ -22,11 +25,13 @@ export type User = {
   institutionId?: string | null;
 };
 
+// Session bundling the auth token with the signed-in user.
 export type AuthSession = {
   token: string;
   user: User;
 };
 
+// Convert snake_case enum keys into readable Title Case labels.
 export function categoryLabel(category: string): string {
   return category
     .toLowerCase()

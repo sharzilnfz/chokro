@@ -1,7 +1,11 @@
+// Key-value persistence that routes to localStorage on web and SecureStore on native.
+// Platform check plus the secure key-value store for native builds.
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
+// Storage facade with catch-and-ignore semantics when a backend is unavailable.
 export const storage = {
+  // Read a value, falling back to null on web and when SecureStore is missing.
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') {
       try {
@@ -19,6 +23,7 @@ export const storage = {
     return null;
   },
 
+  // Persist a value on the active backend.
   async setItem(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
       try {
@@ -36,6 +41,7 @@ export const storage = {
     } catch {}
   },
 
+  // Remove a stored value from the active backend.
   async deleteItem(key: string): Promise<void> {
     if (Platform.OS === 'web') {
       try {

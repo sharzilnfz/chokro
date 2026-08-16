@@ -1,11 +1,15 @@
+// Labeled text input used across forms.
+// Third-party and app modules used to render the input.
 import React from 'react';
 import { Text, TextInput, type TextInputProps } from 'react-native';
 import { colors } from '@/theme';
 
+// Standard TextInput props plus a required label.
 type InputProps = TextInputProps & {
   label: string;
 };
 
+// Renders the label above the styled text field.
 export function Input({ label, ...props }: InputProps) {
   return (
     <>

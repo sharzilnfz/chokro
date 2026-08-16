@@ -1,22 +1,27 @@
+// Admin sign-in screen: validates credentials against the auth API and hands the session token up to the shell.
 'use client';
 
+// Form state, API error parsing, and admin form primitives.
 import { useState, type FormEvent } from 'react';
 import { parseApiError } from '../../services/adminApi';
 import { AdminButton } from '../ui/AdminButton';
 import { AdminInput } from '../ui/AdminInput';
 import { AdminStatusMessage } from '../ui/AdminStatusMessage';
 
+// Props contract: optional banner message plus the callback fired with a valid token.
 export type SignInFormProps = {
   initialMessage?: string;
   onSuccess: (token: string) => void;
 };
 
 export function SignInForm({ initialMessage, onSuccess }: SignInFormProps) {
+  // Controlled form fields and submission/error state.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Submits credentials and only forwards the token when the account has the ADMIN role.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -63,6 +68,7 @@ export function SignInForm({ initialMessage, onSuccess }: SignInFormProps) {
   }
 
   return (
+    // Split-screen layout: brand/positioning copy on the left, the form card on the right
     <main className="admin-auth-shell">
       <section className="admin-auth-brand" aria-labelledby="admin-sign-in-intro">
         <div className="admin-auth-wordmark">
@@ -89,12 +95,14 @@ export function SignInForm({ initialMessage, onSuccess }: SignInFormProps) {
           </h2>
           <p className="admin-auth-form-copy">Use an account with the ADMIN role to continue.</p>
 
+          {/* Session banner for auth-service messages or credential errors */}
           {(error || initialMessage) && (
             <AdminStatusMessage tone={error ? 'error' : 'success'}>
               {error || initialMessage}
             </AdminStatusMessage>
           )}
 
+          {/* Credential fields plus the submit button */}
           <form className="admin-form" onSubmit={handleSubmit}>
             <AdminInput
               id="admin-email"

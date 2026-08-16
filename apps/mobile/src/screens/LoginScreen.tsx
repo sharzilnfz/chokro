@@ -1,3 +1,7 @@
+// LoginScreen: sign-in form for existing users — validates, calls signIn, and
+// surfaces API errors inline; links over to the signup flow.
+
+// Imports: layout/keyboard primitives, icon + status bar, and shared auth UI.
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -17,17 +21,20 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 
+// onShowSignup tells the shell to flip to the account-creation screen.
 type LoginScreenProps = {
   onShowSignup: () => void;
 };
 
 export function LoginScreen({ onShowSignup }: LoginScreenProps) {
+  // signIn mutation plus email/password state and local error/loading flags.
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Normalizes the email, validates both fields, then signs in.
   const handleLogin = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail || !password) {
@@ -47,6 +54,7 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
   };
 
   return (
+    // Keyboard-aware and scrollable so the form never hides under the keyboard.
     <SafeAreaView className="flex-1 bg-background">
       <KeyboardAvoidingView
         className="flex-1 bg-background"
@@ -57,18 +65,21 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
           keyboardShouldPersistTaps="handled"
         >
           <View className="flex-row items-center gap-[10px] mb-[44px]">
+            {/* Brand mark and app name. */}
             <View className="w-[44px] h-[44px] rounded-[15px] bg-leaf items-center justify-center" accessibilityElementsHidden>
               <Ionicons name="leaf" size={24} color={colors.surface} />
             </View>
             <Text className="text-ink text-[22px] font-extrabold tracking-tight">Chokro</Text>
           </View>
 
+          {/* Welcome copy teasing the app's value proposition. */}
           <View className="mb-[24px]">
             <Text className="text-leaf text-[12px] leading-[18px] font-extrabold tracking-[1.4px]">CIRCULAR, WITH PROOF</Text>
             <Text accessibilityRole="header" className="text-ink text-[36px] leading-[42px] font-extrabold tracking-tight mt-[5px]">Welcome back</Text>
             <Text className="text-muted text-[16px] leading-[24px] mt-[9px] max-w-[420px]">Sign in to list useful items, recognize drop zones, and see verified Green Credits.</Text>
           </View>
 
+          {/* The login card: email/password, inline error, submit, and signup link. */}
           <View className="bg-surface rounded-lg border border-border p-[20px] shadow-card" style={{ elevation: 2 }}>
             <Input
               label="Email address"
@@ -95,6 +106,7 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
               onSubmitEditing={() => void handleLogin()}
             />
 
+            {/* Surfaces a failed-sign-in message, if any. */}
             {error ? <ErrorBanner message={error} /> : null}
 
             <Button
@@ -103,6 +115,7 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
               onPress={() => void handleLogin()}
             />
 
+            {/* Flipping to signup — hidden while a sign-in request is pending. */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Create a new account"

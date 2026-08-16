@@ -1,8 +1,11 @@
+// GET /api/listings/{id} — auth required, owner-or-admin. Fetches a single listing.
+// PATCH /api/listings/{id} — auth required, owner-or-admin. Transitions a listing's status.
 import { UpdateListingSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
 import { listingService } from '@/lib/services/listingService';
 
+// Returns a single listing, but only to its owner or an admin.
 export const GET = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
   if (auth.response) return auth.response;
@@ -20,6 +23,7 @@ export const GET = safeRoute(async (req: Request, { params }: { params: Promise<
   return apiData({ listing });
 });
 
+// Updates a listing's status, enforcing ownership and valid state transitions.
 export const PATCH = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
   if (auth.response) return auth.response;
@@ -29,6 +33,7 @@ export const PATCH = safeRoute(async (req: Request, { params }: { params: Promis
     return apiError('Invalid listing update', 400);
   }
 
+  // Validate existence, ownership, and a legal transition before mutating state.
   const existing = await listingService.getListingById(id);
   if (!existing) {
     return apiError('Listing not found', 404);

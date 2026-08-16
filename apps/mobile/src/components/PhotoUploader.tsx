@@ -1,9 +1,12 @@
+// Form section for picking and previewing an item photo before submission.
+// Third-party and app modules used to render the uploader.
 import React from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import type { PreparedPhoto } from '@/lib/photo';
 
+// Props wiring the uploader to form state and the image-picker flow.
 export interface PhotoUploaderProps {
   photo: PreparedPhoto | null;
   preparingPhoto: boolean;
@@ -11,6 +14,7 @@ export interface PhotoUploaderProps {
   onRemovePhoto: () => void;
 }
 
+// Renders either a preview with a remove control or a picker prompt.
 export function PhotoUploader({
   photo,
   preparingPhoto,
@@ -24,6 +28,7 @@ export function PhotoUploader({
         <Text className="text-ink text-[17px] font-extrabold">Item photo</Text>
       </View>
 
+      {/* Chosen photo with overlay remove button, or a dashed drop-zone CTA. */}
       {photo ? (
         <View className="h-[220px] rounded-[14px] overflow-hidden bg-surface-muted">
           <Image

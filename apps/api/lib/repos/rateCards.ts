@@ -1,9 +1,15 @@
+// rateCards repo: persistence of buy-rate price entries and resolution of the
+// single currently-published price per category/condition/unit.
+//
+// Drizzle rate-card table, category unit default from shared, and the DB seam.
 import { db, rateCardEntries, desc, lt } from '@chokro/db';
 import { getCategoryUnit } from '@chokro/shared';
 import { withDb } from './seam';
 
+// Inferred row type for a single rate-card entry.
 export type RateCardEntry = typeof rateCardEntries.$inferSelect;
 
+// Values accepted when publishing a new rate-card entry.
 export interface CreateRateCardEntryInput {
   category: string;
   condition_band?: string;
@@ -14,6 +20,8 @@ export interface CreateRateCardEntryInput {
 }
 
 export const rateCardRepo = {
+  // Insert a rate entry, falling back to sensible defaults for condition, unit,
+  // price, and effectivity when the caller omits them.
   async createEntry(input: CreateRateCardEntryInput): Promise<RateCardEntry> {
     return withDb(async () => {
       const [entry] = await db
@@ -31,6 +39,7 @@ export const rateCardRepo = {
     });
   },
 
+  // Published rate snapshot: entries already effective, newest per category/condition/unit.
   async findPublished(now: Date = new Date()): Promise<RateCardEntry[]> {
     return withDb(async () => {
       const all: RateCardEntry[] = await db
@@ -39,6 +48,7 @@ export const rateCardRepo = {
         .where(lt(rateCardEntries.effective_from, now))
         .orderBy(desc(rateCardEntries.effective_from));
 
+      // Keep only the newest effective entry per category/condition/unit triple.
       const seen = new Set<string>();
       const deduplicated: RateCardEntry[] = [];
       for (const entry of all) {
@@ -52,6 +62,7 @@ export const rateCardRepo = {
     });
   },
 
+  // Full price history (admin inspection), newest first.
   async findAll(): Promise<RateCardEntry[]> {
     return withDb(async () => {
       return db

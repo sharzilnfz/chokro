@@ -1,8 +1,12 @@
+// Central HTTP client for the Chokro API: base URL, auth token wiring, and typed errors.
+// Expo config for the API URL plus platform checks.
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// API URL from env (highest priority) or Expo extra config.
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl;
 
+// Pick the most reachable base URL for the current platform.
 function resolveApiUrl(): string {
   const base = String(configuredUrl || 'http://localhost:3000').replace(/\/$/, '');
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
@@ -14,6 +18,7 @@ function resolveApiUrl(): string {
   return base;
 }
 
+// Resolved, exported base URL used by every request.
 export const API_URL = resolveApiUrl();
 
 /** Called by AuthContext to register a global handler for 401 responses. */
@@ -22,6 +27,7 @@ export function setOnUnauthorized(cb: (() => void) | null) {
   onUnauthorized = cb;
 }
 
+// Auth token, either set directly or pulled from a live provider.
 let currentToken: string | null = null;
 let tokenProvider: (() => string | null | undefined) | null = null;
 
@@ -43,6 +49,7 @@ export function getAuthToken(): string | null {
   return currentToken;
 }
 
+// Error carrying the HTTP status so callers can branch on status codes.
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -53,20 +60,24 @@ export class ApiError extends Error {
   }
 }
 
+// Request options with a dedicated token override and plain headers record.
 type ApiRequestOptions = Omit<RequestInit, 'headers'> & {
   token?: string;
   headers?: Record<string, string>;
 };
 
+// Performs the fetch, attaches auth, parses JSON, and normalizes failures.
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { token, headers, ...requestOptions } = options;
   const activeToken = token ?? getAuthToken();
 
+  // Reuse the active token unless the caller explicitly overrides auth.
   const authHeader: Record<string, string> = {};
   if (activeToken && !headers?.Authorization && !headers?.authorization) {
     authHeader.Authorization = `Bearer ${activeToken}`;
   }
 
+  // Compose the request: standard JSON headers, bearer auth, plus any extras.
   const response = await fetch(`${API_URL}${path}`, {
     ...requestOptions,
     headers: {
@@ -77,6 +88,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     },
   });
 
+  // Parse the body as JSON, tolerating empty or malformed responses.
   const text = await response.text();
   let data: unknown = {};
   if (text) {
@@ -89,6 +101,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     }
   }
 
+  // Surface non-2xx responses as a typed error and notify the 401 handler.
   if (!response.ok) {
     const message =
       typeof data === 'object' && data && 'error' in data && typeof data.error === 'string'
@@ -103,6 +116,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   return data as T;
 }
 
+// Best-effort human-readable message from any thrown value, for display.
 export function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof TypeError) return `Could not reach the Chokro API at ${API_URL}.`;

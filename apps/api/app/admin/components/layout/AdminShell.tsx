@@ -1,5 +1,7 @@
+// Admin app chrome: gates content behind sign-in, renders the top navigation, session controls, and page body.
 'use client';
 
+// Next navigation for active-link state, auth context, and shared UI primitives.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -7,14 +9,17 @@ import { useAdminAuth } from '../../context/AdminAuthContext';
 import { SignInForm } from '../auth/SignInForm';
 import { AdminButton } from '../ui/AdminButton';
 
+// Top-level sections that make up the console navigation.
 const NAVIGATION_ITEMS = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/rate-card', label: 'Rate card' },
   { href: '/admin/partners', label: 'Partner queue' },
+  { href: '/admin/leaderboard', label: 'Leaderboard' },
   { href: '/admin/drop-zones', label: 'Drop zones' },
 ] as const;
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  // Track the current route and read the session/lifecycle actions from the auth context.
   const pathname = usePathname();
   const {
     status,
@@ -25,6 +30,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     setTokenAndSignIn,
   } = useAdminAuth();
 
+  // While rehydrating the stored session, show a brief restoring indicator.
   if (status === 'loading') {
     return (
       <div className="admin-auth-loading" role="status" aria-live="polite">
@@ -38,10 +44,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
     );
   }
 
+  // Without a session, render the sign-in form in place of the console.
   if (status === 'signed-out') {
     return <SignInForm initialMessage={sessionMessage} onSuccess={setTokenAndSignIn} />;
   }
 
+  // Signed-in console: branded top bar with nav, then the routed page content.
   return (
     <div className="admin-shell">
       <header className="admin-topbar" role="banner">
@@ -56,6 +64,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
 
+          {/* Navigation links with the active section highlighted */}
           <nav className="admin-nav" aria-label="Admin navigation">
             {NAVIGATION_ITEMS.map((item) => {
               const isCurrent =
@@ -76,6 +85,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
+          {/* Session control with a sign-out action */}
           <div className="admin-session-control">
             <span className="admin-session-label">Admin session</span>
             <AdminButton variant="quiet" type="button" onClick={logout}>
@@ -85,6 +95,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
+      {/* Dismissible global banner for permission-denied feedback */}
       {permissionMessage && (
         <div className="admin-global-alert" role="alert">
           <span>{permissionMessage}</span>
@@ -94,6 +105,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
+      {/* Routed page content */}
       <main className="admin-main">{children}</main>
     </div>
   );

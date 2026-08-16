@@ -1,7 +1,10 @@
+// Reusable primary button with loading and disabled states.
+// Third-party and app modules used to render the button.
 import React from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 import { colors } from '@/theme';
 
+// Config for label, press handler, and interactive states.
 type ButtonProps = {
   label: string;
   onPress: () => void;
@@ -10,7 +13,9 @@ type ButtonProps = {
   accessibilityLabel?: string;
 };
 
+// Pressable that swaps its label for a spinner while loading.
 export function Button({ label, onPress, loading = false, disabled = false, accessibilityLabel }: ButtonProps) {
+  // Loading implies disabled for both styling and interaction.
   const isDisabled = disabled || loading;
 
   return (

@@ -1,3 +1,7 @@
+// FeedScreen renders the "Browse" home tab: a paginated feed of active listings
+// filterable by category and condition, with pull-to-refresh and load-more.
+
+// React Native primitives for the list, plus internal UI and feed-hook imports.
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,21 +20,26 @@ import { StateView } from '@/components/ui/StateView';
 import { useFeed, type FeedFilter, type ConditionFilter, type Listing } from '@/hooks/useFeed';
 
 
+// Filter presets: every shared category/condition plus "ALL" to clear the filter.
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
 const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
 
 
 
 export function FeedScreen() {
+  // Selected category/condition filters; "ALL" means show everything.
   const [category, setCategory] = useState<FeedFilter>('ALL');
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
 
+  // Feed query keyed by the active filters; pages flatten into one item list.
   const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeed(category, condition);
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const errorMessage = error ? getErrorMessage(error, 'Could not load listings.') : '';
 
+  // Each listing row delegates its full card UI to the shared ListingCard.
   const renderCard = ({ item }: { item: Listing }) => <ListingCard item={item} />;
 
+  // The feed list, with filters in the header and bespoke empty/footer states.
   return (
     <View className="flex-1 bg-background">
       <FlatList
@@ -47,11 +56,13 @@ export function FeedScreen() {
           />
         }
         ListHeaderComponent={
+          // Title copy plus scrollable category and condition filter chips.
           <View>
             <Text className="text-leaf text-[11px] font-extrabold tracking-tight">COMMUNITY CIRCULATION</Text>
             <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Browse</Text>
             <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">Active listings from people giving useful things another turn.</Text>
 
+            {/* Category chip row — tapping one narrows the feed. */}
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CATEGORIES.map((item) => {
@@ -72,6 +83,7 @@ export function FeedScreen() {
               })}
             </ScrollView>
 
+            {/* Condition chip row — taps narrow the feed to a declared condition. */}
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Condition</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CONDITIONS.map((item) => {
@@ -94,6 +106,7 @@ export function FeedScreen() {
           </View>
         }
         ListEmptyComponent={
+          // Covers loading, fetch error, and "no listings match" in one view.
           <StateView
             isLoading={isLoading}
             loadingTitle="Loading active listings"
@@ -110,6 +123,7 @@ export function FeedScreen() {
           />
         }
         ListFooterComponent={
+          // Load-more / end-of-feed / inline fetch-error controls for the feed.
           items.length > 0 ? (
             <View className="items-center pt-[18px] pb-[4px]">
               {errorMessage ? <Text accessibilityRole="alert" className="text-danger text-center text-[13px] leading-[19px] mb-[8px]">{errorMessage}</Text> : null}

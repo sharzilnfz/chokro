@@ -1,5 +1,7 @@
+// Accessible labeled text/number input with the same hint/error and described-by wiring as AdminSelect.
 import type { InputHTMLAttributes, ReactNode } from 'react';
 
+// Extends native input attributes with optional label, hint, and error slots.
 export type AdminInputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: ReactNode;
   hint?: ReactNode;
@@ -15,6 +17,7 @@ export function AdminInput({
   'aria-describedby': explicitDescribedBy,
   ...props
 }: AdminInputProps) {
+  // Joins the derived hint/error ids plus any explicit described-by into a single id list.
   const hintId = hint && id ? `${id}-hint` : undefined;
   const errorId = error && id ? `${id}-error` : undefined;
 
@@ -22,6 +25,7 @@ export function AdminInput({
     .filter(Boolean)
     .join(' ') || undefined;
 
+  // Field group: label, input (error-styled and aria-invalid when needed), hint, and error blocks.
   return (
     <div className="admin-field">
       {label && (

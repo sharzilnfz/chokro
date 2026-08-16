@@ -1,3 +1,4 @@
+// Covers signup, login, /me, token-secret policy, and DB-failure degradation.
 import { POST as signup } from '../app/api/auth/signup/route';
 import { POST as login } from '../app/api/auth/login/route';
 import { GET as me } from '../app/api/auth/me/route';
@@ -6,12 +7,15 @@ import { userRepo } from '../lib/repos/users';
 import { DatabaseUnavailableError } from '../lib/database';
 import { resetTestStore } from './test-utils';
 
+// Runs the auth flow head-to-toe against a freshly reset store.
 describe('auth API', () => {
+  // Reset the store and clear mocked modules before each case.
   beforeEach(async () => {
     await resetTestStore();
     jest.restoreAllMocks();
   });
 
+  // Privilege escalation via the signup role field is neutralized to INDIVIDUAL.
   it('always creates an individual even when a privileged role is submitted', async () => {
     const response = await signup(new Request('http://localhost/api/auth/signup', {
       method: 'POST',
@@ -24,6 +28,7 @@ describe('auth API', () => {
     expect(data.token).toEqual(expect.any(String));
   });
 
+  // Signup -> login -> /me round trip returns the authenticated profile.
   it('logs in and returns the authenticated profile', async () => {
     await signup(new Request('http://localhost/api/auth/signup', {
       method: 'POST',
@@ -44,6 +49,7 @@ describe('auth API', () => {
     expect(meData.user.email).toBe('user@test.chokro.org');
   });
 
+  // Unknown user and wrong password must be indistinguishable (no user enumeration).
   it('uses the same generic error for unknown users and wrong passwords', async () => {
     await signup(new Request('http://localhost/api/auth/signup', {
       method: 'POST',
@@ -61,6 +67,7 @@ describe('auth API', () => {
     expect(await unknown.json()).toEqual(await wrong.json());
   });
 
+  // Missing or malformed bearer tokens are rejected up front.
   it('rejects missing and invalid bearer tokens', async () => {
     const missing = await me(new Request('http://localhost/api/auth/me'));
     const invalid = await me(new Request('http://localhost/api/auth/me', { headers: { Authorization: 'Bearer invalid' } }));
@@ -68,6 +75,7 @@ describe('auth API', () => {
     expect(invalid.status).toBe(401);
   });
 
+  // Signing tokens without JWT_SECRET is blocked when NODE_ENV is production.
   it('requires JWT_SECRET in production', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const originalSecret = process.env.JWT_SECRET;
@@ -83,6 +91,7 @@ describe('auth API', () => {
     }
   });
 
+  // DB failures surface as 503 rather than fabricating a successful session.
   it('returns 503 instead of a memory success when the database fails', async () => {
     jest.spyOn(userRepo, 'findByEmail').mockRejectedValueOnce(new DatabaseUnavailableError());
     const response = await signup(new Request('http://localhost/api/auth/signup', {

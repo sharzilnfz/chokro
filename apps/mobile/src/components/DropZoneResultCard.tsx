@@ -1,9 +1,12 @@
+// Result panel shown after a drop-zone QR scan, with status and accepted categories.
+// Third-party and app modules used to render the card.
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
 
+// Shape of a recognized drop zone returned by the scan API.
 export interface DropZone {
   id: string;
   name: string;
@@ -12,12 +15,14 @@ export interface DropZone {
   institutionId?: string;
 }
 
+// Props: the matched zone, its accepted categories and a re-scan handler.
 export interface DropZoneResultCardProps {
   zone: DropZone;
   acceptedCategories: string[];
   onScanAgain: () => void;
 }
 
+// Displays the zone identity and accepted categories, with a caution note.
 export function DropZoneResultCard({
   zone,
   acceptedCategories,

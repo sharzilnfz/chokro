@@ -1,3 +1,8 @@
+// AuthContext holds global authentication state: it persists and restores the
+// session token, wires 401 auto-logout and the token provider into the API
+// layer, and exposes login/signup/logout helpers consumed across the app.
+
+// Imports: React hooks, persistent storage, the API layer, and shared types.
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { storage } from '@/services/storage';
 import {
@@ -11,12 +16,15 @@ import {
 import { queryClient } from '@/lib/queryClient';
 import type { AuthSession, User } from '@/types';
 
+// AsyncStorage key that persists the session token between launches.
 const TOKEN_KEY = 'chokro.authToken';
 
+// RestoreState tracks session rehydration; AuthMode picks login vs. signup.
 type RestoreState = 'loading' | 'ready' | 'error';
 type AuthMode = 'login' | 'signup';
 type Credentials = { email: string; password: string };
 
+// The context's public surface, consumed through useAuth.
 type AuthContextValue = {
   session: AuthSession | null;
   token: string | undefined;
@@ -33,6 +41,7 @@ type AuthContextValue = {
   clearAndRestart: () => void;
 };
 
+// The context object and a hook that fails loudly if used outside the provider.
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth(): AuthContextValue {
@@ -42,11 +51,13 @@ export function useAuth(): AuthContextValue {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Session plus the restore phase it is currently going through.
   const [session, setSession] = useState<AuthSession | null>(null);
   const [restoreState, setRestoreState] = useState<RestoreState>('loading');
   const [restoreError, setRestoreError] = useState('');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
 
+  // Tears down the session: clears storage, API token, caches, and auth mode.
   const logout = useCallback(async () => {
     try {
       await storage.deleteItem(TOKEN_KEY);
@@ -58,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Rehydrates the token from storage and validates it against /api/auth/me.
   const restoreSession = useCallback(async () => {
     setRestoreState('loading');
     setRestoreError('');
@@ -92,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Kick off session restoration once when the provider mounts.
   useEffect(() => {
     void restoreSession();
   }, [restoreSession]);
@@ -108,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setAuthTokenProvider(null);
   }, [session]);
 
+  // Persists and activates a freshly issued session (token + user).
   const login = useCallback(async (nextSession: AuthSession) => {
     await storage.setItem(TOKEN_KEY, nextSession.token);
     setAuthToken(nextSession.token);
@@ -115,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthMode('login');
   }, []);
 
+  // Shared auth path: posts credentials and stores the returned session.
   const authenticate = useCallback(
   async (path: '/api/auth/login' | '/api/auth/signup', credentials: Credentials) => {
     const nextSession = await apiRequest<{ token: string; user: User }>(path, {
@@ -126,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   [login],
 );
 
+// signIn and signUp are thin wrappers over authenticate with a fixed endpoint.
 const signIn = useCallback(
   (credentials: Credentials) => authenticate('/api/auth/login', credentials),
   [authenticate],
@@ -136,6 +152,7 @@ const signUp = useCallback(
   [authenticate],
 );
 
+  // Hard reset used by "Use another account" after session restore fails.
   const clearAndRestart = useCallback(() => {
     void (async () => {
       try {
@@ -148,6 +165,7 @@ const signUp = useCallback(
     })();
   }, []);
 
+  // Assemble the context value and hand it to the whole tree.
   const value: AuthContextValue = {
     session,
     token: session?.token,
