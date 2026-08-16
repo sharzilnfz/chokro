@@ -28,5 +28,5 @@ export async function closeDb() {
   }
 }
 
-export { eq, and, or, lt, lte, desc, sql } from 'drizzle-orm';
+export { eq, and, or, lt, lte, desc, sql, inArray } from 'drizzle-orm';
 export * from './schema';

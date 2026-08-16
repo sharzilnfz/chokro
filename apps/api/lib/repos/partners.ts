@@ -42,6 +42,18 @@ export const partnerRepo = {
     });
   },
 
+  // VERIFIED partners that operate as collectors (types array includes COLLECTOR).
+  // Filtering in JS keeps this compatible with the jsonb column across PG and PGlite.
+  async findVerifiedCollectors() {
+    return withDb(async () => {
+      const rows = await db
+        .select()
+        .from(partners)
+        .where(eq(partners.status, 'VERIFIED'));
+      return rows.filter((row) => Array.isArray(row.types) && row.types.includes('COLLECTOR'));
+    });
+  },
+
   async apply(input: ApplyPartnerInput) {
     return withDb(async () => {
       const [partner] = await db
