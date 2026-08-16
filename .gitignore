@@ -42,4 +42,4 @@ pnpm-debug.log*
 #nx
 .nx/cache
 .nx/workspace-data
-.nx/migrate-runs
+.nx/migrate-runscompose.override.yaml

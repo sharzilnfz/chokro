@@ -23,7 +23,9 @@ async function migrate() {
   console.log('Database invariants applied successfully.');
 }
 
-migrate().catch((error) => {
-  console.error('Database invariant migration failed:', error);
-  process.exitCode = 1;
-});
+migrate()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('Database invariant migration failed:', error);
+    process.exit(1);
+  });
