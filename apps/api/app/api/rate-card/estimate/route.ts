@@ -2,17 +2,27 @@ import { apiData, apiError, safeRoute } from '../../../../lib/http';
 import { rateCardRepo } from '../../../../lib/repos/rateCards';
 import { benchmarksRepo } from '../../../../lib/repos/benchmarks';
 import { CommodityBenchmarkService } from '../../../../lib/services/CommodityBenchmarkService';
+import { EstimateQuerySchema } from '@chokro/shared';
 
 export const GET = safeRoute(async (request: Request) => {
   const url = new URL(request.url);
   const category = url.searchParams.get('category');
   const condition = url.searchParams.get('condition');
-  const weight = url.searchParams.get('weight');
-  const pieceCount = url.searchParams.get('pieceCount') || url.searchParams.get('piece_count');
 
   if (!category || !condition) {
     return apiError('Missing required query parameters: category, condition', 400);
   }
+
+  const parsed = EstimateQuerySchema.safeParse({
+    category,
+    condition,
+    weight: url.searchParams.get('weight') || undefined,
+    pieceCount: url.searchParams.get('pieceCount') || url.searchParams.get('piece_count') || undefined,
+  });
+  if (!parsed.success) {
+    return apiError('Invalid query parameters', 400, parsed.error.format());
+  }
+  const { weight, pieceCount } = parsed.data;
 
   const rates = await rateCardRepo.findPublished();
   
@@ -28,11 +38,11 @@ export const GET = safeRoute(async (request: Request) => {
   let quantity: number | null = null;
   let totalBdt: number | null = null;
 
-  if (match.unit === 'piece' && pieceCount) {
-    quantity = Math.max(1, parseInt(pieceCount, 10));
+  if (match.unit === 'piece' && pieceCount !== undefined) {
+    quantity = Math.max(1, pieceCount);
     totalBdt = Math.round(unitPrice * quantity * 100) / 100;
-  } else if (match.unit === 'kg' && weight) {
-    quantity = Math.max(0.1, parseFloat(weight));
+  } else if (match.unit === 'kg' && weight !== undefined) {
+    quantity = Math.max(0.1, weight);
     totalBdt = Math.round(unitPrice * quantity * 100) / 100;
   }
 
