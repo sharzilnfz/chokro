@@ -128,11 +128,12 @@ describe('AI Next-Life Scrap Vision Agent API (Member 3 F2)', () => {
       rationale: 'AI vision identified aluminum scrap in the captured photo.',
       suggested_action: 'Drop at nearest Chokro Smart Bin.',
     };
-    const fetchSpy = jest.fn(async () =>
-      new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelVerdict) } }] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    const fetchSpy = jest.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelVerdict) } }] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
     );
     global.fetch = fetchSpy as unknown as typeof fetch;
 
@@ -149,10 +150,10 @@ describe('AI Next-Life Scrap Vision Agent API (Member 3 F2)', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [fetchUrl, fetchInit] = fetchSpy.mock.calls[0];
       expect(fetchUrl).toBe('https://api.openai.com/v1/chat/completions');
-      expect((fetchInit as RequestInit).headers).toMatchObject({
+      expect(fetchInit?.headers).toMatchObject({
         Authorization: 'Bearer test-openai-key',
       });
-      const sentBody = JSON.parse(String((fetchInit as RequestInit).body));
+      const sentBody = JSON.parse(String(fetchInit?.body));
       const imagePart = sentBody.messages[1].content.find(
         (part: { type: string }) => part.type === 'image_url',
       );

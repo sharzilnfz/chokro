@@ -10,15 +10,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
+import type { ListingPrefill } from '@/types';
 import { FeedScreen } from '@/screens/FeedScreen';
 import { CreateListingScreen } from '@/screens/CreateListingScreen';
 import { WalletScreen } from '@/screens/WalletScreen';
 import { QRScannerScreen } from '@/screens/QRScannerScreen';
 import { RateCardScreen } from '@/screens/RateCardScreen';
+import { VisionScanScreen } from '@/screens/VisionScanScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
 
-type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan';
+type Tab = 'browse' | 'list' | 'vision' | 'rates' | 'wallet' | 'scan';
 
 const TABS: Array<{
   key: Tab;
@@ -28,6 +30,7 @@ const TABS: Array<{
 }> = [
   { key: 'browse', label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
   { key: 'list', label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
+  { key: 'vision', label: 'AI Scan', icon: 'sparkles-outline', activeIcon: 'sparkles' },
   { key: 'rates', label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
   { key: 'wallet', label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
   { key: 'scan', label: 'Scan', icon: 'scan-outline', activeIcon: 'scan' },
@@ -36,6 +39,7 @@ const TABS: Array<{
 export function AppShell() {
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
+  const [listingPrefill, setListingPrefill] = useState<ListingPrefill | null>(null);
 
   if (restoreState === 'loading') {
     return (
@@ -114,10 +118,25 @@ export function AppShell() {
       <View className="flex-1">
         {activeTab === 'browse' && <FeedScreen />}
         {activeTab === 'list' && (
-          <CreateListingScreen onCreated={() => setActiveTab('browse')} />
+          <CreateListingScreen
+            key={listingPrefill ? `prefill-${listingPrefill.seededAt}` : 'blank'}
+            prefill={listingPrefill}
+            onCreated={() => {
+              setListingPrefill(null);
+              setActiveTab('browse');
+            }}
+          />
         )}
         {activeTab === 'rates' && <RateCardScreen />}
         {activeTab === 'wallet' && <WalletScreen />}
+        {activeTab === 'vision' && (
+          <VisionScanScreen
+            onListScrap={(prefill) => {
+              setListingPrefill(prefill);
+              setActiveTab('list');
+            }}
+          />
+        )}
         {activeTab === 'scan' && <QRScannerScreen />}
       </View>
 
@@ -131,7 +150,10 @@ export function AppShell() {
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
               className={`flex-1 min-h-[56px] items-center justify-center rounded-2xl gap-[2px] active:opacity-[0.72] ${active ? 'bg-leaf-soft' : ''}`}
-              onPress={() => setActiveTab(tab.key)}
+              onPress={() => {
+                if (tab.key !== 'list') setListingPrefill(null);
+                setActiveTab(tab.key);
+              }}
             >
               <Ionicons
                 name={active ? tab.activeIcon : tab.icon}
