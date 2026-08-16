@@ -18,10 +18,11 @@ import { QRScannerScreen } from '@/screens/QRScannerScreen';
 import { RateCardScreen } from '@/screens/RateCardScreen';
 import { VisionScanScreen } from '@/screens/VisionScanScreen';
 import { PickupScreen } from '@/screens/PickupScreen';
+import { AuctionsScreen } from '@/screens/AuctionsScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
 
-type Tab = 'browse' | 'list' | 'pickup' | 'vision' | 'rates' | 'wallet' | 'scan';
+type Tab = 'browse' | 'list' | 'pickup' | 'auctions' | 'vision' | 'rates' | 'wallet' | 'scan';
 
 const TABS: Array<{
   key: Tab;
@@ -32,6 +33,7 @@ const TABS: Array<{
   { key: 'browse', label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
   { key: 'list', label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
   { key: 'pickup', label: 'Pickup', icon: 'navigate-outline', activeIcon: 'navigate' },
+  { key: 'auctions', label: 'Auctions', icon: 'hammer-outline', activeIcon: 'hammer' },
   { key: 'vision', label: 'AI Scan', icon: 'sparkles-outline', activeIcon: 'sparkles' },
   { key: 'rates', label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
   { key: 'wallet', label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
@@ -131,6 +133,7 @@ export function AppShell() {
         )}
         {activeTab === 'rates' && <RateCardScreen />}
         {activeTab === 'pickup' && <PickupScreen />}
+        {activeTab === 'auctions' && <AuctionsScreen />}
         {activeTab === 'wallet' && <WalletScreen />}
         {activeTab === 'vision' && (
           <VisionScanScreen

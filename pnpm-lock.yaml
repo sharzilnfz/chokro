@@ -138,6 +138,9 @@ importers:
       nativewind:
         specifier: ^4.2.6
         version: 4.2.6(e970266e6d2b30207e6fd521eee0f6e1)
+      pusher-js:
+        specifier: ^8.6.0
+        version: 8.6.0
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -5186,6 +5189,9 @@ packages:
 
   pure-rand@7.0.1:
     resolution: {integrity: sha512-oTUZM/NAZS8p7ANR3SHh30kXB+zK2r2BPcEn/awJIbOvq82WoMN4p62AWWp3Hhw50G0xMsw1mhIBLqHw64EcNQ==}
+
+  pusher-js@8.6.0:
+    resolution: {integrity: sha512-wShJPfCS/kYkCBVzVW67wa9cnQIgHTszEK2XHNrFkOgGruuGw081aERAxfRjfdFU+WcIt8x6dvbwkTW4iZuQ8Q==}
 
   pusher@5.3.4:
     resolution: {integrity: sha512-gA7NpPRsQW9qpry/Ov+o9KKIPaRMziiDoEtiZ6EF0+QiSdsnT49+dH7+hf0Dvd4d+HEGQDHp6VXtrVM5DDrpmw==}
@@ -12019,6 +12025,10 @@ snapshots:
   punycode@2.3.1: {}
 
   pure-rand@7.0.1: {}
+
+  pusher-js@8.6.0:
+    dependencies:
+      tweetnacl: 1.0.3
 
   pusher@5.3.4:
     dependencies:
