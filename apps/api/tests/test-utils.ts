@@ -20,6 +20,11 @@ const TABLE_DDLS = [
     e_waste_licensed boolean NOT NULL DEFAULT false,
     status varchar(50) NOT NULL DEFAULT 'APPLIED',
     doe_license_doc text,
+    vehicle_label varchar(60),
+    vehicle_capacity_kg decimal(10, 2),
+    base_lat double precision,
+    base_lng double precision,
+    service_radius_km integer DEFAULT 10,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS listings (
@@ -89,6 +94,29 @@ const TABLE_DDLS = [
     suggested_action text,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS pickup_orders (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    listing_id uuid NOT NULL REFERENCES listings(id),
+    customer_id uuid NOT NULL REFERENCES users(id),
+    collector_partner_id uuid REFERENCES partners(id),
+    status varchar(50) NOT NULL DEFAULT 'REQUESTED',
+    address text NOT NULL,
+    lat double precision NOT NULL,
+    lng double precision NOT NULL,
+    scheduled_for timestamp NOT NULL,
+    notes text,
+    created_at timestamp NOT NULL DEFAULT NOW(),
+    updated_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS dispatch_assignments (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id uuid NOT NULL REFERENCES pickup_orders(id),
+    collector_partner_id uuid NOT NULL REFERENCES partners(id),
+    stop_sequence integer NOT NULL,
+    distance_km decimal(10, 2),
+    eta_minutes integer,
+    assigned_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -105,7 +133,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
   `);
 }
 
