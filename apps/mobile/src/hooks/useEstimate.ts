@@ -27,9 +27,11 @@ export function useEstimate(
   condition: Condition,
   weight?: number,
   pieceCount?: number,
+  enabled = true,
 ) {
   return useQuery<Estimate | null>({
     queryKey: ['estimate', category, condition, weight ?? null, pieceCount ?? null],
+    enabled,
     queryFn: async () => {
       const params = new URLSearchParams({ category, condition });
       if (weight !== undefined) params.set('weight', String(weight));

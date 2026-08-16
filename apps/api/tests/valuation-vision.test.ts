@@ -113,6 +113,72 @@ describe('AI Next-Life Scrap Vision Agent API (Member 3 F2)', () => {
     expect(metalBody.classification.unit).toBe('kg');
   });
 
+  it('sends the base64 data URI to OpenAI when imageBase64 is provided, and persists a bounded scan record', async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    const originalFetch = global.fetch;
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+
+    const dataUri = 'data:image/jpeg;base64,VGVzdENhbWVyYUNhcHR1cmU=';
+    const modelVerdict = {
+      category: 'METAL',
+      condition: 'GOOD',
+      quantity: 3.5,
+      path: 'RECYCLE',
+      confidence: 0.93,
+      rationale: 'AI vision identified aluminum scrap in the captured photo.',
+      suggested_action: 'Drop at nearest Chokro Smart Bin.',
+    };
+    const fetchSpy = jest.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelVerdict) } }] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    try {
+      const req = new Request('http://localhost/api/v1/valuation/classify-and-estimate', {
+        method: 'POST',
+        body: JSON.stringify({ imageBase64: dataUri, declaredQuantity: 4 }),
+      });
+      const res = await classifyV1(req);
+      expect(res.status).toBe(201);
+      const body = await res.json();
+
+      // The camera capture was actually attached to the multimodal OpenAI request
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [fetchUrl, fetchInit] = fetchSpy.mock.calls[0];
+      expect(fetchUrl).toBe('https://api.openai.com/v1/chat/completions');
+      expect(fetchInit?.headers).toMatchObject({
+        Authorization: 'Bearer test-openai-key',
+      });
+      const sentBody = JSON.parse(String(fetchInit?.body));
+      const imagePart = sentBody.messages[1].content.find(
+        (part: { type: string }) => part.type === 'image_url',
+      );
+      expect(imagePart).toBeDefined();
+      expect(imagePart.image_url.url).toBe(dataUri);
+
+      // The mocked model's detection won, and the scan persisted with a bounded image marker
+      expect(body.classification.category).toBe('METAL');
+      expect(body.classification.quantity).toBe(4);
+      expect(body.classification.confidence).toBe(0.93);
+
+      const listRes = await getScansV1(new Request('http://localhost/api/v1/valuation/scans'));
+      const listBody = await listRes.json();
+      const persisted = listBody.scans.find((scan: { id: string }) => scan.id === body.scan_id);
+      expect(persisted).toBeDefined();
+      expect(persisted.image_url).toBe('data:image/jpeg;base64,...');
+      expect(persisted.image_url.length).toBeLessThan(100);
+      expect(persisted.next_life_path).toBe('RECYCLE');
+    } finally {
+      global.fetch = originalFetch;
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+  });
+
   it('lists historical scans and retrieves a specific scan by ID', async () => {
     const user = await createTestUser('INDIVIDUAL');
     const token = tokenFor(user);

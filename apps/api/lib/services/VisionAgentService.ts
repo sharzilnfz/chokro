@@ -102,9 +102,14 @@ export class VisionAgentService {
     }
 
     // 6. Persist Scan Record to Database (valuation_scans table)
+    // Never persist full base64/data-URI payloads into the text column — store a short
+    // marker instead; clients keep their own local preview.
+    const persistedImageUrl = (input.imageBase64 || input.imageUrl?.startsWith('data:'))
+      ? 'data:image/jpeg;base64,...'
+      : (input.imageUrl ?? null);
     const scanRecord = await valuationScansRepo.createScan({
       user_id: input.userId || null,
-      image_url: input.imageUrl || (input.imageBase64 ? 'data:image/jpeg;base64,...' : null),
+      image_url: persistedImageUrl,
       detected_category: category,
       detected_condition: condition,
       estimated_quantity: quantity,
@@ -160,6 +165,11 @@ export class VisionAgentService {
 
     // Check if external OpenAI / Gemini key is available
     if (process.env.OPENAI_API_KEY && (input.imageUrl || input.imageBase64)) {
+      // Camera captures arrive as base64 (raw or data URI) — normalize to a data URI
+      // so the image is actually attached to the multimodal request.
+      const imageDataUri = input.imageBase64
+        ? (input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`)
+        : input.imageUrl;
       try {
         const payload = {
           model: 'gpt-4o-mini',
@@ -172,8 +182,8 @@ export class VisionAgentService {
               role: 'user',
               content: [
                 { type: 'text', text: `Classify this recyclable item. User notes: ${input.promptNotes || 'none'}` },
-                input.imageUrl ? { type: 'image_url', image_url: { url: input.imageUrl } } : null,
-              ].filter(Boolean),
+                { type: 'image_url', image_url: { url: imageDataUri } },
+              ],
             },
           ],
           response_format: { type: 'json_object' },

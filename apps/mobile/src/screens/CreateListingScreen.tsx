@@ -16,19 +16,23 @@ import { RateEstimateCard } from '@/components/RateEstimateCard';
 import { useCreateListing } from '@/hooks/useCreateListing';
 import { useEstimate } from '@/hooks/useEstimate';
 import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
+import type { ListingPrefill } from '@/types';
 
 type CreateListingScreenProps = {
   onCreated: () => void;
+  prefill?: ListingPrefill | null;
 };
 
-export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
-  const [category, setCategory] = useState<Category>('PLASTICS');
-  const [condition, setCondition] = useState<Condition>('GOOD');
-  const [quantity, setQuantity] = useState('');
-  const [photo, setPhoto] = useState<PreparedPhoto | null>(null);
+export function CreateListingScreen({ onCreated, prefill = null }: CreateListingScreenProps) {
+  const [category, setCategory] = useState<Category>(prefill?.category ?? 'PLASTICS');
+  const [condition, setCondition] = useState<Condition>(prefill?.condition ?? 'GOOD');
+  const [quantity, setQuantity] = useState(prefill && prefill.quantity > 0 ? String(prefill.quantity) : '');
+  const [photo, setPhoto] = useState<PreparedPhoto | null>(prefill?.photo ?? null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(
+    prefill ? 'Prefilled from your AI scan — adjust anything before publishing.' : '',
+  );
   const createListing = useCreateListing();
   const { data: estimate, isLoading: estimateLoading } = useEstimate(category, condition);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
