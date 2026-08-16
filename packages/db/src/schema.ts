@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, timestamp, boolean, decimal, jsonb, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, varchar, timestamp, boolean, decimal, jsonb, integer, doublePrecision } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -17,6 +17,11 @@ export const partners = pgTable('partners', {
   e_waste_licensed: boolean('e_waste_licensed').default(false).notNull(),
   status: varchar('status', { length: 50 }).default('APPLIED').notNull(), // APPLIED, VERIFIED, REJECTED
   doe_license_doc: text('doe_license_doc'),
+  vehicle_label: varchar('vehicle_label', { length: 60 }), // e.g. "Pickup van"
+  vehicle_capacity_kg: decimal('vehicle_capacity_kg', { precision: 10, scale: 2 }),
+  base_lat: doublePrecision('base_lat'),
+  base_lng: doublePrecision('base_lng'),
+  service_radius_km: integer('service_radius_km').default(10),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -91,5 +96,30 @@ export const valuationScans = pgTable('valuation_scans', {
   reasoning_rationale: text('reasoning_rationale').notNull(),
   suggested_action: text('suggested_action'),
   created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const pickupOrders = pgTable('pickup_orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  listing_id: uuid('listing_id').notNull().references(() => listings.id),
+  customer_id: uuid('customer_id').notNull().references(() => users.id),
+  collector_partner_id: uuid('collector_partner_id').references(() => partners.id), // null until assigned
+  status: varchar('status', { length: 50 }).default('REQUESTED').notNull(), // REQUESTED, ASSIGNED, EN_ROUTE, COLLECTED, CANCELLED
+  address: text('address').notNull(),
+  lat: doublePrecision('lat').notNull(),
+  lng: doublePrecision('lng').notNull(),
+  scheduled_for: timestamp('scheduled_for').notNull(),
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const dispatchAssignments = pgTable('dispatch_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  order_id: uuid('order_id').notNull().references(() => pickupOrders.id),
+  collector_partner_id: uuid('collector_partner_id').notNull().references(() => partners.id),
+  stop_sequence: integer('stop_sequence').notNull(),
+  distance_km: decimal('distance_km', { precision: 10, scale: 2 }),
+  eta_minutes: integer('eta_minutes'),
+  assigned_at: timestamp('assigned_at').defaultNow().notNull(),
 });
 
