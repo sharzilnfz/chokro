@@ -123,3 +123,32 @@ export const dispatchAssignments = pgTable('dispatch_assignments', {
   assigned_at: timestamp('assigned_at').defaultNow().notNull(),
 });
 
+export const auctionLots = pgTable('auction_lots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: varchar('title', { length: 120 }).notNull(),
+  description: text('description'),
+  category: varchar('category', { length: 50 }).notNull(), // canonical categories: CLOTHES, BOOKS, PLASTICS, PAPER, METAL, GLASS, FURNITURE, APPLIANCES, E_WASTE
+  quantity_kg: decimal('quantity_kg', { precision: 10, scale: 2 }).notNull(),
+  starting_price_bdt: decimal('starting_price_bdt', { precision: 12, scale: 2 }).notNull(),
+  // SEALED: the seller's reserve price is never serialized to clients — only reserve_met is exposed.
+  reserve_price_bdt: decimal('reserve_price_bdt', { precision: 12, scale: 2 }).notNull(),
+  origin_label: varchar('origin_label', { length: 160 }),
+  status: varchar('status', { length: 30 }).notNull().default('DRAFT'), // DRAFT, LIVE, ENDED, CANCELLED
+  opens_at: timestamp('opens_at').notNull(),
+  closes_at: timestamp('closes_at').notNull(),
+  winning_bid_id: uuid('winning_bid_id'),
+  created_by: uuid('created_by').notNull().references(() => users.id),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const auctionBids = pgTable('auction_bids', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  lot_id: uuid('lot_id').notNull().references(() => auctionLots.id),
+  bidder_user_id: uuid('bidder_user_id').notNull().references(() => users.id),
+  amount_bdt: decimal('amount_bdt', { precision: 12, scale: 2 }).notNull(),
+  // Server-assigned monotonic sequence per lot: a bid only counts if the server accepted it first.
+  bid_number: integer('bid_number').notNull(),
+  received_at: timestamp('received_at').defaultNow().notNull(),
+});
+

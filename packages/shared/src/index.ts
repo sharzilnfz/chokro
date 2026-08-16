@@ -7,3 +7,4 @@ export * from './dto/rateCard';
 export * from './dto/dropZones';
 export * from './dto/valuation';
 export * from './dto/pickups';
+export * from './dto/auctions';

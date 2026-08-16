@@ -117,6 +117,31 @@ const TABLE_DDLS = [
     eta_minutes integer,
     assigned_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS auction_lots (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    title varchar(120) NOT NULL,
+    description text,
+    category varchar(50) NOT NULL,
+    quantity_kg decimal(10, 2) NOT NULL,
+    starting_price_bdt decimal(12, 2) NOT NULL,
+    reserve_price_bdt decimal(12, 2) NOT NULL,
+    origin_label varchar(160),
+    status varchar(30) NOT NULL DEFAULT 'DRAFT',
+    opens_at timestamp NOT NULL,
+    closes_at timestamp NOT NULL,
+    winning_bid_id uuid,
+    created_by uuid NOT NULL REFERENCES users(id),
+    created_at timestamp NOT NULL DEFAULT NOW(),
+    updated_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS auction_bids (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    lot_id uuid NOT NULL REFERENCES auction_lots(id),
+    bidder_user_id uuid NOT NULL REFERENCES users(id),
+    amount_bdt decimal(12, 2) NOT NULL,
+    bid_number integer NOT NULL,
+    received_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -133,7 +158,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
   `);
 }
 
