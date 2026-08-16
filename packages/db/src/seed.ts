@@ -1,4 +1,4 @@
-import { db, users, partners, listings, pickupOrders, dispatchAssignments, rateCardEntries, rateBenchmarks } from './index';
+import { db, users, partners, listings, pickupOrders, dispatchAssignments, rateCardEntries, rateBenchmarks, auctionLots, auctionBids } from './index';
 import { and, eq } from 'drizzle-orm';
 import { hash } from 'bcryptjs';
 
@@ -8,13 +8,70 @@ const DEMO_PASSWORD = 'password123';
 async function upsertUser(email: string, role: 'INDIVIDUAL' | 'PARTNER' | 'ADMIN', passwordHash: string) {
   const [user] = await db
     .insert(users)
-    .values({ email, password_hash: passwordHash, role })
+    .values({ email, role, password_hash: passwordHash })
     .onConflictDoUpdate({
       target: users.email,
       set: { password_hash: passwordHash, role },
     })
     .returning();
   return user;
+}
+
+type AuctionBidSpec = { bidderUserId: string; amount: string; minutesAgo: number };
+
+/**
+ * Creates a demo auction lot with its bid history when missing. LIVE lots
+ * (refreshWindow set) get their window — and their bids' ages — refreshed on
+ * re-seed so the live-bidding demo is always mid-auction.
+ */
+async function ensureAuctionLot(spec: {
+  lot: typeof auctionLots.$inferInsert;
+  bids: AuctionBidSpec[];
+  refreshWindow?: { opensMinutesAgo: number; closesMinutesFromNow: number };
+  winningBid?: boolean;
+}) {
+  const [existing] = await db
+    .select()
+    .from(auctionLots)
+    .where(and(eq(auctionLots.created_by, spec.lot.created_by), eq(auctionLots.title, spec.lot.title)))
+    .limit(1);
+
+  if (existing) {
+    if (spec.refreshWindow) {
+      await db.update(auctionLots).set({
+        opens_at: new Date(Date.now() - spec.refreshWindow.opensMinutesAgo * 60_000),
+        closes_at: new Date(Date.now() + spec.refreshWindow.closesMinutesFromNow * 60_000),
+        updated_at: new Date(),
+      }).where(eq(auctionLots.id, existing.id));
+      for (const bid of await db.select().from(auctionBids).where(eq(auctionBids.lot_id, existing.id))) {
+        const match = spec.bids[Math.min(bid.bid_number, spec.bids.length) - 1];
+        if (match) {
+          await db.update(auctionBids)
+            .set({ received_at: new Date(Date.now() - match.minutesAgo * 60_000) })
+            .where(eq(auctionBids.id, bid.id));
+        }
+      }
+    }
+    return;
+  }
+
+  const [lot] = await db.insert(auctionLots).values(spec.lot).returning();
+  const insertedBids: Array<typeof auctionBids.$inferSelect> = [];
+  for (let i = 0; i < spec.bids.length; i++) {
+    const bid = spec.bids[i];
+    const [inserted] = await db.insert(auctionBids).values({
+      lot_id: lot.id,
+      bidder_user_id: bid.bidderUserId,
+      amount_bdt: bid.amount,
+      bid_number: i + 1,
+      received_at: new Date(Date.now() - bid.minutesAgo * 60_000),
+    }).returning();
+    insertedBids.push(inserted);
+  }
+  if (spec.winningBid && insertedBids.length > 0) {
+    const winner = insertedBids[insertedBids.length - 1];
+    await db.update(auctionLots).set({ winning_bid_id: winner.id }).where(eq(auctionLots.id, lot.id));
+  }
 }
 
 async function seed() {
@@ -193,6 +250,122 @@ async function seed() {
       lng: 90.3780,
       scheduled_for: new Date(Date.now() + 26 * 3600_000),
       notes: null,
+    });
+  }
+
+  // F4 live auction demo: two VERIFIED recyclers who trade bids on bulk lots
+  // posted by BanglaBin Recycling (the existing partner@chokro.org account).
+  const recyclerSpecs = [
+    { email: 'recycler1@chokro.org', org_name: 'Dhaka Steel Recyclers' },
+    { email: 'recycler2@chokro.org', org_name: 'Narayanganj Metal Works' },
+  ];
+
+  const seededRecyclers: Array<typeof users.$inferSelect> = [];
+  for (const spec of recyclerSpecs) {
+    const recyclerUser = await upsertUser(spec.email, 'PARTNER', passwordHash);
+    const [existingRecycler] = await db.select().from(partners).where(eq(partners.user_id, recyclerUser.id));
+    if (!existingRecycler) {
+      await db.insert(partners).values({
+        user_id: recyclerUser.id,
+        org_name: spec.org_name,
+        types: ['RECYCLER'],
+        status: 'VERIFIED',
+      });
+    }
+    seededRecyclers.push(recyclerUser);
+  }
+
+  if (seededRecyclers.length >= 2) {
+    const [recyclerOne, recyclerTwo] = seededRecyclers;
+
+    // LOT A — LIVE, closing ~45 min out: both recyclers trade the lead and the
+    // sealed reserve is already met (highest bid ৳22,400 vs sealed ৳22,000).
+    await ensureAuctionLot({
+      lot: {
+        title: 'Baled PET plastic — campus sorting drive',
+        description: 'Clean, colour-sorted PET bales from a month-long university sorting programme. Ready to ship on pallets.',
+        category: 'PLASTICS',
+        quantity_kg: '450.00',
+        starting_price_bdt: '18000.00',
+        reserve_price_bdt: '22000.00',
+        origin_label: 'University of Dhaka campus',
+        status: 'LIVE',
+        opens_at: new Date(Date.now() - 15 * 60_000),
+        closes_at: new Date(Date.now() + 45 * 60_000),
+        created_by: partnerUser.id,
+      },
+      bids: [
+        { bidderUserId: recyclerOne.id, amount: '18050.00', minutesAgo: 12 },
+        { bidderUserId: recyclerTwo.id, amount: '18200.00', minutesAgo: 10 },
+        { bidderUserId: recyclerOne.id, amount: '18500.00', minutesAgo: 8 },
+        { bidderUserId: recyclerTwo.id, amount: '19000.00', minutesAgo: 6 },
+        { bidderUserId: recyclerOne.id, amount: '21500.00', minutesAgo: 4 },
+        { bidderUserId: recyclerTwo.id, amount: '22400.00', minutesAgo: 2 },
+      ],
+      refreshWindow: { opensMinutesAgo: 15, closesMinutesFromNow: 45 },
+    });
+
+    // LOT B — LIVE, closing ~5 min out with no bids yet: the anti-snipe demo
+    // target (any accepted bid from here extends the close by two minutes).
+    await ensureAuctionLot({
+      lot: {
+        title: 'Mixed ferrous scrap — factory clear-out',
+        description: 'Compressed MSAL offcuts, gates and shelving from a full floor clear-out. Sorted, dry, under cover.',
+        category: 'METAL',
+        quantity_kg: '800.00',
+        starting_price_bdt: '40000.00',
+        reserve_price_bdt: '52345.00',
+        origin_label: 'Narayanganj EPZ',
+        status: 'LIVE',
+        opens_at: new Date(Date.now() - 25 * 60_000),
+        closes_at: new Date(Date.now() + 5 * 60_000),
+        created_by: partnerUser.id,
+      },
+      bids: [],
+      refreshWindow: { opensMinutesAgo: 25, closesMinutesFromNow: 5 },
+    });
+
+    // LOT C — ENDED, sold above the sealed reserve (winning bid ৳15,100 vs ৳15,000).
+    await ensureAuctionLot({
+      lot: {
+        title: 'Cullet glass — bottling plant line purge',
+        description: 'Crushed flint and amber cullet from a beverage line changeover, contamination screened.',
+        category: 'GLASS',
+        quantity_kg: '1200.00',
+        starting_price_bdt: '12000.00',
+        reserve_price_bdt: '15000.00',
+        origin_label: 'Gazipur beverage plant',
+        status: 'ENDED',
+        opens_at: new Date(Date.now() - 26 * 3600_000),
+        closes_at: new Date(Date.now() - 2 * 3600_000),
+        created_by: partnerUser.id,
+      },
+      bids: [
+        { bidderUserId: recyclerOne.id, amount: '12050.00', minutesAgo: 25 * 60 },
+        { bidderUserId: recyclerTwo.id, amount: '13000.00', minutesAgo: 24 * 60 },
+        { bidderUserId: recyclerOne.id, amount: '15100.00', minutesAgo: 2 * 60 + 10 },
+      ],
+      winningBid: true,
+    });
+
+    // LOT D — ENDED, no sale: the only bid stayed below the sealed reserve.
+    await ensureAuctionLot({
+      lot: {
+        title: 'Cardboard bales — retail chain backrooms',
+        description: 'OCC bales collected across six retail backrooms. Some tape residue.',
+        category: 'PAPER',
+        quantity_kg: '950.00',
+        starting_price_bdt: '8000.00',
+        reserve_price_bdt: '10500.00',
+        origin_label: 'Banani retail strip',
+        status: 'ENDED',
+        opens_at: new Date(Date.now() - 50 * 3600_000),
+        closes_at: new Date(Date.now() - 26 * 3600_000),
+        created_by: partnerUser.id,
+      },
+      bids: [
+        { bidderUserId: recyclerTwo.id, amount: '8050.00', minutesAgo: 27 * 60 },
+      ],
     });
   }
 
