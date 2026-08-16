@@ -8,6 +8,10 @@ type Rate = {
   unit: 'kg' | 'piece';
   price_bdt: string | number;
   effective_from: string;
+  market_benchmark_bdt?: number;
+  drift_pct?: number;
+  drift_status?: 'UNDER_MARKET' | 'OVER_MARKET' | 'IN_SYNC';
+  drift_badge?: string;
 };
 
 type RowRate = {

@@ -8,16 +8,39 @@ import { GET as getEstimateV1 } from '../app/api/v1/rate-card/estimate/route';
 import { GET as getPublishedV1 } from '../app/api/v1/rate-card/published/route';
 import { GET as getBenchmarksV1 } from '../app/api/v1/rate-card/benchmarks/route';
 import { POST as syncBenchmarksV1 } from '../app/api/v1/rate-card/benchmarks/sync/route';
-import { createTestUser, resetTestStore } from './test-utils';
+import { createTestUser, resetTestStore, tokenFor, authHeaders } from './test-utils';
 
 describe('Market-Benchmarked Valuation & Rate Card API (Member 3 F1)', () => {
   beforeEach(async () => {
     await resetTestStore();
   });
 
+  it('guards benchmark sync behind admin auth', async () => {
+    const syncUrl = 'http://localhost/api/rate-card/benchmarks/sync';
+
+    const unauthenticated = await syncBenchmarks(new Request(syncUrl, { method: 'POST' }));
+    expect(unauthenticated.status).toBe(401);
+
+    const member = await createTestUser('INDIVIDUAL');
+    const forbidden = await syncBenchmarks(
+      new Request(syncUrl, { method: 'POST', headers: authHeaders(tokenFor(member)) }),
+    );
+    expect(forbidden.status).toBe(403);
+
+    const admin = await createTestUser('ADMIN');
+    const allowed = await syncBenchmarks(
+      new Request(syncUrl, { method: 'POST', headers: authHeaders(tokenFor(admin)) }),
+    );
+    expect(allowed.status).toBe(200);
+    const body = await allowed.json();
+    expect(body.count).toBeGreaterThanOrEqual(8);
+  });
+
   it('syncs commodity market benchmarks from feed to database', async () => {
+    const admin = await createTestUser('ADMIN');
     const syncReq = new Request('http://localhost/api/v1/rate-card/benchmarks/sync', {
       method: 'POST',
+      headers: authHeaders(tokenFor(admin)),
       body: JSON.stringify({ fx_rate: 122.50 }),
     });
     const syncRes = await syncBenchmarksV1(syncReq);
@@ -46,7 +69,10 @@ describe('Market-Benchmarked Valuation & Rate Card API (Member 3 F1)', () => {
     });
 
     // Sync benchmarks
-    await syncBenchmarksV1(new Request('http://localhost/api/v1/rate-card/benchmarks/sync', { method: 'POST' }));
+    await syncBenchmarksV1(new Request('http://localhost/api/v1/rate-card/benchmarks/sync', {
+      method: 'POST',
+      headers: authHeaders(tokenFor(admin)),
+    }));
 
     const estimateReq = new Request('http://localhost/api/v1/rate-card/estimate?category=PLASTICS&condition=GOOD&weight=12.5');
     const estimateRes = await getEstimateV1(estimateReq);
@@ -91,7 +117,10 @@ describe('Market-Benchmarked Valuation & Rate Card API (Member 3 F1)', () => {
 
 
     // Sync benchmarks
-    await syncBenchmarks(new Request('http://localhost/api/rate-card/benchmarks/sync', { method: 'POST' }));
+    await syncBenchmarks(new Request('http://localhost/api/rate-card/benchmarks/sync', {
+      method: 'POST',
+      headers: authHeaders(tokenFor(admin)),
+    }));
 
     const publishedRes = await getPublishedV1();
     expect(publishedRes.status).toBe(200);
