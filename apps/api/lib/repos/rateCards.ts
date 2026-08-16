@@ -1,4 +1,4 @@
-import { db, rateCardEntries, desc, lt } from '@chokro/db';
+import { db, rateCardEntries, desc, lte } from '@chokro/db';
 import { getCategoryUnit } from '@chokro/shared';
 import { withDb } from './seam';
 
@@ -23,7 +23,7 @@ export const rateCardRepo = {
           condition_band: input.condition_band || 'GOOD',
           unit: input.unit || getCategoryUnit(input.category),
           price_bdt: String(input.price_bdt ?? 0),
-          effective_from: input.effective_from || new Date(),
+          effective_from: input.effective_from || new Date(Date.now() - 1000),
           updated_by: input.updated_by || null,
         })
         .returning();
@@ -31,13 +31,15 @@ export const rateCardRepo = {
     });
   },
 
-  async findPublished(now: Date = new Date()): Promise<RateCardEntry[]> {
+  async findPublished(now: Date = new Date(Date.now() + 1000)): Promise<RateCardEntry[]> {
     return withDb(async () => {
       const all: RateCardEntry[] = await db
         .select()
         .from(rateCardEntries)
-        .where(lt(rateCardEntries.effective_from, now))
+        .where(lte(rateCardEntries.effective_from, now))
         .orderBy(desc(rateCardEntries.effective_from));
+
+
 
       const seen = new Set<string>();
       const deduplicated: RateCardEntry[] = [];

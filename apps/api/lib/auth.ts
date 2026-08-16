@@ -73,3 +73,6 @@ export function verifyAuthHeader(req: Request): TokenPayload | null {
   const token = authHeader.substring(7);
   return verifyToken(token);
 }
+
+export const getAuthUser = verifyAuthHeader;
+

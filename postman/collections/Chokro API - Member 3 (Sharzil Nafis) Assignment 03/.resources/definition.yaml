@@ -1,0 +1,7 @@
+$kind: collection
+name: Chokro API - Member 3 (Sharzil Nafis) Assignment 03
+description: REST APIs for Feature 1 (Market-Benchmarked Valuation Engine) and Feature 2 (AI Next-Life Scrap Vision Agent) for Chokro Circular Economy Platform.
+variables:
+  baseUrl: http://localhost:1475
+  authToken: ""
+  scanId: ""

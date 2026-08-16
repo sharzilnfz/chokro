@@ -63,6 +63,32 @@ const TABLE_DDLS = [
     reason text,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS rate_benchmarks (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    category varchar(50) NOT NULL UNIQUE,
+    commodity_symbol varchar(50) NOT NULL,
+    global_price_usd decimal(10, 2) NOT NULL,
+    fx_rate_usd_bdt decimal(10, 2) NOT NULL DEFAULT 122.50,
+    benchmark_bdt decimal(10, 2) NOT NULL,
+    source varchar(100) NOT NULL DEFAULT 'Metals-API / Commodity Index Feed',
+    updated_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS valuation_scans (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES users(id),
+    image_url text,
+    detected_category varchar(50) NOT NULL,
+    detected_condition varchar(50) NOT NULL,
+    estimated_quantity decimal(10, 2) NOT NULL,
+    unit varchar(20) NOT NULL,
+    next_life_path varchar(50) NOT NULL,
+    is_ewaste_hazard boolean NOT NULL DEFAULT false,
+    confidence decimal(4, 2) NOT NULL,
+    estimated_value_bdt decimal(10, 2) NOT NULL,
+    reasoning_rationale text NOT NULL,
+    suggested_action text,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -79,7 +105,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
   `);
 }
 

@@ -1,0 +1,7 @@
+$kind: http-request
+description: Fetches all currently active rate card prices enriched with market benchmark price and drift status.
+url: "{{baseUrl}}/api/v1/rate-card/published"
+method: GET
+headers:
+  Accept: application/json
+order: 2000

@@ -1,0 +1,17 @@
+$kind: http-request
+description: Calculates estimated payout in BDT, joins with current effective rate card, and compares against global commodity index.
+url: "{{baseUrl}}/api/v1/rate-card/estimate?category=PLASTICS&condition=GOOD&weight=15.5"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: category
+    value: PLASTICS
+    description: Material category (e.g. PLASTICS, METAL, PAPER, GLASS, CLOTHES, BOOKS, FURNITURE, APPLIANCES, E_WASTE)
+  - key: condition
+    value: GOOD
+    description: Item condition (EXCELLENT, GOOD, FAIR, POOR)
+  - key: weight
+    value: "15.5"
+    description: Weight in kg (for weight categories)
+order: 1000

@@ -1,0 +1,14 @@
+$kind: http-request
+description: Fetches commodity prices from external API / scrap market feed, converts with USD/BDT FX rate, and updates rate_benchmarks table.
+url: "{{baseUrl}}/api/v1/rate-card/benchmarks/sync"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fx_rate": 122.50
+    }
+order: 3000

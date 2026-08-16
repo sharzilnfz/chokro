@@ -1,0 +1,7 @@
+$kind: http-request
+description: Fetches a specific valuation scan by its UUID.
+url: "{{baseUrl}}/api/v1/valuation/scans/{{scanId}}"
+method: GET
+headers:
+  Accept: application/json
+order: 5000

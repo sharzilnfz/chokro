@@ -1,0 +1,16 @@
+$kind: http-request
+description: Creates an admin-managed baseline rate with timestamp versioning so past valuations remain historical and reproducible.
+url: "{{baseUrl}}/api/v1/admin/rate-card"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{authToken}}
+body:
+  type: text
+  content: |-
+    {
+      "category": "METAL",
+      "conditionBand": "GOOD",
+      "priceBdt": 120.00
+    }
+order: 5000

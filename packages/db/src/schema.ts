@@ -64,3 +64,32 @@ export const creditTxns = pgTable('credit_txns', {
   reason: text('reason'),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
+
+export const rateBenchmarks = pgTable('rate_benchmarks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  category: varchar('category', { length: 50 }).notNull().unique(),
+  commodity_symbol: varchar('commodity_symbol', { length: 50 }).notNull(),
+  global_price_usd: decimal('global_price_usd', { precision: 10, scale: 2 }).notNull(),
+  fx_rate_usd_bdt: decimal('fx_rate_usd_bdt', { precision: 10, scale: 2 }).notNull().default('122.50'),
+  benchmark_bdt: decimal('benchmark_bdt', { precision: 10, scale: 2 }).notNull(),
+  source: varchar('source', { length: 100 }).notNull().default('Metals-API / Commodity Index Feed'),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const valuationScans = pgTable('valuation_scans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  user_id: uuid('user_id').references(() => users.id),
+  image_url: text('image_url'),
+  detected_category: varchar('detected_category', { length: 50 }).notNull(),
+  detected_condition: varchar('detected_condition', { length: 50 }).notNull(),
+  estimated_quantity: decimal('estimated_quantity', { precision: 10, scale: 2 }).notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(),
+  next_life_path: varchar('next_life_path', { length: 50 }).notNull(),
+  is_ewaste_hazard: boolean('is_ewaste_hazard').default(false).notNull(),
+  confidence: decimal('confidence', { precision: 4, scale: 2 }).notNull(),
+  estimated_value_bdt: decimal('estimated_value_bdt', { precision: 10, scale: 2 }).notNull(),
+  reasoning_rationale: text('reasoning_rationale').notNull(),
+  suggested_action: text('suggested_action'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+

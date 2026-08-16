@@ -1,0 +1,22 @@
+$kind: http-request
+description: Logs in with seeded admin credentials and automatically saves the Bearer token in {{authToken}} variable.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "admin@chokro.org",
+      "password": "password123"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      var jsonData = pm.response.json();
+      if (jsonData.token) {
+          pm.collectionVariables.set('authToken', jsonData.token);
+      }
+    language: text/javascript
+order: 1000

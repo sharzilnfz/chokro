@@ -1,0 +1,3 @@
+$kind: collection
+description: Helper endpoints to register and obtain Bearer JWT tokens for testing admin and authenticated user routes.
+order: 3000

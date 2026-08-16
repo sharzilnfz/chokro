@@ -5,3 +5,4 @@ export * from './dto/wallet';
 export * from './dto/partners';
 export * from './dto/rateCard';
 export * from './dto/dropZones';
+export * from './dto/valuation';

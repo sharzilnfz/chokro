@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: 47a6fc3d-847a-4d55-8c68-ae304b9cde4b
+
+localResources:
+  collections:
+    - ../docs/api/postman_collection.json
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/Chokro API - Member 3 (Sharzil Nafis) Assignment 03: 445325bd-c221-4032-8648-b1a0eaaff683

@@ -30,3 +30,6 @@ export const GET = safeRoute(async (req: Request) => {
   const entries = await rateCardRepo.findAll();
   return apiData({ entries });
 });
+
+export { OPTIONS } from '../../../../lib/http';
+
