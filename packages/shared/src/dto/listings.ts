@@ -7,6 +7,7 @@ export const CreateListingSchema = z.object({
   declaredWeight: z.number().positive().finite().optional(),
   pieceCount: z.number().int().positive().optional(),
   declaredCondition: ConditionEnum,
+  price: z.number().positive().finite(),
   photos: z.array(z.string()).default([]),
   status: z.enum(['DRAFT', 'ACTIVE']).default('ACTIVE'),
 }).superRefine((listing, context) => {

@@ -3,7 +3,7 @@ import { GET as getListing, PATCH as updateListing } from '../app/api/listings/[
 import { authHeaders, createTestUser, resetTestStore, routeParams, tokenFor } from './test-utils';
 
 const materialListing = {
-  category: 'PLASTICS', unit: 'kg', declaredWeight: 12.5, declaredCondition: 'GOOD', photos: [],
+  category: 'PLASTICS', unit: 'kg', declaredWeight: 12.5, declaredCondition: 'GOOD', price: 500, photos: [],
 };
 
 describe('listing API', () => {
@@ -76,11 +76,11 @@ describe('listing API', () => {
     const response = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST',
       headers: authHeaders(tokenFor(user)),
-      body: JSON.stringify({ category: 'E_WASTE', unit: 'piece', pieceCount: 2, declaredCondition: 'FAIR' }),
+      body: JSON.stringify({ category: 'E_WASTE', unit: 'piece', pieceCount: 2, declaredCondition: 'FAIR', price: 700 }),
     }));
     const data = await response.json();
     expect(response.status).toBe(201);
-    expect(data.listing).toMatchObject({ owner_id: user.id, unit: 'piece', piece_count: 2, declared_weight: null, photos: [] });
+    expect(data.listing).toMatchObject({ owner_id: user.id, unit: 'piece', piece_count: 2, declared_weight: null, price_bdt: '700.00', photos: [] });
   });
 
   it('allows only the owner or an admin to apply canonical transitions', async () => {

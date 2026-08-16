@@ -15,10 +15,11 @@ import { CreateListingScreen } from '@/screens/CreateListingScreen';
 import { WalletScreen } from '@/screens/WalletScreen';
 import { QRScannerScreen } from '@/screens/QRScannerScreen';
 import { RateCardScreen } from '@/screens/RateCardScreen';
+import { MessagesScreen, type MessagesTarget } from '@/screens/MessagesScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
 
-type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan';
+type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan' | 'messages';
 
 const TABS: Array<{
   key: Tab;
@@ -28,6 +29,7 @@ const TABS: Array<{
 }> = [
   { key: 'browse', label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
   { key: 'list', label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
+  { key: 'messages', label: 'Messages', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses' },
   { key: 'rates', label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
   { key: 'wallet', label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
   { key: 'scan', label: 'Scan', icon: 'scan-outline', activeIcon: 'scan' },
@@ -36,6 +38,12 @@ const TABS: Array<{
 export function AppShell() {
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
+  const [messagesTarget, setMessagesTarget] = useState<MessagesTarget | null>(null);
+
+  const openChatWithListing = (target: MessagesTarget) => {
+    setMessagesTarget(target);
+    setActiveTab('messages');
+  };
 
   if (restoreState === 'loading') {
     return (
@@ -112,9 +120,12 @@ export function AppShell() {
       </View>
 
       <View className="flex-1">
-        {activeTab === 'browse' && <FeedScreen />}
+        {activeTab === 'browse' && <FeedScreen onContactSeller={openChatWithListing} />}
         {activeTab === 'list' && (
           <CreateListingScreen onCreated={() => setActiveTab('browse')} />
+        )}
+        {activeTab === 'messages' && (
+          <MessagesScreen target={messagesTarget} onTargetHandled={() => setMessagesTarget(null)} />
         )}
         {activeTab === 'rates' && <RateCardScreen />}
         {activeTab === 'wallet' && <WalletScreen />}

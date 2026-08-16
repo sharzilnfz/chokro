@@ -30,10 +30,12 @@ const TABLE_DDLS = [
     declared_weight decimal(10, 2),
     piece_count integer,
     declared_condition varchar(50) NOT NULL,
+    price_bdt decimal(10, 2) NOT NULL,
     photos jsonb NOT NULL DEFAULT '[]'::jsonb,
     status varchar(50) NOT NULL DEFAULT 'ACTIVE',
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+
   `CREATE TABLE IF NOT EXISTS rate_card_entries (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     category varchar(50) NOT NULL,
@@ -63,6 +65,23 @@ const TABLE_DDLS = [
     reason text,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS conversations (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    listing_id uuid NOT NULL REFERENCES listings(id),
+    buyer_id uuid NOT NULL REFERENCES users(id),
+    seller_id uuid NOT NULL REFERENCES users(id),
+    last_message_body text,
+    last_message_at timestamp,
+    created_at timestamp NOT NULL DEFAULT NOW(),
+    UNIQUE (listing_id, buyer_id, seller_id)
+  );`,
+  `CREATE TABLE IF NOT EXISTS messages (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id uuid NOT NULL REFERENCES conversations(id),
+    sender_id uuid NOT NULL REFERENCES users(id),
+    body text NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -79,7 +98,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE credit_txns, messages, conversations, drop_zones, rate_card_entries, listings, partners, users CASCADE;
   `);
 }
 

@@ -14,6 +14,7 @@ import { CATEGORIES, CONDITIONS, categoryLabel } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { StateView } from '@/components/ui/StateView';
 import { useFeed, type FeedFilter, type ConditionFilter, type Listing } from '@/hooks/useFeed';
+import type { MessagesTarget } from '@/screens/MessagesScreen';
 
 
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
@@ -21,7 +22,11 @@ const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
 
 
 
-export function FeedScreen() {
+type FeedScreenProps = {
+  onContactSeller?: (target: MessagesTarget) => void;
+};
+
+export function FeedScreen({ onContactSeller }: FeedScreenProps) {
   const [category, setCategory] = useState<FeedFilter>('ALL');
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
 
@@ -29,7 +34,20 @@ export function FeedScreen() {
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const errorMessage = error ? getErrorMessage(error, 'Could not load listings.') : '';
 
-  const renderCard = ({ item }: { item: Listing }) => <ListingCard item={item} />;
+  const renderCard = ({ item }: { item: Listing }) => (
+    <ListingCard
+      item={item}
+      onContactSeller={
+        onContactSeller
+          ? () => onContactSeller({
+              listingId: item.id,
+              peerEmail: item.seller_email ?? 'Seller',
+              listingCategory: item.category,
+            })
+          : undefined
+      }
+    />
+  );
 
   return (
     <View className="flex-1 bg-background">

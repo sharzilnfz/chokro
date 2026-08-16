@@ -25,7 +25,7 @@ describe('Sprint 1 walking skeleton', () => {
     }));
     const listing = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST', headers: authHeaders(userToken),
-      body: JSON.stringify({ category: 'PLASTICS', unit: 'kg', declaredWeight: 15, declaredCondition: 'EXCELLENT' }),
+      body: JSON.stringify({ category: 'PLASTICS', unit: 'kg', declaredWeight: 15, declaredCondition: 'EXCELLENT', price: 675 }),
     }));
     const application = await applyPartner(new Request('http://localhost/api/partners/apply', {
       method: 'POST', headers: authHeaders(userToken),

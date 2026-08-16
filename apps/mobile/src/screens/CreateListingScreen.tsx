@@ -25,6 +25,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
   const [category, setCategory] = useState<Category>('PLASTICS');
   const [condition, setCondition] = useState<Condition>('GOOD');
   const [quantity, setQuantity] = useState('');
+  const [price, setPrice] = useState('');
   const [photo, setPhoto] = useState<PreparedPhoto | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +43,8 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
   const unit = getCategoryUnit(category);
   const parsedQuantity = parseFloat(quantity);
   const hasValidQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0;
+  const parsedPrice = parseFloat(price);
+  const hasValidPrice = Number.isFinite(parsedPrice) && parsedPrice > 0;
   const ratePerUnit = estimate ? Number(estimate.price_bdt) : 0;
   const totalEstimatedBdt = (hasValidQuantity && estimate && Number.isFinite(ratePerUnit))
     ? parsedQuantity * ratePerUnit
@@ -82,6 +85,10 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       setError('Piece count must be a whole number.');
       return;
     }
+    if (!hasValidPrice) {
+      setError('Enter an asking price greater than 0.');
+      return;
+    }
 
     setError('');
     setNotice('');
@@ -93,6 +100,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
           ? { declaredWeight: parsedQuantity }
           : { pieceCount: parsedQuantity }),
         declaredCondition: condition,
+        price: parsedPrice,
         photos: [photo.dataUri],
       });
       setNotice('Listing published as active. It is now available in Browse.');
@@ -100,7 +108,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not publish this listing.'));
     }
-  }, [category, condition, createListing, hasValidQuantity, onCreated, parsedQuantity, photo, unit]);
+  }, [category, condition, createListing, hasValidPrice, hasValidQuantity, onCreated, parsedPrice, parsedQuantity, photo, unit]);
 
   return (
     <ScrollView
@@ -194,6 +202,28 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
           <Ionicons name="radio-button-on" size={17} color={colors.leaf} />
           <Text className="text-muted text-[13px] font-bold">Publishing status: Active</Text>
         </View>
+      </View>
+
+      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        <View className="flex-row items-center gap-[9px] mb-[13px]">
+          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">05</Text>
+          <Text className="text-ink text-[17px] font-extrabold">Asking price</Text>
+        </View>
+        <View className="flex-row">
+          <View className="min-w-[70px] min-h-[52px] border border-r-0 border-border rounded-tl-[12px] rounded-bl-[12px] bg-surface-muted items-center justify-center px-[12px]">
+            <Text className="text-ink text-[16px] font-extrabold">৳</Text>
+          </View>
+          <TextInput
+            accessibilityLabel="Asking price in Bangladeshi Taka"
+            className="flex-1 min-h-[52px] border border-border rounded-tr-[12px] rounded-br-[12px] bg-background text-ink text-[17px] px-[14px]"
+            placeholder="e.g. 50"
+            placeholderTextColor={colors.muted}
+            keyboardType="decimal-pad"
+            value={price}
+            onChangeText={setPrice}
+          />
+        </View>
+        <Text className="text-muted text-[12px] leading-[18px] mt-[7px]">Set the price a buyer would pay to take this item home.</Text>
       </View>
 
       <RateEstimateCard

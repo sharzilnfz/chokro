@@ -13,6 +13,7 @@ export interface CreateListingData {
   declaredWeight?: number | null;
   pieceCount?: number | null;
   declaredCondition: Condition;
+  price: number;
   photos: string[];
   status?: ListingStatus;
 }
@@ -38,6 +39,7 @@ export const ListingDomain = {
       declared_weight: data.declaredWeight != null ? String(data.declaredWeight) : null,
       piece_count: data.pieceCount ?? null,
       declared_condition: data.declaredCondition,
+      price_bdt: data.price,
       photos: data.photos,
       status: data.status || 'ACTIVE',
     });

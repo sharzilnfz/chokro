@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, timestamp, boolean, decimal, jsonb, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, varchar, timestamp, boolean, decimal, jsonb, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -28,6 +28,7 @@ export const listings = pgTable('listings', {
   declared_weight: decimal('declared_weight', { precision: 10, scale: 2 }),
   piece_count: integer('piece_count'),
   declared_condition: varchar('declared_condition', { length: 50 }).notNull(),
+  price_bdt: decimal('price_bdt', { precision: 10, scale: 2 }).notNull(),
   photos: jsonb('photos').default([]).notNull(),
   status: varchar('status', { length: 50 }).default('ACTIVE').notNull(), // DRAFT, ACTIVE, CANCELLED
   created_at: timestamp('created_at').defaultNow().notNull(),
@@ -51,6 +52,30 @@ export const dropZones = pgTable('drop_zones', {
   qr_token: text('qr_token').notNull().unique(),
   accepted_categories: jsonb('accepted_categories').notNull(),
   status: varchar('status', { length: 50 }).default('ACTIVE').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    listing_id: uuid('listing_id').notNull().references(() => listings.id),
+    buyer_id: uuid('buyer_id').notNull().references(() => users.id),
+    seller_id: uuid('seller_id').notNull().references(() => users.id),
+    last_message_body: text('last_message_body'),
+    last_message_at: timestamp('last_message_at'),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('conversations_listing_buyer_seller_unique').on(table.listing_id, table.buyer_id, table.seller_id),
+  ],
+);
+
+export const messages = pgTable('messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversation_id: uuid('conversation_id').notNull().references(() => conversations.id),
+  sender_id: uuid('sender_id').notNull().references(() => users.id),
+  body: text('body').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 

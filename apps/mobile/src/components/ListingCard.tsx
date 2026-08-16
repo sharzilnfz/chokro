@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import { categoryLabel, formatQuantityWithUnit } from '@/types';
@@ -7,14 +7,16 @@ import type { Listing } from '@/hooks/useFeed';
 
 export interface ListingCardProps {
   item: Listing;
+  onContactSeller?: () => void;
 }
 
-export function ListingCard({ item }: ListingCardProps) {
+export function ListingCard({ item, onContactSeller }: ListingCardProps) {
   const quantity = item.unit === 'piece'
     ? item.piece_count ?? item.declared_weight
     : item.declared_weight;
   const quantityText = formatQuantityWithUnit(item.unit, quantity);
   const photo = item.photos?.[0];
+  const priceText = item.price_bdt != null && item.price_bdt !== '' ? `৳${Number(item.price_bdt).toFixed(2)}` : null;
 
   return (
     <View
@@ -53,9 +55,26 @@ export function ListingCard({ item }: ListingCardProps) {
             <Text className="text-muted text-[13px] font-bold">{categoryLabel(item.declared_condition)}</Text>
           </View>
         </View>
-        <Text className="text-muted text-[12px] leading-[18px] border-t border-border mt-[12px] pt-[11px]">
-          Owner-declared details. Final condition and value are confirmed at handover.
-        </Text>
+        {priceText ? (
+          <Text className="text-ink text-[24px] font-black tracking-tight mt-[10px]">{priceText}</Text>
+        ) : null}
+        <View className="flex-row items-center gap-[6px] mt-[12px]">
+          <Ionicons name="person-outline" size={15} color={colors.muted} />
+          <Text className="text-muted text-[13px] font-bold flex-1" numberOfLines={1}>
+            {item.seller_email ?? 'Seller'}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Contact seller"
+          className="min-h-[46px] rounded-[12px] bg-leaf items-center justify-center mt-[14px] active:opacity-[0.72]"
+          onPress={onContactSeller}
+        >
+          <View className="flex-row items-center gap-[7px]">
+            <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.surface} />
+            <Text className="text-surface text-[15px] font-extrabold">Contact seller</Text>
+          </View>
+        </Pressable>
       </View>
     </View>
   );

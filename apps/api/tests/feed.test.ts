@@ -3,13 +3,14 @@ import { GET as getFeed } from '../app/api/feed/route';
 import { createTestUser, resetTestStore } from './test-utils';
 
 function listing(id: string, ownerId: string, category: string, condition: string, createdAt: string, status = 'ACTIVE') {
-  return { id, owner_id: ownerId, category, unit: 'kg', declared_weight: '1', piece_count: null, declared_condition: condition, photos: [], status, created_at: new Date(createdAt) };
+  return { id, owner_id: ownerId, category, unit: 'kg', declared_weight: '1', piece_count: null, declared_condition: condition, price_bdt: '50.00', photos: [], status, created_at: new Date(createdAt) };
 }
 
 describe('feed API', () => {
+  let user: Awaited<ReturnType<typeof createTestUser>>;
   beforeEach(async () => {
     await resetTestStore();
-    const user = await createTestUser();
+    user = await createTestUser();
     await db.insert(listings).values([
       listing('00000000-0000-0000-0000-000000000003', user.id, 'BOOKS', 'GOOD', '2026-08-06T12:00:00Z'),
       listing('00000000-0000-0000-0000-000000000002', user.id, 'BOOKS', 'FAIR', '2026-08-06T12:00:00Z'),
@@ -24,6 +25,8 @@ describe('feed API', () => {
     expect(response.status).toBe(200);
     expect(data.items).toHaveLength(1);
     expect(data.items[0].id).toBe('00000000-0000-0000-0000-000000000003');
+    expect(data.items[0].seller_email).toBe(user.email);
+    expect(data.items[0].price_bdt).toBe('50.00');
   });
 
   it('uses a stable composite cursor without duplicates', async () => {

@@ -1,4 +1,4 @@
-import { db, listings, eq, desc, and } from '@chokro/db';
+import { db, listings, users, eq, desc, and } from '@chokro/db';
 import { withDb } from './seam';
 import { KeysetPagination } from '../domain/KeysetPagination';
 import type { KeysetCursor } from '../domain/KeysetPagination';
@@ -10,6 +10,7 @@ export interface CreateListingInput {
   declared_weight?: number | string | null;
   piece_count?: number | null;
   declared_condition?: string;
+  price_bdt: number | string;
   photos?: string[];
   status?: string;
 }
@@ -61,7 +62,24 @@ export const listingRepo = {
         }
       }
 
-      const query = db.select().from(listings);
+      const query = db
+        .select({
+          id: listings.id,
+          owner_id: listings.owner_id,
+          category: listings.category,
+          unit: listings.unit,
+          declared_weight: listings.declared_weight,
+          piece_count: listings.piece_count,
+          declared_condition: listings.declared_condition,
+          price_bdt: listings.price_bdt,
+          photos: listings.photos,
+          status: listings.status,
+          created_at: listings.created_at,
+          seller_email: users.email,
+        })
+        .from(listings)
+        .innerJoin(users, eq(users.id, listings.owner_id));
+
       const whereClause = and(...conditions);
       if (whereClause) {
         query.where(whereClause);
@@ -87,6 +105,7 @@ export const listingRepo = {
           declared_weight: input.declared_weight != null ? String(input.declared_weight) : null,
           piece_count: input.piece_count ?? null,
           declared_condition: input.declared_condition || 'GOOD',
+          price_bdt: String(input.price_bdt),
           photos: input.photos || [],
           status: input.status || 'ACTIVE',
         })

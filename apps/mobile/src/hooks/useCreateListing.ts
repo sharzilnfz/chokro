@@ -7,6 +7,7 @@ type CreateListingPayload = {
   declaredWeight?: number;
   pieceCount?: number;
   declaredCondition: string;
+  price: number;
   photos: string[];
 };
 

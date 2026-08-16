@@ -11,9 +11,11 @@ type Listing = {
   declared_weight?: string | number | null;
   piece_count?: string | number | null;
   declared_condition: Condition;
+  price_bdt?: string | number | null;
   photos?: string[];
   status: ListingStatus;
   created_at?: string;
+  seller_email?: string | null;
 };
 
 type FeedResponse = {

@@ -28,6 +28,7 @@ export async function closeDb() {
   }
 }
 
-export { eq, and, or, lt, desc, sql } from 'drizzle-orm';
+export { eq, and, or, lt, desc, asc, sql } from 'drizzle-orm';
+export { alias } from 'drizzle-orm/pg-core';
 export * from './schema';
 
