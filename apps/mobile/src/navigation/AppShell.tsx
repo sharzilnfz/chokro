@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
+import { usePartnerMe } from '@/hooks/usePartnerMe';
+import { getPersonaLabel, getVisibleTabs, type PersonaLabel, type Tab } from '@/navigation/roleTabs';
 import type { ListingPrefill } from '@/types';
 import { FeedScreen } from '@/screens/FeedScreen';
 import { CreateListingScreen } from '@/screens/CreateListingScreen';
@@ -22,28 +24,59 @@ import { AuctionsScreen } from '@/screens/AuctionsScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
 
-type Tab = 'browse' | 'list' | 'pickup' | 'auctions' | 'vision' | 'rates' | 'wallet' | 'scan';
+const TAB_META: Record<
+  Tab,
+  {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    activeIcon: keyof typeof Ionicons.glyphMap;
+  }
+> = {
+  browse: { label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
+  list: { label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
+  pickup: { label: 'Pickup', icon: 'navigate-outline', activeIcon: 'navigate' },
+  auctions: { label: 'Auctions', icon: 'hammer-outline', activeIcon: 'hammer' },
+  vision: { label: 'AI Scan', icon: 'sparkles-outline', activeIcon: 'sparkles' },
+  rates: { label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
+  wallet: { label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
+  scan: { label: 'Scan', icon: 'scan-outline', activeIcon: 'scan' },
+};
 
-const TABS: Array<{
-  key: Tab;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  activeIcon: keyof typeof Ionicons.glyphMap;
-}> = [
-  { key: 'browse', label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
-  { key: 'list', label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
-  { key: 'pickup', label: 'Pickup', icon: 'navigate-outline', activeIcon: 'navigate' },
-  { key: 'auctions', label: 'Auctions', icon: 'hammer-outline', activeIcon: 'hammer' },
-  { key: 'vision', label: 'AI Scan', icon: 'sparkles-outline', activeIcon: 'sparkles' },
-  { key: 'rates', label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
-  { key: 'wallet', label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
-  { key: 'scan', label: 'Scan', icon: 'scan-outline', activeIcon: 'scan' },
-];
+const PERSONA_CHIPS: Record<PersonaLabel, { chipClass: string; textClass: string }> = {
+  Collector: { chipClass: 'bg-leaf-soft', textClass: 'text-leaf-dark' },
+  Recycler: { chipClass: 'bg-amber-soft', textClass: 'text-amber' },
+  Partner: { chipClass: 'bg-surface-muted', textClass: 'text-muted' },
+  Admin: { chipClass: 'bg-surface-muted', textClass: 'text-muted' },
+  Individual: { chipClass: 'bg-surface-muted', textClass: 'text-muted' },
+};
 
 export function AppShell() {
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [listingPrefill, setListingPrefill] = useState<ListingPrefill | null>(null);
+  const partnerQuery = usePartnerMe();
+
+  const role = session?.user.role ?? 'INDIVIDUAL';
+  // While a PARTNER's profile is loading (or missing), types are unknown and the
+  // helper falls back to the PARTNER superset tab set — no separate loading UI needed.
+  const partnerTypes = role === 'PARTNER' && partnerQuery.data ? partnerQuery.data.types : null;
+  const visibleTabs = useMemo(() => getVisibleTabs(role, partnerTypes), [role, partnerTypes]);
+  const personaLabel = getPersonaLabel(role, partnerTypes);
+
+  // If the active tab disappears from the visible set (e.g. re-login as another
+  // role), reset to the first visible tab. Runs at most once per set change: the
+  // fallback is always a member of visibleTabs, so this cannot loop.
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [visibleTabs, activeTab]);
+
+  const selectTab = (tab: Tab) => {
+    const next = visibleTabs.includes(tab) ? tab : visibleTabs[0];
+    if (next !== 'list') setListingPrefill(null);
+    setActiveTab(next);
+  };
 
   if (restoreState === 'loading') {
     return (
@@ -105,7 +138,18 @@ export function AppShell() {
           </View>
           <View>
             <Text className="text-ink text-lg font-extrabold tracking-tight">Chokro</Text>
-            <Text className="text-muted text-[11px] mt-[1px] max-w-[220px]" numberOfLines={1}>{session.user.email}</Text>
+            <View className="flex-row items-center gap-1.5 mt-[1px]">
+              <Text className="text-muted text-[11px] max-w-[180px]" numberOfLines={1}>{session.user.email}</Text>
+              <View
+                accessible
+                accessibilityLabel={`Account type: ${personaLabel}`}
+                className={`rounded-full px-2 py-[2px] ${PERSONA_CHIPS[personaLabel].chipClass}`}
+              >
+                <Text className={`text-[10px] font-bold ${PERSONA_CHIPS[personaLabel].textClass}`}>
+                  {personaLabel}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
         <Pressable
@@ -139,7 +183,8 @@ export function AppShell() {
           <VisionScanScreen
             onListScrap={(prefill) => {
               setListingPrefill(prefill);
-              setActiveTab('list');
+              // Clamps to the first visible tab if the role has no list tab.
+              selectTab('list');
             }}
           />
         )}
@@ -147,19 +192,17 @@ export function AppShell() {
       </View>
 
       <View className="min-h-[72px] flex-row px-2 pt-1.5 pb-1 bg-surface border-t border-border" accessibilityRole="tablist">
-        {TABS.map((tab) => {
-          const active = activeTab === tab.key;
+        {visibleTabs.map((key) => {
+          const tab = TAB_META[key];
+          const active = activeTab === key;
           return (
             <Pressable
-              key={tab.key}
+              key={key}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
               className={`flex-1 min-h-[56px] items-center justify-center rounded-2xl gap-[2px] active:opacity-[0.72] ${active ? 'bg-leaf-soft' : ''}`}
-              onPress={() => {
-                if (tab.key !== 'list') setListingPrefill(null);
-                setActiveTab(tab.key);
-              }}
+              onPress={() => selectTab(key)}
             >
               <Ionicons
                 name={active ? tab.activeIcon : tab.icon}
