@@ -7,16 +7,18 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "db:push": "pnpm --filter @chokro/db db:push",
     "db:migrate": "pnpm --filter @chokro/db db:migrate",
     "db:seed": "pnpm --filter @chokro/db db:seed",
     "db:setup": "pnpm db:push && pnpm db:migrate && pnpm db:seed",
-    "expo:doctor": "pnpm --filter @chokro/mobile run doctor"
+    "expo:doctor": "pnpm --filter @chokro/mobile run doctor",
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test",
+    "lint": "nx run-many -t lint",
+    "affected:test": "nx affected -t test",
+    "graph": "nx graph"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -26,6 +28,7 @@
     "esbuild"
   ],
   "devDependencies": {
+    "nx": "23.1.1",
     "turbo": "^2.10.8",
     "typescript": "~6.0.3"
   }
