@@ -245,6 +245,59 @@ describe('pickup dispatch API', () => {
     expect(mineData.collectorPickups).toHaveLength(3);
   });
 
+  it('optimizes the collector route via OSRM OpenStreetMap matrix when available', async () => {
+    const originalFetch = global.fetch;
+    process.env.TEST_ENABLE_OSRM = 'true';
+
+    const customer = await createTestUser();
+    const token = tokenFor(customer);
+    const collector = await createCollectorPartner({ org: 'OSM Express', baseLat: DHAKA.lat, baseLng: DHAKA.lng, capacityKg: 500 });
+    const collectorToken = tokenFor(collector.user);
+
+    const listing1 = await createListing(token, { category: 'PLASTICS', unit: 'kg', declaredWeight: 5, declaredCondition: 'GOOD' });
+    await bookPickupRequest(token, listing1.id, { lat: 23.7815, lng: 90.4200 });
+
+    const osrmResponse = {
+      code: 'Ok',
+      distances: [
+        [0, 1500],
+        [1500, 0],
+      ],
+      durations: [
+        [0, 360],
+        [360, 0],
+      ],
+    };
+
+    const fetchSpy = jest.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify(osrmResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    try {
+      const response = await collectorRoute(new Request('http://localhost/api/pickups/collector-route', {
+        headers: authHeaders(collectorToken),
+      }));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.routing_source).toBe('osrm');
+      expect(data.stops).toHaveLength(1);
+      expect(data.stops[0].distance_from_previous_km).toBe(1.5);
+      expect(data.stops[0].cumulative_eta_minutes).toBe(6);
+      expect(fetchSpy).toHaveBeenCalled();
+      const [calledUrl] = fetchSpy.mock.calls[0];
+      expect(String(calledUrl)).toContain('router.project-osrm.org/table/v1/driving');
+    } finally {
+      global.fetch = originalFetch;
+      delete process.env.TEST_ENABLE_OSRM;
+    }
+  });
+
   it('books only the caller&apos;s own ACTIVE listings and scopes pickup reads', async () => {
     const customer = await createTestUser();
     const other = await createTestUser();

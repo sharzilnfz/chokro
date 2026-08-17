@@ -25,7 +25,14 @@ export const CollectorRouteConsole = React.memo(function CollectorRouteConsole({
   const stops = route?.stops ?? [];
   const totalKm = stops.reduce((sum, stop) => sum + stop.distance_from_previous_km, 0);
   const totalEta = stops.length > 0 ? stops[stops.length - 1].cumulative_eta_minutes : 0;
-  const liveRouting = route?.routing_source === 'mapbox';
+  const routingSource = route?.routing_source ?? 'haversine_fallback';
+  const liveRouting = routingSource === 'mapbox' || routingSource === 'osrm';
+  const routingLabel =
+    routingSource === 'mapbox'
+      ? 'Mapbox live routing'
+      : routingSource === 'osrm'
+      ? 'OSRM OpenStreetMap routing'
+      : 'Offline haversine routing';
 
   const advance = useCallback(
     (stop: RouteStop, status: PickupStatus) => {
@@ -82,9 +89,7 @@ export const CollectorRouteConsole = React.memo(function CollectorRouteConsole({
               liveRouting ? 'bg-leaf-soft border-leaf' : 'bg-amber-soft border-amber'
             }`}
             accessibilityRole="text"
-            accessibilityLabel={
-              liveRouting ? 'Mapbox live routing' : 'Offline haversine routing'
-            }
+            accessibilityLabel={routingLabel}
           >
             <Ionicons
               name={liveRouting ? 'git-network-outline' : 'cloud-offline-outline'}
@@ -96,7 +101,7 @@ export const CollectorRouteConsole = React.memo(function CollectorRouteConsole({
                 liveRouting ? 'text-leaf-dark' : 'text-amber'
               }`}
             >
-              {liveRouting ? 'Mapbox live routing' : 'Offline haversine routing'}
+              {routingLabel}
             </Text>
           </View>
           <View className="flex-row items-center gap-[5px] bg-surface border border-border rounded-pill px-[12px] py-[5px]">

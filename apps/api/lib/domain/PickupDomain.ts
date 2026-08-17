@@ -5,6 +5,8 @@ const EARTH_RADIUS_KM = 6371;
 const FALLBACK_AVG_SPEED_KMH = 25; // Dhaka city average for vans/rickshaws-loaded pickups
 const MAPBOX_MATRIX_URL = 'https://api.mapbox.com/directions-matrix/v1/mapbox/driving';
 const MAPBOX_TIMEOUT_MS = 4000;
+const OSRM_TABLE_URL = 'https://router.project-osrm.org/table/v1/driving';
+const OSRM_TIMEOUT_MS = 4000;
 
 const TRANSITIONS: Record<string, string[]> = {
   REQUESTED: ['ASSIGNED', 'CANCELLED'],
@@ -83,7 +85,7 @@ export interface RouteStop {
 }
 
 export interface OptimizeRouteResult {
-  routing_source: 'mapbox' | 'haversine_fallback';
+  routing_source: 'mapbox' | 'osrm' | 'haversine_fallback';
   base: { lat: number; lng: number };
   stops: RouteStop[];
 }
@@ -108,7 +110,6 @@ function nearestNeighbourOrder(cost: number[][]): number[] {
   visited[0] = true;
   const order = [0];
   let current = 0;
-
   for (let step = 1; step < n; step++) {
     let bestIdx = -1;
     let bestCost = Infinity;
@@ -128,13 +129,13 @@ function nearestNeighbourOrder(cost: number[][]): number[] {
   return order;
 }
 
-interface MapboxMatrixResponse {
+interface MatrixResponse {
   code?: string;
   distances?: number[][];
   durations?: number[][];
 }
 
-async function fetchMapboxMatrix(coords: Array<{ lat: number; lng: number }>): Promise<MapboxMatrixResponse | null> {
+async function fetchMapboxMatrix(coords: Array<{ lat: number; lng: number }>): Promise<MatrixResponse | null> {
   const token = process.env.MAPBOX_TOKEN;
   if (!token || coords.length < 2) return null;
   try {
@@ -144,7 +145,24 @@ async function fetchMapboxMatrix(coords: Array<{ lat: number; lng: number }>): P
       { signal: AbortSignal.timeout(MAPBOX_TIMEOUT_MS) },
     );
     if (!response.ok) return null;
-    const json = (await response.json()) as MapboxMatrixResponse;
+    const json = (await response.json()) as MatrixResponse;
+    if (json.code !== 'Ok' || !Array.isArray(json.distances) || !Array.isArray(json.durations)) return null;
+    return json;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchOsrmMatrix(coords: Array<{ lat: number; lng: number }>): Promise<MatrixResponse | null> {
+  if (coords.length < 2) return null;
+  try {
+    const path = coords.map((c) => `${c.lng},${c.lat}`).join(';');
+    const response = await fetch(
+      `${OSRM_TABLE_URL}/${path}?annotations=distance,duration`,
+      { signal: AbortSignal.timeout(OSRM_TIMEOUT_MS) },
+    );
+    if (!response.ok) return null;
+    const json = (await response.json()) as MatrixResponse;
     if (json.code !== 'Ok' || !Array.isArray(json.distances) || !Array.isArray(json.durations)) return null;
     return json;
   } catch {
@@ -304,13 +322,28 @@ export const PickupDomain = {
     const base = { lat: partner.base_lat, lng: partner.base_lng };
     const points = [base, ...activeOrders.map((row) => ({ lat: row.order.lat, lng: row.order.lng }))];
 
-    const matrix = await fetchMapboxMatrix(points);
-    const useMapbox = matrix != null;
+    let routingSource: 'mapbox' | 'osrm' | 'haversine_fallback' = 'haversine_fallback';
+    let matrix: MatrixResponse | null = null;
+
+    if (process.env.MAPBOX_TOKEN) {
+      matrix = await fetchMapboxMatrix(points);
+      if (matrix) routingSource = 'mapbox';
+    }
+
+    if (!matrix && process.env.NODE_ENV !== 'test' && process.env.DISABLE_OSRM !== 'true') {
+      matrix = await fetchOsrmMatrix(points);
+      if (matrix) routingSource = 'osrm';
+    } else if (!matrix && process.env.TEST_ENABLE_OSRM === 'true') {
+      matrix = await fetchOsrmMatrix(points);
+      if (matrix) routingSource = 'osrm';
+    }
+
+    const hasLiveMatrix = matrix != null;
     const haversineCost = points.map((a) => points.map((b) => haversineKm(a.lat, a.lng, b.lat, b.lng)));
-    const distanceMatrix: number[][] = useMapbox && matrix!.distances
+    const distanceMatrix: number[][] = hasLiveMatrix && matrix!.distances
       ? matrix!.distances.map((row) => row.map((m) => m / 1000))
       : haversineCost;
-    const durationMatrix: number[][] | null = useMapbox && matrix!.durations
+    const durationMatrix: number[][] | null = hasLiveMatrix && matrix!.durations
       ? matrix!.durations.map((row) => row.map((s) => s / 60))
       : null;
 
@@ -353,7 +386,7 @@ export const PickupDomain = {
     }
 
     return {
-      routing_source: useMapbox ? 'mapbox' : 'haversine_fallback',
+      routing_source: routingSource,
       base,
       stops,
     };

@@ -28,7 +28,7 @@ export type RouteStop = {
 
 export type CollectorRoute = {
   partner: PartnerProfile;
-  routing_source: 'mapbox' | 'haversine_fallback';
+  routing_source: 'mapbox' | 'osrm' | 'haversine_fallback';
   base: { lat: number; lng: number };
   stops: RouteStop[];
 };
