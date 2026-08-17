@@ -153,10 +153,10 @@ export function EstimatorCard({
       <Animated.Text
         key={animationKey}
         entering={FadeInUp.duration(380)}
-        className="text-ink text-[36px] leading-[44px] font-black tracking-tight mt-[8px]"
+        className="text-leaf text-[42px] leading-[50px] font-black tracking-tight mt-[8px]"
       >
         ৳{bigValue.toFixed(2)}
-        {total === null ? <Text className="text-muted text-[16px] font-bold"> /{unit}</Text> : null}
+        {total === null ? <Text className="text-leaf-dark/60 text-[18px] font-bold"> /{unit}</Text> : null}
       </Animated.Text>
 
       <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[2px]" numberOfLines={1}>
