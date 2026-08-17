@@ -1,4 +1,4 @@
-import { db, listings, users, eq, desc, and } from '@chokro/db';
+import { db, listings, users, savedListings, eq, desc, and } from '@chokro/db';
 import { withDb } from './seam';
 import { KeysetPagination } from '../domain/KeysetPagination';
 import type { KeysetCursor } from '../domain/KeysetPagination';
@@ -21,6 +21,7 @@ export interface ListingFilter {
   condition?: string;
   cursor?: KeysetCursor | null;
   limit?: number;
+  savedFor?: string | null;
 }
 
 export const listingRepo = {
@@ -79,6 +80,16 @@ export const listingRepo = {
         })
         .from(listings)
         .innerJoin(users, eq(users.id, listings.owner_id));
+
+      if (filter?.savedFor) {
+        query.innerJoin(
+          savedListings,
+          and(
+            eq(savedListings.listing_id, listings.id),
+            eq(savedListings.user_id, filter.savedFor),
+          ),
+        );
+      }
 
       const whereClause = and(...conditions);
       if (whereClause) {

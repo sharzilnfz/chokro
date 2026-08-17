@@ -16,6 +16,7 @@ type Listing = {
   status: ListingStatus;
   created_at?: string;
   seller_email?: string | null;
+  saved?: boolean;
 };
 
 type FeedResponse = {
@@ -30,13 +31,14 @@ type ConditionFilter = 'ALL' | Condition;
 
 export type { FeedFilter, ConditionFilter };
 
-export function useFeed(category: FeedFilter, condition: ConditionFilter) {
+export function useFeed(category: FeedFilter, condition: ConditionFilter, savedOnly = false) {
   return useInfiniteQuery({
-    queryKey: ['feed', category, condition],
+    queryKey: ['feed', category, condition, savedOnly],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ limit: '20' });
       if (category !== 'ALL') params.set('category', category);
       if (condition !== 'ALL') params.set('condition', condition);
+      if (savedOnly) params.set('saved', 'true');
       if (pageParam) params.set('cursor', pageParam);
       return apiRequest<FeedResponse>(`/api/feed?${params.toString()}`);
     },

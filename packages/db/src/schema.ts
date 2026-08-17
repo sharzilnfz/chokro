@@ -79,6 +79,17 @@ export const messages = pgTable('messages', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const savedListings = pgTable(
+  'saved_listings',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    user_id: uuid('user_id').notNull().references(() => users.id),
+    listing_id: uuid('listing_id').notNull().references(() => listings.id),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex('saved_listings_user_listing_unique').on(table.user_id, table.listing_id)],
+);
+
 export const creditTxns = pgTable('credit_txns', {
   id: uuid('id').defaultRandom().primaryKey(),
   user_id: uuid('user_id').notNull().references(() => users.id),

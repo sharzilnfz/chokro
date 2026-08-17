@@ -1,4 +1,6 @@
 import { listingRepo } from '../../../lib/repos/listings';
+import { savedListingRepo } from '../../../lib/repos/savedListings';
+import { verifyAuthHeader } from '../../../lib/auth';
 import { CategoryEnum, ConditionEnum } from '@chokro/shared';
 import { apiData, apiError, safeRoute } from '../../../lib/http';
 import { z } from 'zod';
@@ -17,12 +19,25 @@ export const GET = safeRoute(async (req: Request) => {
   const condition = conditionResult?.data;
   const limit = limitResult.data;
 
-  const allItems = await listingRepo.findPublished({ category, condition, cursor, limit });
+  const user = verifyAuthHeader(req);
+  const savedFilter = searchParams.get('saved') === 'true';
+  if (savedFilter && !user) {
+    return apiData({ items: [], nextCursor: null });
+  }
+
+  const savedFor = savedFilter && user ? user.userId : null;
+  const allItems = await listingRepo.findPublished({ category, condition, cursor, limit, savedFor });
   const hasMore = allItems.length > limit;
   const items = allItems.slice(0, limit);
 
+  let savedIds = new Set<string>();
+  if (user) {
+    savedIds = new Set(await savedListingRepo.findSavedListingIds(user.userId));
+  }
+  const itemsWithSaved = items.map((item) => ({ ...item, saved: savedIds.has(item.id) }));
+
   return apiData({
-    items,
+    items: itemsWithSaved,
     nextCursor: hasMore ? KeysetPagination.encodeCursor(items[items.length - 1]) : null,
   });
 });

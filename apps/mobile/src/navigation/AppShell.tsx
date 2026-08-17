@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
+  Platform,
   Pressable,
   SafeAreaView,
   Text,
@@ -18,6 +20,8 @@ import { RateCardScreen } from '@/screens/RateCardScreen';
 import { MessagesScreen, type MessagesTarget } from '@/screens/MessagesScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
+import { CATEGORIES, type Category } from '@chokro/shared';
+import type { FeedFilter } from '@/hooks/useFeed';
 
 type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan' | 'messages';
 
@@ -39,10 +43,39 @@ export function AppShell() {
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [messagesTarget, setMessagesTarget] = useState<MessagesTarget | null>(null);
+  const [browseCategory, setBrowseCategory] = useState<FeedFilter | null>(null);
+
+  useEffect(() => {
+    const handleUrl = (url: string | null) => {
+      if (!url) return;
+      try {
+        const parsed = new URL(url);
+        const isBrowse = parsed.hostname === 'browse' || parsed.pathname === '/browse';
+        if (!isBrowse) return;
+        const cat = parsed.searchParams.get('category');
+        if (cat && (cat === 'ALL' || (CATEGORIES as readonly string[]).includes(cat))) {
+          setBrowseCategory(cat as FeedFilter);
+          setActiveTab('browse');
+        }
+      } catch {
+        // ignore malformed deep links
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    void Linking.getInitialURL().then(handleUrl);
+    return () => subscription.remove();
+  }, []);
 
   const openChatWithListing = (target: MessagesTarget) => {
     setMessagesTarget(target);
     setActiveTab('messages');
+  };
+
+  const syncBrowseUrl = (category: FeedFilter) => {
+    if (Platform.OS !== 'web' || typeof history === 'undefined') return;
+    const path = category === 'ALL' ? '/browse' : `/browse?category=${encodeURIComponent(category)}`;
+    history.replaceState(null, '', path);
   };
 
   if (restoreState === 'loading') {
@@ -120,7 +153,7 @@ export function AppShell() {
       </View>
 
       <View className="flex-1">
-        {activeTab === 'browse' && <FeedScreen onContactSeller={openChatWithListing} />}
+        {activeTab === 'browse' && <FeedScreen onContactSeller={openChatWithListing} deepLinkCategory={browseCategory} onCategoryChange={syncBrowseUrl} />}
         {activeTab === 'list' && (
           <CreateListingScreen onCreated={() => setActiveTab('browse')} />
         )}

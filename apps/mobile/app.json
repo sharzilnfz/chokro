@@ -2,6 +2,7 @@
   "expo": {
     "name": "Chokro",
     "slug": "chokro-mobile",
+    "scheme": "chokro",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",

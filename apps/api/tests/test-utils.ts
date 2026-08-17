@@ -82,6 +82,13 @@ const TABLE_DDLS = [
     body text NOT NULL,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS saved_listings (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES users(id),
+    listing_id uuid NOT NULL REFERENCES listings(id),
+    created_at timestamp NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, listing_id)
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -98,7 +105,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE credit_txns, messages, conversations, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE credit_txns, saved_listings, messages, conversations, drop_zones, rate_card_entries, listings, partners, users CASCADE;
   `);
 }
 

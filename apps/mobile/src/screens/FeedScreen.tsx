@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,12 +8,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { CATEGORIES, CONDITIONS, categoryLabel } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { StateView } from '@/components/ui/StateView';
 import { useFeed, type FeedFilter, type ConditionFilter, type Listing } from '@/hooks/useFeed';
+import { useSaveListing } from '@/hooks/useSaveListing';
 import type { MessagesTarget } from '@/screens/MessagesScreen';
 
 
@@ -24,30 +26,51 @@ const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
 
 type FeedScreenProps = {
   onContactSeller?: (target: MessagesTarget) => void;
+  deepLinkCategory?: FeedFilter | null;
+  onCategoryChange?: (category: FeedFilter) => void;
 };
 
-export function FeedScreen({ onContactSeller }: FeedScreenProps) {
+export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange }: FeedScreenProps) {
   const [category, setCategory] = useState<FeedFilter>('ALL');
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
+  const [savedOnly, setSavedOnly] = useState(false);
 
-  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeed(category, condition);
+  const chooseCategory = (next: FeedFilter) => {
+    setCategory(next);
+    onCategoryChange?.(next);
+  };
+
+  useEffect(() => {
+    if (deepLinkCategory && deepLinkCategory !== 'ALL') {
+      setCategory(deepLinkCategory);
+      onCategoryChange?.(deepLinkCategory);
+    }
+  }, [deepLinkCategory]);
+
+  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeed(category, condition, savedOnly);
+  const saveListing = useSaveListing();
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const errorMessage = error ? getErrorMessage(error, 'Could not load listings.') : '';
 
-  const renderCard = ({ item }: { item: Listing }) => (
-    <ListingCard
-      item={item}
-      onContactSeller={
-        onContactSeller
-          ? () => onContactSeller({
-              listingId: item.id,
-              peerEmail: item.seller_email ?? 'Seller',
-              listingCategory: item.category,
-            })
-          : undefined
-      }
-    />
-  );
+  const renderCard = ({ item }: { item: Listing }) => {
+    const isSavingThis = saveListing.isPending && saveListing.variables?.listingId === item.id;
+    return (
+      <ListingCard
+        item={item}
+        saving={isSavingThis}
+        onToggleSaved={() => saveListing.save({ listingId: item.id, save: !item.saved })}
+        onContactSeller={
+          onContactSeller
+            ? () => onContactSeller({
+                listingId: item.id,
+                peerEmail: item.seller_email ?? 'Seller',
+                listingCategory: item.category,
+              })
+            : undefined
+        }
+      />
+    );
+  };
 
   return (
     <View className="flex-1 bg-background">
@@ -70,6 +93,20 @@ export function FeedScreen({ onContactSeller }: FeedScreenProps) {
             <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Browse</Text>
             <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">Active listings from people giving useful things another turn.</Text>
 
+            <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Show</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityLabel="Saved listings"
+                accessibilityState={{ checked: savedOnly }}
+                className={`min-h-[48px] px-[14px] rounded-pill border items-center justify-center flex-row gap-[6px] active:opacity-[0.72] ${savedOnly ? 'border-leaf bg-leaf-soft' : 'border-border bg-surface'}`}
+                onPress={() => setSavedOnly((prev) => !prev)}
+              >
+                <Ionicons name={savedOnly ? 'bookmark' : 'bookmark-outline'} size={16} color={savedOnly ? colors.leafDark : colors.muted} />
+                <Text className={`text-[13px] font-bold ${savedOnly ? 'text-leaf-dark' : 'text-muted'}`}>Saved</Text>
+              </Pressable>
+            </ScrollView>
+
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CATEGORIES.map((item) => {
@@ -82,7 +119,7 @@ export function FeedScreen({ onContactSeller }: FeedScreenProps) {
                     accessibilityLabel={`${label} category`}
                     accessibilityState={{ checked: selected }}
                     className={`min-h-[48px] px-[14px] rounded-pill border items-center justify-center active:opacity-[0.72] ${selected ? 'border-leaf bg-leaf-soft' : 'border-border bg-surface'}`}
-                    onPress={() => setCategory(item)}
+                    onPress={() => chooseCategory(item)}
                   >
                     <Text className={`text-[13px] font-bold ${selected ? 'text-leaf-dark' : 'text-muted'}`}>{label}</Text>
                   </Pressable>

@@ -43,6 +43,34 @@ services:
           cpus: '1.5'
     restart: unless-stopped
 
+  notifications:
+    build:
+      context: .
+      target: builder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
+      NOTIFY_TRANSPORT: ${NOTIFY_TRANSPORT:-json}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      NOTIFY_CRON: ${NOTIFY_CRON:-0 9 * * *}
+      NOTIFY_WINDOW_HOURS: ${NOTIFY_WINDOW_HOURS:-24}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_SCHEME: ${APP_SCHEME:-chokro}
+      TZ: ${TZ:-Asia/Dhaka}
+    command: sh -c "pnpm --filter @chokro/api notify:schedule"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    restart: unless-stopped
+
   db-setup:
     build:
       context: .
