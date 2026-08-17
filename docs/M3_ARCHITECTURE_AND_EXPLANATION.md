@@ -10,16 +10,17 @@
 1. [Executive Summary & The Unified Chokro Narrative](#1-executive-summary--the-unified-chokro-narrative)
 2. [CSE471 Grading Rubric Alignment Matrix (5 Marks × 4 Features = 20 Marks)](#2-cse471-grading-rubric-alignment-matrix)
 3. [Full System Architecture & Monorepo Design](#3-full-system-architecture--monorepo-design)
-4. [Database Schema & ERD (M3 Focus)](#4-database-schema--erd-m3-focus)
-5. [Deep Feature Breakdown, Mechanics & Sequence Diagrams](#5-deep-feature-breakdown-mechanics--sequence-diagrams)
+4. [Deep Domain Modules & Clean Adapter Seams Architecture](#4-deep-domain-modules--clean-adapter-seams-architecture)
+5. [Database Schema & ERD (M3 Focus)](#5-database-schema--erd-m3-focus)
+6. [Deep Feature Breakdown, Mechanics & Sequence Diagrams](#6-deep-feature-breakdown-mechanics--sequence-diagrams)
    - [Feature 1: Market-Benchmarked Valuation Engine (Retrofit)](#feature-1-market-benchmarked-valuation-engine-retrofit)
    - [Feature 2: AI Next-Life Scrap Vision Agent](#feature-2-ai-next-life-scrap-vision-agent)
    - [Feature 3: Smart Geo-Dispatch & Route Optimizer](#feature-3-smart-geo-dispatch--route-optimizer)
    - [Feature 4: B2B Bulk Scrap Auction & Live Bidding Engine](#feature-4-b2b-bulk-scrap-auction--live-bidding-engine)
-6. [Cross-Team Dependencies & How to Defend Them to Your Teacher](#6-cross-team-dependencies--how-to-defend-them-to-your-teacher)
-7. [Role-Based Navigation & Persona Switcher Guide](#7-role-based-navigation--persona-switcher-guide)
-8. [Live Teacher Demonstration Script & Viva Defense (CO5 Preparation)](#8-live-teacher-demonstration-script--viva-defense-co5-preparation)
-9. [Assignment 03: API & Postman Catalog](#9-assignment-03-api--postman-catalog)
+7. [Cross-Team Dependencies & How to Defend Them to Your Teacher](#7-cross-team-dependencies--how-to-defend-them-to-your-teacher)
+8. [Role-Based Navigation & Persona Switcher Guide](#8-role-based-navigation--persona-switcher-guide)
+9. [Live Teacher Demonstration Script & Viva Defense (CO5 Preparation)](#9-live-teacher-demonstration-script--viva-defense-co5-preparation)
+10. [Assignment 03: API & Postman Catalog](#10-assignment-03-api--postman-catalog)
 
 ---
 
@@ -63,10 +64,10 @@ Each member must deliver **4 unique functional features** (5 marks each = 20 mar
 
 | Feature | Frontend Surface (1M) | Backend / API Controller (1M) | Database Schema (1M) | Innovation Claim (1M) | External API Integration (1M) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **F1: Market-Benchmarked Valuation Engine** *(Retrofit)* | `RateCardScreen.tsx`: Dynamic estimator with live drift indicator badge. | `GET /api/v1/rate-card/estimate`, `CommodityBenchmarkService.ts` | `rate_benchmarks`, `rate_card_entries` with `effective_from` versioning | Continuous FX & global commodity drift calculation (`±10%` threshold) | Open FX Feed (open.er-api) + Global Commodity Market Index |
-| **F2: AI Next-Life Scrap Vision Agent** | `VisionScanScreen.tsx`: Camera capture, confidence pill, one-tap listing handoff. | `POST /api/v1/valuation/classify-and-estimate`, `VisionAgentService.ts` | `valuation_scans` table storing AI audit trail & rationale | Regulated E-waste safety gate (forces `RECYCLE`, bypass-proof) + DB pricing join | OpenAI Vision (`gpt-4o-mini`) / Gemini Multimodal API |
-| **F3: Smart Geo-Dispatch & Route Optimizer** | `PickupScreen.tsx`: Booking map + Collector ordered SVG stop sequence. | `POST /api/v1/pickups/dispatch/find-best`, `GET /collector-route`, `DispatchService.ts` | `pickup_orders`, `dispatch_assignments`, `partners` fleet columns | Capacity-constrained (`kg`), radius & license-aware nearest neighbor dispatch | Mapbox Directions Matrix API (TSP routing with Haversine fallback) |
-| **F4: B2B Bulk Scrap Auction & Live Bidding Engine** | `AuctionsScreen.tsx`: Live lot cards, pulse animation, countdown chips, quick-bid stepper. | `GET/POST /api/v1/auction-lots`, `POST /:id/bids`, `AuctionDomain.ts` | `auction_lots` (sealed reserve), `auction_bids` (monotonic sequence) | Sealed reserve price protection, anti-sniping dynamic clock extensions, lazy close | Pusher Channels (WebSockets for real-time bid tickers) |
+| **F1: Market-Benchmarked Valuation Engine** *(Retrofit)* | `RateCardScreen.tsx` + `ratecard/` modular components with live drift badge. | `GET /api/v1/rate-card/estimate`, `ValuationDomain.ts` | `rate_benchmarks`, `rate_card_entries` with `effective_from` versioning | Continuous FX & global commodity drift calculation (`±10%` threshold) | Open FX Feed (`open.er-api.com`) + Global Commodity Market Index |
+| **F2: AI Next-Life Scrap Vision Agent** | `VisionScanScreen.tsx` + `vision/` viewfinder & confidence overlay. | `POST /api/v1/valuation/classify-and-estimate`, `ValuationDomain.ts` | `valuation_scans` table storing AI audit trail & rationale | Regulated E-waste safety gate (forces `RECYCLE`, bypass-proof) + DB pricing join | OpenAI Vision (`gpt-4o-mini`) / Gemini Multimodal API |
+| **F3: Smart Geo-Dispatch & Route Optimizer** | `PickupScreen.tsx` + `dispatch/` booking & SVG collector console. | `POST /api/v1/pickups`, `GET /collector-route`, `PickupDomain.ts` | `pickup_orders`, `dispatch_assignments`, `partners` fleet columns | Capacity-constrained (`kg`), radius & license-aware nearest neighbor dispatch | Mapbox Directions Matrix API (TSP routing with Haversine fallback) |
+| **F4: B2B Bulk Scrap Auction & Live Bidding Engine** | `AuctionsScreen.tsx` + `auctions/` live bid cards, pulse & ticker. | `GET/POST /api/v1/auction-lots`, `POST /:id/bids`, `AuctionDomain.ts` | `auction_lots` (sealed reserve), `auction_bids` (monotonic sequence) | Sealed reserve price protection, anti-sniping dynamic clock extensions, lazy close | Pusher Channels (WebSockets for real-time bid tickers) |
 
 > **Banned Feature Defense:**  
 > Login/Signup, Role RBAC, and Profile CRUD are treated as shared plumbing (0 marks). Our features focus strictly on domain intelligence, optimization algorithms, and real-time financial mechanisms.
@@ -81,13 +82,18 @@ chokro/
 │   ├── api/                              # Next.js 16 App Router (REST API + Admin Console)
 │   │   ├── app/api/v1/                   # Versioned REST endpoints (pickups, auctions, valuation, etc.)
 │   │   ├── lib/
-│   │   │   ├── domain/                   # Pure business logic (AuctionDomain, ListingDomain, etc.)
+│   │   │   ├── domain/                   # Deep Domain Modules (ValuationDomain, PickupDomain, AuctionDomain)
 │   │   │   ├── repos/                    # Drizzle ORM data access (seam.ts boundary)
-│   │   │   ├── services/                 # External API integrations & algorithms (DispatchService, VisionAgentService, CommodityBenchmarkService)
+│   │   │   ├── services/                 # External Adapters & Facades (DispatchService, VisionAgentService, CommodityBenchmarkService)
 │   │   │   └── http.ts                   # safeRoute wrapper & CORS error handling
 │   │   └── tests/                        # 16 Jest test suites (86 tests) using in-memory PGlite
 │   └── mobile/                           # React Native 0.86 + Expo SDK 57 (NativeWind Tailwind v3)
 │       └── src/
+│           ├── components/
+│           │   ├── auctions/             # Modular F4 Auction components (LotCard, AntiSnipeCountdown, LivePriceTicker)
+│           │   ├── dispatch/             # Modular F3 Dispatch components (CollectorRouteConsole, RouteMapCanvas)
+│           │   ├── vision/               # Modular F2 Vision components (VisionCameraViewfinder, ConfidenceMeter)
+│           │   └── ratecard/             # Modular F1 Rate components (RateCardEstimator, CommodityDriftBadge)
 │           ├── navigation/               # Role-based tabs (roleTabs.ts, AppShell.tsx)
 │           ├── screens/                  # Tab screens (VisionScan, Pickup, Auctions, RateCard, etc.)
 │           └── services/                 # Axios/Fetch API client + token interceptors
@@ -105,7 +111,47 @@ chokro/
 
 ---
 
-## 4. Database Schema & ERD (M3 Focus)
+## 4. Deep Domain Modules & Clean Adapter Seams Architecture
+
+In accordance with deep module design principles, M3 features are structured with high leverage at the interface, rich internal logic, and strict external adapter seams:
+
+### 1. `ValuationDomain` (M3 F1 + F2)
+- **Interface**: `estimateRate()`, `classifyAndEstimate()`, `getPublishedRatesWithBenchmarks()`, `syncBenchmarks()`
+- **Encapsulated Invariants**:
+  - Enforces Category $\leftrightarrow$ Unit mapping (`kg` for bulk recyclables, `piece` for appliances/e-waste).
+  - Regulated E-Waste Safety Gate: automatically forces `next_life_path: 'RECYCLE'`, flags hazardous materials, and generates DoE compliance rationale.
+  - Rate Card Join: retrieves published rate card price from DB and applies condition multipliers.
+  - Market Drift Calculation: computes percentage deviation between local rate card price and live international commodity spot price ($\pm 10\%$ alignment threshold).
+  - Audit Trail: persists scan results into `valuation_scans` table.
+- **External Adapter Seams**:
+  - *Vision Adapter*: OpenAI `gpt-4o-mini` / Gemini API client with graceful local heuristic fallback.
+  - *Market Index Adapter*: Open FX feed (`open.er-api.com`) + COMEX futures with baseline fallback.
+
+### 2. `PickupDomain` (M3 F3)
+- **Interface**: `findBestCollector()`, `assignBestCollector()`, `optimizeRoute()`, `updateStatus()`
+- **Encapsulated Invariants**:
+  - State machine transition rules: `REQUESTED` $\rightarrow$ `ASSIGNED` $\rightarrow$ `EN_ROUTE` $\rightarrow$ `COLLECTED`.
+  - Driver Eligibility: filters for verified partners with `COLLECTOR` capability, within geofenced service radius.
+  - Dynamic Vehicle Capacity Gate: $\text{Remaining Capacity} = \text{Vehicle Capacity} - \sum(\text{Committed Weights})$.
+  - E-Waste Regulatory Gate: requires `e_waste_licensed = true` for e-waste pickup orders.
+  - Greedy TSP Tour Optimization: calculates nearest-neighbor route order from driver base and cumulative leg ETAs.
+- **External Adapter Seams**:
+  - *Matrix Routing Seam*: Mapbox Directions Matrix API with mathematical Haversine ($25\text{ km/h}$) fallback.
+
+### 3. `AuctionDomain` (M3 F4)
+- **Interface**: `createLot()`, `placeBid()`, `listPublicLots()`, `getPublicLotById()`
+- **Encapsulated Invariants**:
+  - Sealed Reserve Protection: reserve price is stripped at the `toPublicLot` serialization seam (`reserve_met: boolean` returned).
+  - Server-Authoritative Sequencing: assigns monotonic integer `bid_number` on acceptance.
+  - Minimum Bid Increment: enforces minimum $+৳50$ step above current highest bid.
+  - Dynamic Anti-Snipe Clock Extension: extends auction closing time by $2\text{ minutes}$ if a valid bid lands in the final $2\text{ minutes}$.
+  - Lazy Close: transitions expired lots to `ENDED` and stamps winning bid if reserve is satisfied.
+- **External Adapter Seams**:
+  - *Realtime Broadcast Seam*: Pusher Channels WebSocket trigger with client-side polling fallback.
+
+---
+
+## 5. Database Schema & ERD (M3 Focus)
 
 ```mermaid
 erDiagram
@@ -207,15 +253,15 @@ erDiagram
 
 ---
 
-## 5. Deep Feature Breakdown, Mechanics & Sequence Diagrams
+## 6. Deep Feature Breakdown, Mechanics & Sequence Diagrams
 
 ---
 
 ### Feature 1: Market-Benchmarked Valuation Engine (Retrofit)
 
 #### 1. What Problem It Solves
-Informal recycling economies (such as scrap markets in Bangladesh) suffer from severe **information asymmetry and market volatility**:
-1. **Sellers (Households/Students):** Hesitate to recycle because they fear traditional collectors (*bhangariwallas*) underpay them with arbitrary, opaque pricing.
+Informal recycling economies suffer from severe **information asymmetry and market volatility**:
+1. **Sellers (Households/Students):** Hesitate to recycle because they fear traditional collectors (*bhangariwallas*) underpay them with opaque pricing.
 2. **Platform Operators:** Risk margin collapse if platform collection rates remain fixed while international commodity prices drop.
 3. **Recycling Mills:** Need predictable, fair market rates tied to import parity and global spot prices.
 
@@ -223,41 +269,23 @@ The **Market-Benchmarked Valuation Engine** solves this by continuously calculat
 
 ---
 
-#### 2. Systemic Role in the Chokro Ecosystem (The Core Financial Anchor)
-Feature 1 does not operate as an isolated CRUD screen; it serves as the platform's central valuation engine:
-* **Upstream Anchor for AI Vision (F2):** When the AI Scrap Vision Agent scans an item (e.g. 15 kg scrap metal), it queries `GET /api/v1/rate-card/estimate` to evaluate its exact monetary value in BDT.
-* **Economic Prioritization for Geo-Dispatch (F3):** Pickup requests carry declared valuation data so collectors and the route optimization engine can prioritize high-value commercial batches.
-* **Floor Price for B2B Auctions (F4):** Aggregators listing multi-ton bulk lots use published benchmarks to calculate fair reserve and starting bid thresholds.
-* **Audit Base for Wallets (Imran M4 & Sadat M1):** Because rate cards use versioned `effective_from` timestamps, credit disbursements, escrow payments, and MFS payouts (bKash/Nagad) are anchored to immutable, auditable historical rates.
-
----
-
-#### 3. 100% Free Public API Architecture & Resilient Fail-Safe
-To ensure zero operational cost, no paid subscriptions, and 100% uptime during live evaluations:
+#### 2. 100% Free Public API Architecture & Resilient Fail-Safe
 
 ```mermaid
 flowchart LR
-    A[Public Open FX API\nopen.er-api.com] -->|Live USD/BDT Rate\n~122.7 BDT| C[CommodityBenchmarkService]
+    A[Public Open FX API\nopen.er-api.com] -->|Live USD/BDT Rate\n~122.7 BDT| C[ValuationDomain Engine]
     B[Public Market Quotes\nYahoo Finance COMEX HG=F/ALI=F] -->|Live Spot Commodity Pricing| C
     C -->|Dynamically Derived Benchmark| D[(rate_benchmarks Table)]
-    D -->|Real-time Market Drift ±10%| E[Mobile Rates Tab / Valuation Estimator]
+    D -->|Real-time Market Drift ±10%| E[Mobile Rates Tab / Estimator Card]
     
     subgraph Multi-Tier Deterministic Fail-Safe
-    F[Calibrated In-Memory Spot Baseline] -.->|Timeout / Offline Fallback| C
+    F[Calibrated In-Memory Baseline] -.->|Timeout / Offline Fallback| C
     end
 ```
 
-1. **Live Foreign Exchange (USD $\rightarrow$ BDT):**
-   - Fetches live currency exchange rates from `https://open.er-api.com/v6/latest/USD` (**100% free, zero API key required**).
-2. **Live Commodity Spot Quotes:**
-   - Fetches public COMEX metal futures (`HG=F` Copper, `ALI=F` Aluminum) via public chart endpoints.
-3. **Deterministic Multi-Tier Fallback:**
-   - If internet connectivity drops or an external feed times out (2.5s limit), the service automatically degrades to calibrated baseline commodity rates in memory. The system **never crashes or hangs**.
-
 ---
 
-#### 4. The Dynamic Rate Drift Formula & State Machine
-The engine continuously assesses whether local platform pricing is competitive, margin-protective, or at risk:
+#### 3. The Dynamic Rate Drift Formula & State Machine
 
 $$\text{Drift \%} = \left( \frac{P_{\text{local}} - P_{\text{benchmark}}}{P_{\text{benchmark}}} \right) \times 100$$
 
@@ -269,44 +297,35 @@ $$\text{Drift \%} = \left( \frac{P_{\text{local}} - P_{\text{benchmark}}}{P_{\te
 
 ---
 
-#### 5. Sequence Diagram
+#### 4. Sequence Diagram
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Client as Mobile Client (Rates Tab)
     participant API as Next.js API (/api/v1/rate-card/estimate)
-    participant BenchSvc as CommodityBenchmarkService
+    participant Domain as ValuationDomain.ts
     participant ExtAPI as Open FX & Commodity Market Feed
     participant DB as PostgreSQL (rate_benchmarks & rate_card_entries)
 
     Client->>API: GET /api/v1/rate-card/estimate?category=METAL&condition=GOOD&weight=15
-    API->>DB: Fetch latest effective rate card (rateCardRepo.findPublished)
-    DB-->>API: Returns active local rate (e.g. ৳110.00 / kg)
+    API->>Domain: estimateRate({ category: 'METAL', condition: 'GOOD', quantity: 15 })
+    Domain->>DB: Fetch published rate card for METAL @ GOOD
+    DB-->>Domain: Returns active local rate (৳110.00 / kg)
     
-    API->>BenchSvc: getBenchmarkAndDrift("METAL", 110.00)
-    alt Live Open Feeds Available
-        BenchSvc->>ExtAPI: GET Open Exchange FX & Market Spot (Timeout 2.5s)
-        ExtAPI-->>BenchSvc: Live USD/BDT (~122.70) + Metal Quote
-    else Offline / Network Fallback
-        BenchSvc->>BenchSvc: Use calibrated baseline ($0.95/kg, 122.50 BDT)
+    Domain->>DB: Find benchmark record for METAL
+    alt Benchmarks synced in DB
+        DB-->>Domain: benchmark_bdt: 116.57
+    else Fallback to Live Sync
+        Domain->>ExtAPI: Fetch USD/BDT FX + COMEX Metal Quote
+        ExtAPI-->>Domain: USD 122.50 + Copper $0.95/kg
     end
     
-    BenchSvc->>BenchSvc: Calculate BDT Benchmark ($0.95 * 122.70 = ৳116.57)
-    BenchSvc->>BenchSvc: Calculate Drift ((110 - 116.57) / 116.57 = -5.6%)
-    BenchSvc-->>API: Benchmark details { benchmark_bdt: 116.57, drift_pct: -5.6, status: 'IN_SYNC' }
-    
+    Domain->>Domain: calculateDrift(110.00, 116.57) -> -5.6% (IN_SYNC)
+    Domain-->>API: ValuationEstimateResult
     API-->>Client: 200 OK { unit_price: 110.00, quantity: 15, total_bdt: 1650.00, market_benchmark: {...} }
     Client->>Client: Render Bold Green Total (৳1,650) & Market Aligned Badge
 ```
-
----
-
-#### 6. Database Schema & Temporal Versioning (`rate_card_entries` & `rate_benchmarks`)
-To prevent historical data corruption, rate cards are never destructively overwritten. Instead, they use temporal versioning with `effective_from`:
-* **`rate_card_entries`:** `(id, category, condition_band, unit, price_bdt, effective_from, updated_by)`
-  * *Query Invariant:* `WHERE effective_from <= NOW() ORDER BY effective_from DESC LIMIT 1`
-* **`rate_benchmarks`:** `(id, category, commodity_symbol, global_price_usd, fx_rate_usd_bdt, benchmark_bdt, source, updated_at)`
 
 ---
 
@@ -327,34 +346,34 @@ sequenceDiagram
     actor User as User with Mobile App
     participant Screen as VisionScanScreen.tsx
     participant API as POST /api/v1/valuation/classify-and-estimate
-    participant VisionSvc as VisionAgentService
-    participant LLM as OpenAI GPT-4o-mini (Multimodal Vision)
+    participant Domain as ValuationDomain.ts
+    participant LLM as OpenAI GPT-4o-mini (Vision Adapter)
     participant RateDB as PostgreSQL (rate_card_entries & rate_benchmarks)
     participant ScanDB as PostgreSQL (valuation_scans)
     participant ListScreen as CreateListingScreen.tsx
 
     User->>Screen: Snaps scrap photo or selects sample
     Screen->>API: POST Base64 image + user notes
-    API->>VisionSvc: classifyAndEstimate(input)
+    API->>Domain: classifyAndEstimate(input)
     
     alt OpenAI Key Configured
-        VisionSvc->>LLM: Multimodal JSON completion (image + strict system prompt)
-        LLM-->>VisionSvc: { category: "METAL", condition: "GOOD", confidence: 0.94 }
+        Domain->>LLM: Multimodal JSON completion (image + strict prompt)
+        LLM-->>Domain: { category: "METAL", condition: "GOOD", confidence: 0.94 }
     else Fallback Classifier
-        VisionSvc->>VisionSvc: Run deterministic heuristic feature extractor
+        Domain->>Domain: Run deterministic heuristic feature extractor
     end
     
-    VisionSvc->>VisionSvc: Invariant check (unit = kg, piece = null)
-    VisionSvc->>VisionSvc: Evaluate Next-Life Path (METAL + GOOD -> RECYCLE)
+    Domain->>Domain: Enforce unit invariant (unit = kg, piece = null)
+    Domain->>Domain: Evaluate Next-Life Path (METAL + GOOD -> RECYCLE)
     
-    VisionSvc->>RateDB: Query published rate card for METAL @ GOOD
-    RateDB-->>VisionSvc: 110 BDT/kg
+    Domain->>RateDB: Query published rate card for METAL @ GOOD
+    RateDB-->>Domain: 110 BDT/kg
     
-    VisionSvc->>ScanDB: Persist audit record into valuation_scans table
-    ScanDB-->>VisionSvc: Stamped record with UUID
+    Domain->>ScanDB: Persist audit record into valuation_scans table
+    ScanDB-->>Domain: Stamped record with UUID
     
-    VisionSvc-->>API: Complete valuation result
-    API-->>Screen: 200 OK { scan_id, classification, valuation, recommendation }
+    Domain-->>API: VisionClassifyOutput
+    API-->>Screen: 201 Created { scan_id, classification, valuation, recommendation }
     Screen->>Screen: Display Confidence Pill, Rationale & Estimated Value
     
     User->>Screen: Clicks "List this Scrap"
@@ -391,39 +410,40 @@ sequenceDiagram
     actor Customer as Individual User
     participant Mobile as PickupScreen (Booking Mode)
     participant API as POST /api/v1/pickups
-    participant Dispatch as DispatchService
+    participant Domain as PickupDomain.ts
     participant DB as PostgreSQL (partners, pickup_orders, dispatch_assignments)
-    participant Mapbox as Mapbox Matrix API
+    participant Mapbox as Mapbox Matrix API (Routing Seam)
     actor Collector as Collector Driver (Mobile App)
 
     Customer->>Mobile: Selects location, date & submits pickup booking
     Mobile->>API: POST /api/v1/pickups { listing_id, lat, lng, address, scheduled_for }
-    API->>Dispatch: assignBestCollector(params)
+    API->>Domain: assignBestCollector(params)
     
-    Dispatch->>DB: Query verified collectors with vehicle capacity
-    DB-->>Dispatch: List of candidate partner fleets
+    Domain->>DB: Query verified collectors with vehicle capacity
+    DB-->>Domain: List of candidate partner fleets
     
-    Dispatch->>Dispatch: Filter: within radius + remaining capacity >= weight + license check
-    Dispatch->>Dispatch: Rank by Haversine distance -> Selects nearest eligible driver
+    Domain->>Domain: Filter: within radius + remaining capacity >= weight + license check
+    Domain->>Domain: Rank by Haversine distance -> Selects nearest eligible driver
     
-    Dispatch->>DB: Insert pickup_orders row (status: ASSIGNED)
-    Dispatch->>DB: Insert dispatch_assignments row (stop_sequence: N)
+    Domain->>DB: Insert pickup_orders row (status: ASSIGNED)
+    Domain->>DB: Insert dispatch_assignments row (stop_sequence: N)
+    Domain-->>API: Order & assignment details
     API-->>Mobile: 201 Created { order_id, collector: { org_name, vehicle_label }, eta_minutes }
     
     Note over Collector, DB: Collector opens App (Switches to Collector Persona)
     Collector->>API: GET /api/v1/pickups/collector-route
-    API->>Dispatch: optimizeRoute(collectorPartnerId)
-    Dispatch->>DB: Fetch driver base coords + all active pickup stops
+    API->>Domain: optimizeRoute(collectorPartnerId)
+    Domain->>DB: Fetch driver base coords + all active pickup stops
     
     alt Mapbox Token Active
-        Dispatch->>Mapbox: GET /directions-matrix/v1/mapbox/driving (coords list)
-        Mapbox-->>Dispatch: Real duration & distance matrix
+        Domain->>Mapbox: GET /directions-matrix/v1/mapbox/driving (coords list)
+        Mapbox-->>Domain: Real duration & distance matrix
     else Network / Token Fallback
-        Dispatch->>Dispatch: Compute Haversine matrix @ 25 km/h
+        Domain->>Domain: Compute Haversine matrix @ 25 km/h
     end
     
-    Dispatch->>Dispatch: Run nearest-neighbor TSP walk -> Order stops from base
-    Dispatch-->>API: { routing_source: 'mapbox', stops: [ordered stops with cumulative ETAs] }
+    Domain->>Domain: Run nearest-neighbor TSP walk -> Order stops from base
+    Domain-->>API: { routing_source: 'mapbox', stops: [ordered stops with cumulative ETAs] }
     API-->>Collector: Render SVG Stop Sequence, addresses, material info & ETAs
 ```
 
@@ -451,7 +471,7 @@ sequenceDiagram
     participant API as POST /api/v1/auction-lots/:id/bids
     participant Domain as AuctionDomain.ts
     participant DB as PostgreSQL (auction_lots & auction_bids)
-    participant Pusher as Pusher Channels (WebSockets)
+    participant Pusher as Pusher Channels (Realtime Seam)
     actor OtherBidders as Other Connected Recyclers
 
     Screen->>API: POST /api/v1/auction-lots/{id}/bids { amount: 65200 }
@@ -483,7 +503,7 @@ sequenceDiagram
 
 ---
 
-## 6. Cross-Team Dependencies & How to Defend Them to Your Teacher
+## 7. Cross-Team Dependencies & How to Defend Them to Your Teacher
 
 When presenting, teachers frequently ask questions about cross-team collaboration, module boundaries, and what happens if another member's code is not running. 
 
@@ -516,7 +536,7 @@ Here is the exact architectural defense:
 ### Verbal Viva Q&A Script for Teacher Scrutiny
 
 #### Q1: "What if Sadat's partner KYC module is down or unapproved? How does your Geo-Dispatch work?"
-> **Answer:** *"Our system is designed with strict domain seams using the Repository Pattern. My `DispatchService` queries the database contracts directly. During independent evaluation, my seed script (`pnpm db:setup`) seeds pre-verified partner collectors with valid vehicles and licenses. When Sadat's module is active, his KYC approval process directly updates the `e_waste_licensed` flag in the same database table, seamlessly feeding into my capacity and routing algorithm."*
+> **Answer:** *"Our system is designed with strict domain seams using the Repository Pattern. My `PickupDomain` queries the database contracts directly. During independent evaluation, my seed script (`pnpm db:setup`) seeds pre-verified partner collectors with valid vehicles and licenses. When Sadat's module is active, his KYC approval process directly updates the `e_waste_licensed` flag in the same database table, seamlessly feeding into my capacity and routing algorithm."*
 
 #### Q2: "How does your AI Vision Agent connect to Sameer's Marketplace?"
 > **Answer:** *"My Vision Agent accepts raw camera captures, extracts material properties, validates unit invariants (kg vs piece), and joins with our live database rate card. Once evaluated, it outputs a standardized `ListingPrefill` DTO. Clicking 'List this Scrap' hands off this DTO directly into the `CreateListingScreen`, pre-populating category, condition, estimated weight, and photos with zero duplicate data entry."*
@@ -537,7 +557,7 @@ Here is the exact architectural defense:
 
 ---
 
-## 7. Role-Based Navigation & Persona Switcher Guide
+## 8. Role-Based Navigation & Persona Switcher Guide
 
 To make grading effortless for your professor, the mobile app includes a **Role-Based Navigation System** and an active **Persona Chip**:
 
@@ -560,7 +580,7 @@ In the top navigation bar, the active persona badge is displayed (`Individual`, 
 
 ---
 
-## 8. Live Teacher Demonstration Script & Viva Defense (CO5 Preparation)
+## 9. Live Teacher Demonstration Script & Viva Defense (CO5 Preparation)
 
 Follow this **4-minute step-by-step walkthrough** to showcase full marks across all 4 features:
 
@@ -605,13 +625,13 @@ Teachers will ask you to change code live on the spot to prove authorship. Here 
 | :--- | :--- | :--- |
 | **"Change the minimum bid increment from ৳50 to ৳100"** | `apps/api/lib/domain/AuctionDomain.ts` | Change line 13: `export const MIN_BID_INCREMENT_BDT = 100;` |
 | **"Change the anti-snipe extension time from 2 mins to 5 mins"** | `apps/api/lib/domain/AuctionDomain.ts` | Change line 15: `export const ANTI_SNIPE_WINDOW_MS = 5 * 60 * 1000;` |
-| **"Change the market drift alert threshold from 10% to 15%"** | `apps/api/lib/services/CommodityBenchmarkService.ts` | In `calculateDrift()`: Change `if (driftPct < -15)` and `else if (driftPct > 15)` |
-| **"Make books and clothes use piece count instead of kg"** | `packages/shared/src/rules/categories.ts` | Move `'BOOKS'` and `'CLOTHES'` from `WEIGHT_CATEGORIES` to `PIECE_CATEGORIES` |
-| **"Change the default vehicle driving speed from 25 km/h to 30 km/h"**| `apps/api/lib/services/DispatchService.ts` | Change line 5: `const FALLBACK_AVG_SPEED_KMH = 30;` |
+| **"Change the market drift alert threshold from 10% to 15%"** | `apps/api/lib/domain/ValuationDomain.ts` | In `calculateDrift()`: Change `if (driftPct < -15)` and `else if (driftPct > 15)` |
+| **"Make books and clothes use piece count instead of kg"** | `packages/shared/src/enums/index.ts` / `rules` | Move `'BOOKS'` and `'CLOTHES'` from `WEIGHT_CATEGORIES` to `PIECE_CATEGORIES` |
+| **"Change the default vehicle driving speed from 25 km/h to 30 km/h"**| `apps/api/lib/domain/PickupDomain.ts` | Change line 6: `const FALLBACK_AVG_SPEED_KMH = 30;` |
 
 ---
 
-## 9. Assignment 03: API & Postman Catalog
+## 10. Assignment 03: API & Postman Catalog
 
 For Assignment 03, the server can be started on your custom student port using:
 ```bash
@@ -633,9 +653,9 @@ PORT=4589 pnpm --filter @chokro/api dev
   - Response: `{ "scan_id": "...", "classification": { "category": "METAL", "confidence": 0.94 }, "valuation": { "total_estimated_bdt": 1100 } }`
 
 #### 3. Smart Dispatch & Pickup (Feature 3)
-- **`POST /api/v1/pickups/dispatch/find-best`**
-  - Body: `{ "lat": 23.7937, "lng": 90.4066, "category": "METAL", "weightKg": 15.0 }`
-  - Response: `{ "best": { "partner": { "org_name": "Green Dhaka Logistics" }, "distance_km": 1.84, "remaining_capacity_kg": 485.0 } }`
+- **`POST /api/v1/pickups`**
+  - Body: `{ "listingId": "...", "address": "...", "lat": 23.7937, "lng": 90.4066, "scheduledFor": "..." }`
+  - Response: `{ "pickup": { "status": "ASSIGNED" }, "collector": { "partner": { "org_name": "Green Dhaka Logistics" }, "distance_km": 1.84 } }`
 - **`GET /api/v1/pickups/collector-route`**
   - Headers: `Authorization: Bearer <COLLECTOR_JWT>`
   - Response: `{ "routing_source": "mapbox", "stops": [...] }`
@@ -649,7 +669,7 @@ PORT=4589 pnpm --filter @chokro/api dev
 
 ---
 
-## 10. Summary & Checklist for Presentation Day
+## 11. Summary & Checklist for Presentation Day
 - [x] Run `pnpm test` to demonstrate **16 passing test suites (86 tests)**.
 - [x] Launch both backend and mobile with `pnpm dev`.
 - [x] Open mobile app in Expo Go or Simulator.
