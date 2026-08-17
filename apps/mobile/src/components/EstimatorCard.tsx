@@ -9,11 +9,13 @@ import type { Estimate, MarketBenchmark } from '@/hooks/useEstimate';
 export interface EstimatorCardProps {
   estimate: Estimate | null;
   isLoading: boolean;
-  notFound: boolean;
-  hasQuantity: boolean;
-  quantityLabel: string;
-  category: string;
-  condition: string;
+  notFound?: boolean;
+  hasQuantity?: boolean;
+  quantityLabel?: string;
+  category?: string;
+  condition?: string;
+  totalBdt?: number | null;
+  className?: string;
 }
 
 function formatPct(pct: number): string {
@@ -72,15 +74,17 @@ export function EstimatorCard({
   estimate,
   isLoading,
   notFound,
-  hasQuantity,
-  quantityLabel,
-  category,
-  condition,
+  hasQuantity = false,
+  quantityLabel = '',
+  category = '',
+  condition = '',
+  totalBdt,
+  className = '',
 }: EstimatorCardProps) {
   if (isLoading) {
     return (
       <View
-        className="bg-surface border border-border rounded-md p-[16px] shadow-card min-h-[220px] items-center justify-center"
+        className={`bg-surface border border-border rounded-md p-[16px] shadow-card min-h-[142px] items-center justify-center ${className}`}
         style={{ elevation: 2 }}
         accessibilityLabel="Calculating estimate"
       >
@@ -90,10 +94,13 @@ export function EstimatorCard({
     );
   }
 
-  if (notFound || !estimate) {
+  const isNotFound = notFound ?? (!isLoading && !estimate);
+
+  if (isNotFound || !estimate) {
+    if (!category && !condition) return null;
     return (
       <View
-        className="bg-surface border border-border rounded-md p-[16px] shadow-card"
+        className={`bg-surface border border-border rounded-md p-[16px] shadow-card ${className}`}
         style={{ elevation: 2 }}
         accessibilityLabel="No published rate yet"
       >
@@ -102,8 +109,9 @@ export function EstimatorCard({
           <Text className="text-ink text-[16px] font-extrabold">No published rate yet</Text>
         </View>
         <Text className="text-muted text-[13px] leading-[19px] mt-[6px]">
-          There is no published {categoryLabel(category)} rate for the {categoryLabel(condition)} band right now. Try
-          another condition — or check back once rates are next updated.
+          {category && condition
+            ? `There is no published ${categoryLabel(category)} rate for the ${categoryLabel(condition)} band right now. Try another condition — or check back once rates are next updated.`
+            : 'There is no published rate available for this item right now.'}
         </Text>
       </View>
     );
@@ -112,13 +120,17 @@ export function EstimatorCard({
   const unitPrice = Number(estimate.price_bdt);
   const unit = estimate.unit;
   const unitWord = unit === 'kg' ? 'weight' : 'piece count';
-  const total = hasQuantity && estimate.total_bdt !== undefined ? estimate.total_bdt : null;
+  const total = hasQuantity
+    ? (totalBdt !== undefined && totalBdt !== null
+        ? totalBdt
+        : (estimate.total_bdt !== undefined ? estimate.total_bdt : null))
+    : null;
   const bigValue = total !== null ? total : unitPrice;
   const animationKey = `${estimate.category}|${estimate.condition_band}|${quantityLabel}|${total ?? 'per-unit'}`;
 
   return (
     <View
-      className="bg-surface border border-border rounded-md p-[16px] shadow-card"
+      className={`bg-surface border border-border rounded-md p-[16px] shadow-card ${className}`}
       style={{ elevation: 2 }}
       accessibilityLabel={
         total !== null
@@ -127,7 +139,10 @@ export function EstimatorCard({
       }
     >
       <View className="flex-row items-center justify-between">
-        <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">ESTIMATED VALUE</Text>
+        <View className="flex-row items-center gap-[6px]">
+          <Ionicons name="pricetag" size={15} color={colors.leaf} />
+          <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">ESTIMATED VALUE</Text>
+        </View>
         <View className="bg-leaf-soft border border-leaf rounded-full px-[10px] py-[3px]">
           <Text className="text-leaf-dark text-[11px] font-bold">
             ৳{unitPrice.toFixed(2)}/{unit}
@@ -138,30 +153,30 @@ export function EstimatorCard({
       <Animated.Text
         key={animationKey}
         entering={FadeInUp.duration(380)}
-        className="text-ink text-[42px] leading-[50px] font-black tracking-tight mt-[8px]"
+        className="text-ink text-[36px] leading-[44px] font-black tracking-tight mt-[8px]"
       >
         ৳{bigValue.toFixed(2)}
-        {total === null ? <Text className="text-muted text-[18px] font-bold"> /{unit}</Text> : null}
+        {total === null ? <Text className="text-muted text-[16px] font-bold"> /{unit}</Text> : null}
       </Animated.Text>
 
       <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[2px]" numberOfLines={1}>
-        {total !== null
+        {total !== null && quantityLabel
           ? `${quantityLabel} × ৳${unitPrice.toFixed(2)}/${unit}`
-          : `Enter the ${unitWord} above to calculate your total`}
+          : `Enter the ${unitWord} above to calculate payout`}
       </Text>
 
       {estimate.market_benchmark ? (
-        <View className="mt-[16px] pt-[14px] border-t border-border/60">
+        <View className="mt-[14px] pt-[12px] border-t border-border/60">
           <DriftBadge benchmark={estimate.market_benchmark} />
-          <Text className="text-muted text-[11px] leading-[15px] mt-[8px]" numberOfLines={1}>
+          <Text className="text-muted text-[11px] leading-[15px] mt-[6px]" numberOfLines={1}>
             Market benchmark ৳{estimate.market_benchmark.benchmark_bdt.toFixed(2)}/{unit} · Source:{' '}
             {estimate.market_benchmark.source}
           </Text>
         </View>
       ) : null}
 
-      <Text className="text-muted text-[11px] leading-[15px] mt-[12px]">
-        Estimates use the currently published rate; the final {unitWord} and value are confirmed by a person at pickup.
+      <Text className="text-muted text-[11px] leading-[15px] mt-[10px] pt-[6px] border-t border-border/60">
+        Estimates use the currently published rate; final {unitWord} and value are confirmed at pickup.
       </Text>
     </View>
   );

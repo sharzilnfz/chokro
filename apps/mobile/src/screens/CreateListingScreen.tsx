@@ -10,9 +10,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, getCategoryUnit, type Category, type Condition } from '@/types';
+import { CATEGORIES, CONDITIONS, categoryLabel, formatQuantityWithUnit, getCategoryUnit, type Category, type Condition } from '@/types';
 import { PhotoUploader } from '@/components/PhotoUploader';
-import { RateEstimateCard } from '@/components/RateEstimateCard';
+import { EstimatorCard } from '@/components/EstimatorCard';
 import { useCreateListing } from '@/hooks/useCreateListing';
 import { useEstimate } from '@/hooks/useEstimate';
 import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
@@ -200,11 +200,16 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
         </View>
       </View>
 
-      <RateEstimateCard
+      <EstimatorCard
+        className="mb-[13px]"
         estimate={estimate ?? null}
         isLoading={estimateLoading}
-        parsedQuantity={parsedQuantity}
-        totalEstimatedBdt={totalEstimatedBdt}
+        notFound={!estimateLoading && !estimate}
+        hasQuantity={hasValidQuantity}
+        quantityLabel={formatQuantityWithUnit(unit, hasValidQuantity ? parsedQuantity : undefined)}
+        category={category}
+        condition={condition}
+        totalBdt={totalEstimatedBdt}
       />
 
       {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text> : null}

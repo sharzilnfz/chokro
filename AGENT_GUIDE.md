@@ -256,7 +256,7 @@ Route handlers (`app/api/*`) are **thin HTTP controllers**. All validation, stat
 ### Structure & Navigation
 - **Shell**: `apps/mobile/src/AppShell.tsx` provides 5 tabs:
   1. `browse`: `FeedScreen.tsx` — category chips, infinite list (`useFeed`), `ListingCard`.
-  2. `list`: `CreateListingScreen.tsx` — dynamic form (piece count vs. weight), client image compressor (`lib/photo.ts`), live valuation calculation card (`RateEstimateCard` via `useEstimate`).
+  2. `list`: `CreateListingScreen.tsx` — dynamic form (piece count vs. weight), client image compressor (`lib/photo.ts`), live valuation calculation card (`EstimatorCard` via `useEstimate`).
   3. `rates`: `RateCardScreen.tsx` — published rate card table with category filter.
   4. `wallet`: `WalletScreen.tsx` — Verified (Green) vs. Pending (Amber) cards, ledger history list.
   5. `scan`: `QRScannerScreen.tsx` — Expo Camera QR scanner, token resolver (`useDropZone`).
