@@ -26,43 +26,74 @@ const DEFAULT_USD_BDT_FX = 122.50;
 
 export class CommodityBenchmarkService {
   /**
-   * Fetches latest commodity benchmarks from external API or resilient fallback feed.
+   * Fetches real-time USD to BDT exchange rate from free open API with resilient fallback.
    */
-  static async fetchLatestCommodityPrices(fxRate = DEFAULT_USD_BDT_FX): Promise<CommodityPriceData[]> {
+  static async fetchLatestFxRate(): Promise<number> {
+    try {
+      const response = await fetch('https://open.er-api.com/v6/latest/USD', {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(2500),
+      });
+      if (response.ok) {
+        const json = await response.json();
+        if (json && json.rates && typeof json.rates['BDT'] === 'number') {
+          return Math.round(json.rates['BDT'] * 100) / 100;
+        }
+      }
+    } catch {
+      // Resilient fallback to calibrated default
+    }
+    return DEFAULT_USD_BDT_FX;
+  }
+
+  /**
+   * Fetches live market commodity quote (e.g. COMEX Copper / Aluminum) from free open market feed.
+   */
+  static async fetchLiveCommodityQuote(symbol = 'HG=F'): Promise<number | null> {
+    try {
+      const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(2500),
+      });
+      if (response.ok) {
+        const json = await response.json();
+        const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (typeof price === 'number' && price > 0) {
+          return price;
+        }
+      }
+    } catch {
+      // Resilient fallback
+    }
+    return null;
+  }
+
+  /**
+   * Fetches latest commodity benchmarks from free open feeds with resilient fallback.
+   */
+  static async fetchLatestCommodityPrices(fxRate?: number): Promise<CommodityPriceData[]> {
+    const [effectiveFx, liveCopperUsd] = await Promise.all([
+      fxRate && fxRate > 0 ? Promise.resolve(fxRate) : this.fetchLatestFxRate(),
+      this.fetchLiveCommodityQuote('HG=F'),
+    ]);
+
     const results: CommodityPriceData[] = [];
 
-    // Check if external API key is provided for live feed
-    const apiKey = process.env.COMMODITY_API_KEY;
-    if (apiKey) {
-      try {
-        // Attempt live fetch if configured
-        const response = await fetch(`https://api.metals-api.com/v1/latest?access_key=${apiKey}&base=USD&symbols=LME-CU,ALU`, {
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(3000),
-        });
-        if (response.ok) {
-          const json = await response.json();
-          if (json.success && json.rates) {
-            // Apply live rates where available
-            if (json.rates['LME-CU']) {
-              BASELINE_COMMODITY_PRICES.METAL.usdPerUnit = Number(json.rates['LME-CU']);
-            }
-          }
-        }
-      } catch {
-        // Resilient fallback to calibrated commodity baseline
-      }
-    }
+    // Dynamically adjust scrap metal index based on live copper market quote if available
+    const metalUsdPerUnit = liveCopperUsd
+      ? Math.round((liveCopperUsd * 2.20462 * 0.075) * 100) / 100 // ~7.5% scrap composite of COMEX virgin copper/lb
+      : BASELINE_COMMODITY_PRICES.METAL.usdPerUnit;
 
     for (const [category, meta] of Object.entries(BASELINE_COMMODITY_PRICES)) {
-      const benchmarkBdt = Math.round(meta.usdPerUnit * fxRate * 100) / 100;
+      const usdPerUnit = category === 'METAL' ? (metalUsdPerUnit || meta.usdPerUnit) : meta.usdPerUnit;
+      const benchmarkBdt = Math.round(usdPerUnit * effectiveFx * 100) / 100;
       results.push({
         category,
         commodity_symbol: meta.symbol,
-        global_price_usd: meta.usdPerUnit,
-        fx_rate_usd_bdt: fxRate,
+        global_price_usd: usdPerUnit,
+        fx_rate_usd_bdt: effectiveFx,
         benchmark_bdt: benchmarkBdt,
-        source: meta.source,
+        source: category === 'METAL' && liveCopperUsd ? 'Live Open Commodity & FX Feed' : meta.source,
       });
     }
 
@@ -72,7 +103,7 @@ export class CommodityBenchmarkService {
   /**
    * Syncs latest commodity price index into the rate_benchmarks database table.
    */
-  static async syncBenchmarks(fxRate = DEFAULT_USD_BDT_FX): Promise<RateBenchmark[]> {
+  static async syncBenchmarks(fxRate?: number): Promise<RateBenchmark[]> {
     const freshData = await this.fetchLatestCommodityPrices(fxRate);
     const synced: RateBenchmark[] = [];
 

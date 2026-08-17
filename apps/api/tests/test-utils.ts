@@ -70,7 +70,7 @@ const TABLE_DDLS = [
     global_price_usd decimal(10, 2) NOT NULL,
     fx_rate_usd_bdt decimal(10, 2) NOT NULL DEFAULT 122.50,
     benchmark_bdt decimal(10, 2) NOT NULL,
-    source varchar(100) NOT NULL DEFAULT 'Metals-API / Commodity Index Feed',
+    source varchar(100) NOT NULL DEFAULT 'Open Benchmark / Global Commodity Feed',
     updated_at timestamp NOT NULL DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS valuation_scans (
