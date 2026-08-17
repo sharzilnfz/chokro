@@ -1,4 +1,4 @@
-import { auctionRepo, type AuctionBid, type AuctionLot } from '@/lib/repos/auctions';
+import { auctionRepo, type AuctionBid, type AuctionLot, type CreateAuctionLotInput } from '@/lib/repos/auctions';
 import { partnerRepo } from '@/lib/repos/partners';
 import { AuctionRealtimeService } from '@/lib/services/AuctionRealtimeService';
 
@@ -26,8 +26,6 @@ export class AuctionRuleError extends Error {
   }
 }
 
-// Type aliases (not interfaces) so payloads stay assignable to Record<string, unknown>
-// when handed to the realtime service.
 export type PublicAuctionLot = {
   id: string;
   title: string;
@@ -45,7 +43,7 @@ export type PublicAuctionLot = {
   current_price_bdt: number;
   reserve_met: boolean;
   bid_count: number;
-}
+};
 
 export type PublicAuctionBid = {
   id: string;
@@ -55,6 +53,18 @@ export type PublicAuctionBid = {
   bidder_user_id: string;
   bidder_org_name: string;
   received_at: string;
+};
+
+export interface CreateLotParams {
+  title: string;
+  description?: string | null;
+  category: string;
+  quantityKg: number;
+  startingPrice: number;
+  reservePrice: number;
+  originLabel?: string | null;
+  durationMinutes: number;
+  createdBy: string;
 }
 
 function bidderLabel(bidderUserId: string, orgName: string | null): string {
@@ -65,6 +75,16 @@ function formatBdt(amount: number): string {
   return Math.round(amount).toLocaleString('en-US');
 }
 
+/**
+ * AuctionDomain — Deep Module for B2B Bulk Scrap Auction & Live Bidding Engine (M3 F4)
+ *
+ * Encapsulates:
+ * 1. Sealed reserve price masking at the serialization seam (toPublicLot)
+ * 2. Server-authoritative monotonic bid sequencing (bid_number)
+ * 3. Dynamic anti-snipe 2-minute clock extensions
+ * 4. Lazy-close evaluation on lot reads
+ * 5. Decoupled Pusher broadcast event seam with polling fallback
+ */
 export const AuctionDomain = {
   canTransition(currentStatus: string, targetStatus: string): boolean {
     return TRANSITIONS[currentStatus]?.includes(targetStatus) ?? false;
@@ -84,10 +104,6 @@ export const AuctionDomain = {
     return highestBid != null ? Number(highestBid.amount_bdt) : Number(lot.starting_price_bdt);
   },
 
-  /**
-   * PUBLIC serialization of a lot. The sealed reserve_price_bdt is deliberately
-   * stripped — clients only ever learn whether it was met (reserve_met boolean).
-   */
   toPublicLot(lot: AuctionLot, highestBid: AuctionBid | null, bidCount: number): PublicAuctionLot {
     return {
       id: lot.id,
@@ -121,10 +137,6 @@ export const AuctionDomain = {
     };
   },
 
-  /**
-   * Lazy close: transitions an expired LIVE lot to ENDED and stamps the winning
-   * bid when one exists at or above the sealed reserve (otherwise no sale).
-   */
   async closeIfExpired(lot: AuctionLot): Promise<AuctionLot> {
     if (lot.status !== 'LIVE' || Date.now() < lot.closes_at.getTime()) return lot;
     const highest = await auctionRepo.findHighestBid(lot.id);
@@ -137,15 +149,21 @@ export const AuctionDomain = {
     return updated ?? lot;
   },
 
-  /** Loads one lot, lazily closing it first when expired. */
   async getLotById(id: string): Promise<AuctionLot | null> {
     const lot = await auctionRepo.findById(id);
     if (!lot) return null;
     return this.closeIfExpired(lot);
   },
 
+  async getPublicLotById(id: string): Promise<PublicAuctionLot | null> {
+    const lot = await this.getLotById(id);
+    if (!lot) return null;
+    const highest = await auctionRepo.findHighestBid(lot.id);
+    const bidCount = await auctionRepo.countBids(lot.id);
+    return this.toPublicLot(lot, highest, bidCount);
+  },
+
   async listPublicLots(statuses: string[]): Promise<PublicAuctionLot[]> {
-    // Lazy-close pass so expired LIVE lots show as ENDED on every read.
     for (const lot of await auctionRepo.listLots(['LIVE'])) {
       await this.closeIfExpired(lot);
     }
@@ -159,12 +177,24 @@ export const AuctionDomain = {
     return hydrated;
   },
 
-  /**
-   * Server-authoritative bid placement. Order of guarantees:
-   * lazy-close → LIVE + open check → minimum-increment (৳50 above current
-   * price) check → anti-snipe extension → monotonic bid_number assignment →
-   * insert → best-effort realtime push.
-   */
+  async createLot(params: CreateLotParams): Promise<PublicAuctionLot> {
+    const now = new Date();
+    const lot = await auctionRepo.createLot({
+      title: params.title,
+      description: params.description ?? null,
+      category: params.category,
+      quantity_kg: params.quantityKg.toFixed(2),
+      starting_price_bdt: params.startingPrice.toFixed(2),
+      reserve_price_bdt: params.reservePrice.toFixed(2),
+      origin_label: params.originLabel ?? null,
+      status: 'LIVE',
+      opens_at: now,
+      closes_at: new Date(now.getTime() + params.durationMinutes * 60_000),
+      created_by: params.createdBy,
+    });
+    return this.toPublicLot(lot, null, 0);
+  },
+
   async placeBid(params: {
     lotId: string;
     bidderUserId: string;
@@ -194,7 +224,7 @@ export const AuctionDomain = {
       );
     }
 
-    // Anti-snipe: a valid bid inside the final 2 minutes pushes the close out.
+    // Anti-snipe: a valid bid inside the final 2 minutes pushes the close out
     const now = Date.now();
     if (now >= lot.closes_at.getTime() - ANTI_SNIPE_WINDOW_MS) {
       const updated = await auctionRepo.updateLot(lot.id, { closes_at: new Date(now + ANTI_SNIPE_WINDOW_MS) });
@@ -205,8 +235,6 @@ export const AuctionDomain = {
       lot_id: lot.id,
       bidder_user_id: params.bidderUserId,
       amount_bdt: params.amount.toFixed(2),
-      // Monotonic per-lot sequence assigned by the server on acceptance:
-      // a bid only counts if the server accepted it first.
       bid_number: (highest?.bid_number ?? 0) + 1,
     });
 
@@ -215,7 +243,6 @@ export const AuctionDomain = {
     const publicBid = this.toPublicBid(bid, bidderPartner?.org_name ?? null);
     const publicLot = this.toPublicLot(lot, bid, bidCount);
 
-    // Best-effort live push; polling remains the guaranteed fallback.
     void AuctionRealtimeService.triggerBid(lot.id, { bid: publicBid, lot: publicLot });
 
     return { bid: publicBid, lot: publicLot };
