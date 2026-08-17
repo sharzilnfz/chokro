@@ -1,6 +1,5 @@
 import React from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import Animated, { FadeInUp, SlideInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
@@ -27,22 +26,20 @@ function DriftBadge({ benchmark }: { benchmark: MarketBenchmark }) {
 
   if (status === 'IN_SYNC') {
     return (
-      <Animated.View
-        entering={SlideInDown.duration(320).springify().damping(16)}
+      <View
         className="flex-row items-center gap-[8px] bg-surface-muted border border-border rounded-pill px-[12px] py-[8px] self-start"
         accessibilityRole="text"
         accessibilityLabel="Rate is in sync with market"
       >
         <Ionicons name="checkmark-circle-outline" size={16} color={colors.muted} />
         <Text className="text-muted text-[12px] font-extrabold">In sync with market</Text>
-      </Animated.View>
+      </View>
     );
   }
 
   if (status === 'UNDER_MARKET') {
     return (
-      <Animated.View
-        entering={SlideInDown.duration(320).springify().damping(16)}
+      <View
         className="flex-row items-center gap-[8px] bg-amber-soft border border-amber rounded-pill px-[12px] py-[8px] self-start"
         accessibilityRole="alert"
         accessibilityLabel={`Your rate is ${formatPct(benchmark.drift_pct)} percent under market`}
@@ -51,13 +48,12 @@ function DriftBadge({ benchmark }: { benchmark: MarketBenchmark }) {
         <Text className="text-amber text-[12px] font-extrabold">
           Your rate is {formatPct(benchmark.drift_pct)}% under market
         </Text>
-      </Animated.View>
+      </View>
     );
   }
 
   return (
-    <Animated.View
-      entering={SlideInDown.duration(320).springify().damping(16)}
+    <View
       className="flex-row items-center gap-[8px] bg-leaf-soft border border-leaf rounded-pill px-[12px] py-[8px] self-start"
       accessibilityRole="text"
       accessibilityLabel={`Rate is ${formatPct(benchmark.drift_pct)} percent over market`}
@@ -66,7 +62,7 @@ function DriftBadge({ benchmark }: { benchmark: MarketBenchmark }) {
       <Text className="text-leaf-dark text-[12px] font-extrabold">
         {formatPct(benchmark.drift_pct)}% over market
       </Text>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -126,7 +122,6 @@ export function EstimatorCard({
         : (estimate.total_bdt !== undefined ? estimate.total_bdt : null))
     : null;
   const bigValue = total !== null ? total : unitPrice;
-  const animationKey = `${estimate.category}|${estimate.condition_band}|${quantityLabel}|${total ?? 'per-unit'}`;
 
   return (
     <View
@@ -150,14 +145,20 @@ export function EstimatorCard({
         </View>
       </View>
 
-      <Animated.Text
-        key={animationKey}
-        entering={FadeInUp.duration(380)}
-        className="text-leaf text-[42px] leading-[50px] font-black tracking-tight mt-[8px]"
+      <Text
+        className="text-leaf text-[44px] leading-[50px] font-black tracking-tight mt-[8px]"
+        style={{ fontSize: 44, fontWeight: '900', color: colors.leaf }}
       >
         ৳{bigValue.toFixed(2)}
-        {total === null ? <Text className="text-leaf-dark/60 text-[18px] font-bold"> /{unit}</Text> : null}
-      </Animated.Text>
+        {total === null ? (
+          <Text
+            className="text-leaf-dark/60 text-[18px] font-bold"
+            style={{ fontSize: 18, fontWeight: '700', color: colors.leafDark }}
+          >
+            {' '}/{unit}
+          </Text>
+        ) : null}
+      </Text>
 
       <Text className="text-muted text-[12px] font-medium leading-[16px] mt-[2px]" numberOfLines={1}>
         {total !== null && quantityLabel
