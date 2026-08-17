@@ -3,7 +3,8 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import { categoryLabel } from '@/types';
-import type { Estimate, MarketBenchmark } from '@/hooks/useEstimate';
+import type { Estimate } from '@/hooks/useEstimate';
+import { CommodityDriftBadge } from '@/components/ratecard/CommodityDriftBadge';
 
 export interface EstimatorCardProps {
   estimate: Estimate | null;
@@ -17,56 +18,7 @@ export interface EstimatorCardProps {
   className?: string;
 }
 
-function formatPct(pct: number): string {
-  return String(Math.abs(Math.round(pct * 10) / 10));
-}
-
-function DriftBadge({ benchmark }: { benchmark: MarketBenchmark }) {
-  const status = benchmark.drift_status;
-
-  if (status === 'IN_SYNC') {
-    return (
-      <View
-        className="flex-row items-center gap-[8px] bg-surface-muted border border-border rounded-pill px-[12px] py-[8px] self-start"
-        accessibilityRole="text"
-        accessibilityLabel="Rate is in sync with market"
-      >
-        <Ionicons name="checkmark-circle-outline" size={16} color={colors.muted} />
-        <Text className="text-muted text-[12px] font-extrabold">In sync with market</Text>
-      </View>
-    );
-  }
-
-  if (status === 'UNDER_MARKET') {
-    return (
-      <View
-        className="flex-row items-center gap-[8px] bg-amber-soft border border-amber rounded-pill px-[12px] py-[8px] self-start"
-        accessibilityRole="alert"
-        accessibilityLabel={`Your rate is ${formatPct(benchmark.drift_pct)} percent under market`}
-      >
-        <Ionicons name="trending-down" size={16} color={colors.amber} />
-        <Text className="text-amber text-[12px] font-extrabold">
-          Your rate is {formatPct(benchmark.drift_pct)}% under market
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View
-      className="flex-row items-center gap-[8px] bg-leaf-soft border border-leaf rounded-pill px-[12px] py-[8px] self-start"
-      accessibilityRole="text"
-      accessibilityLabel={`Rate is ${formatPct(benchmark.drift_pct)} percent over market`}
-    >
-      <Ionicons name="trending-up" size={16} color={colors.leaf} />
-      <Text className="text-leaf-dark text-[12px] font-extrabold">
-        {formatPct(benchmark.drift_pct)}% over market
-      </Text>
-    </View>
-  );
-}
-
-export function EstimatorCard({
+export const EstimatorCard = React.memo(function EstimatorCard({
   estimate,
   isLoading,
   notFound,
@@ -129,8 +81,8 @@ export function EstimatorCard({
       style={{ elevation: 2 }}
       accessibilityLabel={
         total !== null
-          ? `Estimated total ${bigValue.toFixed(2)} taka for ${quantityLabel} at ${unitPrice.toFixed(2)} taka per ${unit}`
-          : `Rate is ${unitPrice.toFixed(2)} taka per ${unit}. Enter the ${unitWord} to calculate your total.`
+          ? `Estimated total ${bigValue.toFixed(2)} taka for ${quantityLabel}`
+          : `Rate is ${unitPrice.toFixed(2)} taka per ${unit}`
       }
     >
       <View className="flex-row items-center justify-between">
@@ -145,16 +97,10 @@ export function EstimatorCard({
         </View>
       </View>
 
-      <Text
-        className="text-leaf text-[44px] leading-[50px] font-black tracking-tight mt-[8px]"
-        style={{ fontSize: 44, fontWeight: '900', color: colors.leaf }}
-      >
+      <Text className="text-leaf text-[44px] leading-[50px] font-black tracking-tight mt-[8px]">
         ৳{bigValue.toFixed(2)}
         {total === null ? (
-          <Text
-            className="text-leaf-dark/60 text-[18px] font-bold"
-            style={{ fontSize: 18, fontWeight: '700', color: colors.leafDark }}
-          >
+          <Text className="text-leaf-dark/60 text-[18px] font-bold">
             {' '}/{unit}
           </Text>
         ) : null}
@@ -168,7 +114,7 @@ export function EstimatorCard({
 
       {estimate.market_benchmark ? (
         <View className="mt-[14px] pt-[12px] border-t border-border/60">
-          <DriftBadge benchmark={estimate.market_benchmark} />
+          <CommodityDriftBadge benchmark={estimate.market_benchmark} />
           <Text className="text-muted text-[11px] leading-[15px] mt-[6px]" numberOfLines={1}>
             Market benchmark ৳{estimate.market_benchmark.benchmark_bdt.toFixed(2)}/{unit} · Source:{' '}
             {estimate.market_benchmark.source}
@@ -181,4 +127,4 @@ export function EstimatorCard({
       </Text>
     </View>
   );
-}
+});
