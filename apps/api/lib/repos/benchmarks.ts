@@ -44,7 +44,7 @@ export const benchmarksRepo = {
             global_price_usd: String(input.global_price_usd),
             fx_rate_usd_bdt: String(input.fx_rate_usd_bdt ?? '122.50'),
             benchmark_bdt: String(input.benchmark_bdt),
-            source: input.source || 'Metals-API / Commodity Index Feed',
+            source: input.source || 'Open Benchmark / Global Commodity Feed',
             updated_at: new Date(),
           })
           .where(eq(rateBenchmarks.id, existing.id))
@@ -60,7 +60,7 @@ export const benchmarksRepo = {
           global_price_usd: String(input.global_price_usd),
           fx_rate_usd_bdt: String(input.fx_rate_usd_bdt ?? '122.50'),
           benchmark_bdt: String(input.benchmark_bdt),
-          source: input.source || 'Metals-API / Commodity Index Feed',
+          source: input.source || 'Open Benchmark / Global Commodity Feed',
           updated_at: new Date(),
         })
         .returning();

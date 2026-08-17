@@ -77,7 +77,7 @@ export const rateBenchmarks = pgTable('rate_benchmarks', {
   global_price_usd: decimal('global_price_usd', { precision: 10, scale: 2 }).notNull(),
   fx_rate_usd_bdt: decimal('fx_rate_usd_bdt', { precision: 10, scale: 2 }).notNull().default('122.50'),
   benchmark_bdt: decimal('benchmark_bdt', { precision: 10, scale: 2 }).notNull(),
-  source: varchar('source', { length: 100 }).notNull().default('Metals-API / Commodity Index Feed'),
+  source: varchar('source', { length: 100 }).notNull().default('Open Benchmark / Global Commodity Feed'),
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
 
