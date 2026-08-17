@@ -6,3 +6,12 @@ node_modules
 .env
 *.log
 .DS_Store
+.agents
+.claude
+.codebase-memory
+.nx
+.scratch
+.postman
+postman
+docs
+
