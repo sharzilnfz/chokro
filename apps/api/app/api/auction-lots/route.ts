@@ -2,7 +2,6 @@ import { AuctionLotStatusEnum, CreateAuctionLotSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
 import { AuctionDomain } from '@/lib/domain/AuctionDomain';
-import { auctionRepo } from '@/lib/repos/auctions';
 
 export const GET = safeRoute(async (req: Request) => {
   const statusParam = new URL(req.url).searchParams.get('status');
@@ -14,7 +13,6 @@ export const GET = safeRoute(async (req: Request) => {
     }
     statuses = [parsed.data];
   } else {
-    // Default board: everything still open plus everything already decided.
     statuses = ['LIVE', 'ENDED'];
   }
 
@@ -34,24 +32,19 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Invalid auction lot', 400, parsed.error.format());
   }
 
-  // Demo simplicity: a posted lot goes LIVE immediately (opens_at = now);
-  // DRAFT is reserved for future scheduled openings.
-  const now = new Date();
-  const lot = await auctionRepo.createLot({
+  const publicLot = await AuctionDomain.createLot({
     title: parsed.data.title,
     description: parsed.data.description ?? null,
     category: parsed.data.category,
-    quantity_kg: parsed.data.quantityKg.toFixed(2),
-    starting_price_bdt: parsed.data.startingPrice.toFixed(2),
-    reserve_price_bdt: parsed.data.reservePrice.toFixed(2),
-    origin_label: parsed.data.originLabel ?? null,
-    status: 'LIVE',
-    opens_at: now,
-    closes_at: new Date(now.getTime() + parsed.data.durationMinutes * 60_000),
-    created_by: auth.user.userId,
+    quantityKg: parsed.data.quantityKg,
+    startingPrice: parsed.data.startingPrice,
+    reservePrice: parsed.data.reservePrice,
+    originLabel: parsed.data.originLabel ?? null,
+    durationMinutes: parsed.data.durationMinutes,
+    createdBy: auth.user.userId,
   });
 
-  return apiSuccess('Auction lot posted', { lot: AuctionDomain.toPublicLot(lot, null, 0) }, 201);
+  return apiSuccess('Auction lot posted', { lot: publicLot }, 201);
 });
 
 export { OPTIONS } from '@/lib/http';
