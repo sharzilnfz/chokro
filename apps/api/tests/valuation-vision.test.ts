@@ -115,8 +115,10 @@ describe('AI Next-Life Scrap Vision Agent API (Member 3 F2)', () => {
 
   it('sends the base64 data URI to OpenAI when imageBase64 is provided, and persists a bounded scan record', async () => {
     const originalKey = process.env.OPENAI_API_KEY;
+    const originalGeminiKey = process.env.GEMINI_API_KEY;
     const originalFetch = global.fetch;
     process.env.OPENAI_API_KEY = 'test-openai-key';
+    delete process.env.GEMINI_API_KEY;
 
     const dataUri = 'data:image/jpeg;base64,VGVzdENhbWVyYUNhcHR1cmU=';
     const modelVerdict = {
@@ -176,6 +178,76 @@ describe('AI Next-Life Scrap Vision Agent API (Member 3 F2)', () => {
       global.fetch = originalFetch;
       if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalKey;
+      if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = originalGeminiKey;
+    }
+  });
+
+  it('sends the base64 data to Google Gemini Vision when GEMINI_API_KEY is provided', async () => {
+    const originalKey = process.env.GEMINI_API_KEY;
+    const originalOpenAIKey = process.env.OPENAI_API_KEY;
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    delete process.env.OPENAI_API_KEY;
+
+    const dataUri = 'data:image/jpeg;base64,VGVzdEdlbWluaVBob3Rv';
+    const modelVerdict = {
+      category: 'PLASTICS',
+      condition: 'GOOD',
+      quantity: 5.0,
+      path: 'RECYCLE',
+      confidence: 0.96,
+      is_hazard: false,
+      rationale: 'Gemini Vision identified clean PET plastic containers.',
+      suggested_action: 'Deposit at smart drop zone for maximum credit.',
+    };
+
+    const fetchSpy = jest.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: JSON.stringify(modelVerdict) }],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    try {
+      const req = new Request('http://localhost/api/v1/valuation/classify-and-estimate', {
+        method: 'POST',
+        body: JSON.stringify({ imageBase64: dataUri }),
+      });
+      const res = await classifyV1(req);
+      expect(res.status).toBe(201);
+      const body = await res.json();
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [fetchUrl, fetchInit] = fetchSpy.mock.calls[0];
+      expect(String(fetchUrl)).toContain('generativelanguage.googleapis.com');
+      expect(String(fetchUrl)).toContain('key=test-gemini-key');
+
+      const sentBody = JSON.parse(String(fetchInit?.body));
+      const imagePart = sentBody.contents[0].parts.find((p: any) => p.inlineData);
+      expect(imagePart).toBeDefined();
+      expect(imagePart.inlineData.data).toBe('VGVzdEdlbWluaVBob3Rv');
+      expect(imagePart.inlineData.mimeType).toBe('image/jpeg');
+
+      expect(body.classification.category).toBe('PLASTICS');
+      expect(body.classification.confidence).toBe(0.96);
+      expect(body.recommendation.next_life_path).toBe('RECYCLE');
+    } finally {
+      global.fetch = originalFetch;
+      if (originalKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = originalKey;
+      if (originalOpenAIKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalOpenAIKey;
     }
   });
 

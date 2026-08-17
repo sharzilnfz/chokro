@@ -410,7 +410,7 @@ export const ValuationDomain = {
 
   async getScans(userId?: string, limit = 20) {
     if (userId) {
-      return valuationScansRepo.findByUser(userId, limit);
+      return valuationScansRepo.findByUserId(userId, limit);
     }
     return valuationScansRepo.findRecent(limit);
   },
@@ -434,6 +434,81 @@ export const ValuationDomain = {
   }> {
     const promptText = (input.promptNotes || '').toLowerCase();
     const hint = input.categoryHint;
+
+    if (process.env.GEMINI_API_KEY && (input.imageUrl || input.imageBase64)) {
+      const imageDataUri = input.imageBase64
+        ? (input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`)
+        : input.imageUrl;
+      try {
+        let mimeType = 'image/jpeg';
+        let base64Data = '';
+        if (imageDataUri?.startsWith('data:')) {
+          const match = imageDataUri.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            mimeType = match[1];
+            base64Data = match[2];
+          }
+        } else if (imageDataUri && !imageDataUri.startsWith('http')) {
+          base64Data = imageDataUri;
+        }
+
+        if (base64Data) {
+          const geminiPayload = {
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `You are Chokro Vision AI. Classify scrap items into: CLOTHES, BOOKS, PLASTICS, PAPER, METAL, GLASS, FURNITURE, APPLIANCES, E_WASTE. Condition: EXCELLENT, GOOD, FAIR, POOR. Output JSON only with keys: category, condition, quantity, path, confidence, is_hazard, rationale, suggested_action. User notes: ${input.promptNotes || 'none'}`,
+                  },
+                  {
+                    inlineData: {
+                      mimeType,
+                      data: base64Data,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+            },
+          };
+
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(geminiPayload),
+              signal: AbortSignal.timeout(8000),
+            },
+          );
+
+          if (res.ok) {
+            const data = await res.json();
+            const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textContent) {
+              let parsed = JSON.parse(textContent);
+              if (Array.isArray(parsed)) parsed = parsed[0];
+              if (parsed?.category && parsed?.condition) {
+                return {
+                  category: parsed.category,
+                  condition: parsed.condition,
+                  estimatedQuantity: parsed.quantity ? Number(parsed.quantity) : (isPieceCategory(parsed.category) ? 1 : 2.5),
+                  proposedPath: parsed.path || 'RECYCLE',
+                  confidence: parsed.confidence ? Number(parsed.confidence) : 0.94,
+                  isHazard: parsed.category === 'E_WASTE' || Boolean(parsed.is_hazard),
+                  rationale: parsed.rationale || 'Google Gemini AI vision detected item properties.',
+                  suggestedAction: parsed.suggested_action || 'Proceed with Chokro listing.',
+                };
+              }
+            }
+          }
+        }
+      } catch {
+        // Fallback to OpenAI or local heuristic classifier
+      }
+    }
 
     if (process.env.OPENAI_API_KEY && (input.imageUrl || input.imageBase64)) {
       const imageDataUri = input.imageBase64
