@@ -32,3 +32,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/api/.next/static ./apps/api/
 USER nextjs
 EXPOSE 3000
 CMD ["node", "apps/api/server.js"]
+
+FROM base AS mobile
+WORKDIR /app
+COPY . .
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+EXPOSE 8081
+CMD ["pnpm", "--filter", "@chokro/mobile", "web", "--port", "8081"]

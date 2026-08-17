@@ -12,7 +12,7 @@
     "db:push": "pnpm --filter @chokro/db db:push",
     "db:migrate": "pnpm --filter @chokro/db db:migrate",
     "db:seed": "pnpm --filter @chokro/db db:seed",
-    "db:setup": "pnpm db:push && pnpm db:migrate && pnpm db:seed",
+    "db:setup": "pnpm run db:push && pnpm run db:migrate && pnpm run db:seed",
     "expo:doctor": "pnpm --filter @chokro/mobile run doctor",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",

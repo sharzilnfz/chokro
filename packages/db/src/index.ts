@@ -2,7 +2,12 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { PGlite } from '@electric-sql/pglite';
 import postgres from 'postgres';
+import * as dotenv from 'dotenv';
+import path from 'path';
 import * as schema from './schema';
+
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config();
 
 type DrizzleDb = ReturnType<typeof drizzle<typeof schema>> | ReturnType<typeof drizzlePglite<typeof schema>>;
 

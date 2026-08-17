@@ -9,11 +9,11 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -d chokro" ]
-      interval: 3s
-      timeout: 3s
+      interval: 2s
+      timeout: 2s
       retries: 10
     deploy:
       resources:
@@ -22,26 +22,6 @@ services:
           cpus: '1.0'
     volumes:
       - chokro-postgres:/var/lib/postgresql/data
-
-  api:
-    build:
-      context: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
-      JWT_SECRET: dev_jwt_secret
-      QR_SECRET: dev_qr_secret
-      NODE_OPTIONS: "--max-old-space-size=512"
-    ports:
-      - "3000:3000"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.5'
-    restart: unless-stopped
 
   db-setup:
     build:
@@ -52,10 +32,51 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
-    profiles:
-      - setup
-    command: sh -c "pnpm db:push && pnpm db:migrate && pnpm db:seed"
+    command: sh -c "pnpm run db:setup"
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      target: runner
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
+      JWT_SECRET: dev_jwt_secret
+      QR_SECRET: dev_qr_secret
+      NODE_OPTIONS: "--max-old-space-size=512"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MAPBOX_TOKEN: ${MAPBOX_TOKEN:-}
+      PUSHER_APP_ID: ${PUSHER_APP_ID:-}
+      PUSHER_KEY: ${PUSHER_KEY:-}
+      PUSHER_SECRET: ${PUSHER_SECRET:-}
+      PUSHER_CLUSTER: ${PUSHER_CLUSTER:-}
+    ports:
+      - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.5'
+    restart: unless-stopped
+
+  mobile:
+    build:
+      context: .
+      target: mobile
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      EXPO_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
 
 volumes:
   chokro-postgres:
-
