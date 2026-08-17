@@ -1,4 +1,4 @@
-import { auctionRepo, type AuctionBid, type AuctionLot, type CreateAuctionLotInput } from '@/lib/repos/auctions';
+import { auctionRepo, type AuctionBid, type AuctionLot, type CreateLotInput as CreateAuctionLotInput } from '@/lib/repos/auctions';
 import { partnerRepo } from '@/lib/repos/partners';
 import { AuctionRealtimeService } from '@/lib/services/AuctionRealtimeService';
 
