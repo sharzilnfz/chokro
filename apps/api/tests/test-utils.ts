@@ -12,6 +12,21 @@ const TABLE_DDLS = [
     password_hash text NOT NULL,
     role varchar(50) NOT NULL DEFAULT 'INDIVIDUAL',
     institution_id varchar(255),
+    full_name varchar(120),
+    phone varchar(30),
+    student_id_doc text,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS campuses (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug varchar(255) NOT NULL UNIQUE,
+    name varchar(255) NOT NULL,
+    division varchar(50) NOT NULL,
+    zilla varchar(120) NOT NULL,
+    upazilla varchar(120),
+    status varchar(50) NOT NULL DEFAULT 'VERIFIED',
+    reason text,
+    created_by uuid REFERENCES users(id),
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS partners (
@@ -112,7 +127,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, credit_txns, drop_zones, rate_card_entries, listings, partners, users CASCADE;
+    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

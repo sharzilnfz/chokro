@@ -7,3 +7,5 @@ export * from './dto/partners';
 export * from './dto/rateCard';
 export * from './dto/dropZones';
 export * from './dto/leaderboard';
+export * from './dto/campuses';
+export * from './dto/profile';

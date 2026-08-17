@@ -3,7 +3,7 @@
 // layer, and exposes login/signup/logout helpers consumed across the app.
 
 // Imports: React hooks, persistent storage, the API layer, and shared types.
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { storage } from '@/services/storage';
 import {
   apiRequest,
@@ -53,6 +53,11 @@ export function useAuth(): AuthContextValue {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Session plus the restore phase it is currently going through.
   const [session, setSession] = useState<AuthSession | null>(null);
+  // Mirrors the current session for the global 401 handler without recreating it.
+  const sessionRef = useRef<AuthSession | null>(null);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
   const [restoreState, setRestoreState] = useState<RestoreState>('loading');
   const [restoreError, setRestoreError] = useState('');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -110,8 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [restoreSession]);
 
   // Register global 401 handler so any API call auto-logs out on expired tokens.
+  // Only acts when a session exists — signed-out background queries (profile,
+  // partner status) must never flip the shell back to the login/signup screen.
   useEffect(() => {
-    setOnUnauthorized(() => void logout());
+    setOnUnauthorized(() => {
+      if (sessionRef.current) void logout();
+    });
     return () => setOnUnauthorized(null);
   }, [logout]);
 

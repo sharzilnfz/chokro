@@ -18,7 +18,7 @@ export interface MobilePartner {
 
 export const PARTNER_ME_QUERY_KEY = ['partner', 'me'] as const;
 
-export function usePartner() {
+export function usePartner(enabled = true) {
   return useQuery<{ partner: MobilePartner | null }, Error>({
     queryKey: PARTNER_ME_QUERY_KEY,
     queryFn: async () => {
@@ -35,6 +35,7 @@ export function usePartner() {
     },
     staleTime: 15000, // 15 seconds
     refetchInterval: 30000, // Auto-poll every 30s so mounted status screen picks up admin reviews live
+    enabled,
   });
 }
 

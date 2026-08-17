@@ -15,6 +15,9 @@ export async function withDb<T>(op: (dbInstance: typeof db) => Promise<T>): Prom
     return await op(db);
   } catch (err) {
     if (err instanceof DatabaseUnavailableError) throw err;
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('[withDb error]:', err);
+    }
     throw new DatabaseUnavailableError();
   }
 }

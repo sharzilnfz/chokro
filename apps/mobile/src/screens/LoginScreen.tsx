@@ -27,10 +27,11 @@ type LoginScreenProps = {
 };
 
 export function LoginScreen({ onShowSignup }: LoginScreenProps) {
-  // signIn mutation plus email/password state and local error/loading flags.
+  // signIn mutation plus email/password state, visibility toggle, and local error/loading flags.
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -100,10 +101,25 @@ export function LoginScreen({ onShowSignup }: LoginScreenProps) {
               placeholder="Your password"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               textContentType="password"
               editable={!loading}
               onSubmitEditing={() => void handleLogin()}
+              rightAccessory={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  className="p-[6px] -mr-[4px] justify-center items-center active:opacity-60"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={22}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              }
             />
 
             {/* Surfaces a failed-sign-in message, if any. */}

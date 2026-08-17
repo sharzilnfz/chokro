@@ -470,6 +470,46 @@ button:disabled {
   outline: none;
 }
 
+.admin-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.admin-input-wrap .admin-input {
+  padding-right: 42px;
+}
+
+.admin-input-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--mineral-500);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.admin-input-toggle:hover {
+  color: var(--mineral-800);
+  background-color: var(--mineral-100);
+}
+
+.admin-input-toggle:focus-visible {
+  outline: 2px solid var(--forest-500);
+  outline-offset: 1px;
+}
+
 .admin-field-hint {
   margin: 0;
   color: var(--mineral-500);

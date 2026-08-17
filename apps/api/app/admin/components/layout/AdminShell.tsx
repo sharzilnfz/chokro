@@ -15,6 +15,7 @@ const NAVIGATION_ITEMS = [
   { href: '/admin/rate-card', label: 'Rate card' },
   { href: '/admin/partners', label: 'Partner queue' },
   { href: '/admin/leaderboard', label: 'Leaderboard' },
+  { href: '/admin/campuses', label: 'Campuses' },
   { href: '/admin/drop-zones', label: 'Drop zones' },
 ] as const;
 

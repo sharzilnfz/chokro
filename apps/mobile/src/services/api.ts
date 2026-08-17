@@ -103,10 +103,29 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   // Surface non-2xx responses as a typed error and notify the 401 handler.
   if (!response.ok) {
-    const message =
+    let message =
       typeof data === 'object' && data && 'error' in data && typeof data.error === 'string'
         ? data.error
         : `Request failed (${response.status}).`;
+
+    // Extract specific validation message if formatted details are present
+    if (typeof data === 'object' && data && 'details' in data && typeof data.details === 'object' && data.details) {
+      const details = data.details as Record<string, { _errors?: string[] } | string[] | unknown>;
+      for (const [key, val] of Object.entries(details)) {
+        if (key === '_errors' && Array.isArray(val) && val.length > 0 && typeof val[0] === 'string') {
+          message = val[0];
+          break;
+        }
+        if (typeof val === 'object' && val && '_errors' in (val as Record<string, unknown>) && Array.isArray((val as { _errors?: unknown[] })._errors)) {
+          const errs = (val as { _errors: unknown[] })._errors;
+          if (errs.length > 0 && typeof errs[0] === 'string') {
+            message = `${key}: ${errs[0]}`;
+            break;
+          }
+        }
+      }
+    }
+
     if (response.status === 401 && onUnauthorized) {
       onUnauthorized();
     }

@@ -113,10 +113,32 @@ async function migrate() {
     $$;
   `);
 
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS campuses (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug varchar(255) NOT NULL UNIQUE,
+      name varchar(255) NOT NULL,
+      division varchar(50) NOT NULL,
+      zilla varchar(120) NOT NULL,
+      upazilla varchar(120),
+      status varchar(50) NOT NULL DEFAULT 'VERIFIED',
+      reason text,
+      created_by uuid REFERENCES users(id),
+      created_at timestamp NOT NULL DEFAULT NOW()
+    );
+    alter table campuses add column if not exists status varchar(50) not null default 'VERIFIED';
+    alter table campuses add column if not exists reason text;
+    alter table campuses add column if not exists created_by uuid references users(id);
+    alter table users add column if not exists full_name varchar(120);
+    alter table users add column if not exists phone varchar(30);
+    alter table users add column if not exists student_id_doc text;
+  `);
+
   console.log('Database invariants applied successfully.');
+  process.exit(0);
 }
 
 migrate().catch((error) => {
   console.error('Database invariant migration failed:', error);
-  process.exitCode = 1;
+  process.exit(1);
 });

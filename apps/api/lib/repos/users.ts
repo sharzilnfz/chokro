@@ -2,7 +2,7 @@
 // to the shared Role type.
 //
 // Drizzle user table + equality comparator, shared role type, and the DB seam.
-import { db, users, eq } from '@chokro/db';
+import { db, users, eq, sql } from '@chokro/db';
 import type { Role } from '@chokro/shared';
 import { withDb } from './seam';
 
@@ -70,6 +70,39 @@ export const userRepo = {
         .where(eq(users.id, id))
         .returning();
       return (updated as User) || null;
+    });
+  },
+
+  // Partial profile update: undefined fields are left untouched by Drizzle's .set().
+  async updateProfile(id: string, input: {
+    fullName?: string | null;
+    phone?: string | null;
+    institutionId?: string | null;
+    studentIdDoc?: string | null;
+  }): Promise<User | null> {
+    return withDb(async () => {
+      const [updated] = await db
+        .update(users)
+        .set({
+          ...(input.fullName !== undefined ? { full_name: input.fullName } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone } : {}),
+          ...(input.institutionId !== undefined ? { institution_id: input.institutionId } : {}),
+          ...(input.studentIdDoc !== undefined ? { student_id_doc: input.studentIdDoc } : {}),
+        })
+        .where(eq(users.id, id))
+        .returning();
+      return (updated as User) || null;
+    });
+  },
+
+  // Number of users linked to a campus slug — used to guard campus deletion.
+  async countByInstitution(institutionId: string): Promise<number> {
+    return withDb(async () => {
+      const rows = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(users)
+        .where(eq(users.institution_id, institutionId));
+      return Number(rows[0]?.count ?? 0);
     });
   },
 };

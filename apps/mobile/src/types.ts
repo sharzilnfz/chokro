@@ -17,12 +17,15 @@ export {
   formatQuantityWithUnit,
 } from '@chokro/shared';
 
-// Authenticated app user with role and optional institution link.
+// Authenticated app user with role and optional institution/profile link.
 export type User = {
   id: string;
   email: string;
   role: 'INDIVIDUAL' | 'PARTNER' | 'ADMIN';
   institutionId?: string | null;
+  fullName?: string | null;
+  phone?: string | null;
+  studentIdDoc?: string | null;
 };
 
 // Session bundling the auth token with the signed-in user.

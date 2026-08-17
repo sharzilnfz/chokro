@@ -169,3 +169,23 @@ export const BADGE_DEFINITIONS: Record<BadgeType, BadgeDefinition> = {
 };
 
 export const BADGE_DEFINITIONS_LIST: BadgeDefinition[] = Object.values(BADGE_DEFINITIONS);
+
+// Bangladesh administrative divisions (8) for campus geo-context
+export const DivisionEnum = z.enum([
+  'DHAKA',
+  'CHITTAGONG',
+  'RAJSHAHI',
+  'KHULNA',
+  'BARISAL',
+  'SYLHET',
+  'RANGPUR',
+  'MYMENSINGH',
+]);
+export type Division = z.infer<typeof DivisionEnum>;
+export const DIVISIONS = DivisionEnum.options;
+
+// Lifecycle status of a campus (verified by admin, user-submitted pending, or blacklisted)
+export const CampusStatusEnum = z.enum(['VERIFIED', 'PENDING', 'BLACKLISTED']);
+export type CampusStatus = z.infer<typeof CampusStatusEnum>;
+export const CAMPUS_STATUSES = CampusStatusEnum.options;
+

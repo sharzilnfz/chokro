@@ -25,21 +25,25 @@ import { MyBadgesScreen } from '@/screens/MyBadgesScreen';
 import { BecomePartnerScreen } from '@/screens/BecomePartnerScreen';
 import { PartnerStatusScreen } from '@/screens/PartnerStatusScreen';
 import { PartnerConsoleScreen } from '@/screens/PartnerConsoleScreen';
+import { ProfileScreen } from '@/screens/ProfileScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
+import { useProfile } from '@/hooks/useProfile';
 
 // The destinations the bottom tab bar can select (Console dynamically available to verified partners).
 type Tab = 'browse' | 'list' | 'console' | 'rates' | 'wallet' | 'scan';
 
 // Modal or sub-screen overlays
-type SubView = 'leaderboard' | 'badges' | 'partner_status' | 'become_partner' | 'partner_console' | null;
+type SubView = 'leaderboard' | 'badges' | 'partner_status' | 'become_partner' | 'partner_console' | 'profile' | null;
 
 export function AppShell() {
   // Auth session state plus the shell's currently selected tab and active subview.
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
-  const { data: partnerData } = usePartner();
+  const { data: partnerData } = usePartner(Boolean(session));
+  const { data: profileData } = useProfile(Boolean(session));
   const partner = partnerData?.partner;
   const isVerifiedPartner = partner?.status === 'VERIFIED';
+  const campusTag = profileData?.user.campusName ?? profileData?.user.institutionId ?? null;
 
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [subView, setSubView] = useState<SubView>(null);
@@ -141,7 +145,24 @@ export function AppShell() {
                 </View>
               ) : null}
             </View>
-            <Text className="text-muted text-[11px] mt-[1px] max-w-[220px]" numberOfLines={1}>{session.user.email}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+              onPress={() => setSubView('profile')}
+            >
+              <View className="flex-row items-center gap-1.5 mt-[1px]">
+                <Text className="text-muted text-[11px] max-w-[160px]" numberOfLines={1}>
+                  {session.user.email}
+                </Text>
+                {campusTag ? (
+                  <View className="px-1.5 py-0.5 rounded bg-leaf-soft border border-leaf/40">
+                    <Text className="text-[9px] font-black text-leaf-dark" numberOfLines={1}>
+                      {campusTag}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
           </View>
         </View>
         <Pressable
@@ -157,7 +178,9 @@ export function AppShell() {
 
       {/* Screen container: renders active sub-view if set, or active tab */}
       <View className="flex-1">
-        {subView === 'leaderboard' ? (
+        {subView === 'profile' ? (
+          <ProfileScreen onBack={() => setSubView(null)} />
+        ) : subView === 'leaderboard' ? (
           <LeaderboardScreen
             onBack={() => setSubView(null)}
             onOpenBadges={() => setSubView('badges')}

@@ -1,6 +1,6 @@
 // Seeds local development data: demo accounts per role, a partner org, and baseline rates.
 // ORM helpers and password hashing
-import { db, users, partners, rateCardEntries, userStreaks, badgeAwards, campusLeaderboards } from './index';
+import { db, users, partners, rateCardEntries, userStreaks, badgeAwards, campusLeaderboards, campuses } from './index';
 import { and, eq } from 'drizzle-orm';
 import { hash } from 'bcryptjs';
 
@@ -12,26 +12,69 @@ async function upsertUser(
   email: string,
   role: 'INDIVIDUAL' | 'PARTNER' | 'ADMIN',
   passwordHash: string,
-  institutionId?: string
+  institutionId?: string,
+  profile?: { fullName?: string; phone?: string; studentIdDoc?: string }
 ) {
   const [user] = await db
     .insert(users)
-    .values({ email, password_hash: passwordHash, role, institution_id: institutionId })
+    .values({
+      email,
+      password_hash: passwordHash,
+      role,
+      institution_id: institutionId,
+      full_name: profile?.fullName,
+      phone: profile?.phone,
+      student_id_doc: profile?.studentIdDoc,
+    })
     .onConflictDoUpdate({
       target: users.email,
-      set: { password_hash: passwordHash, role, ...(institutionId ? { institution_id: institutionId } : {}) },
+      set: {
+        password_hash: passwordHash,
+        role,
+        ...(institutionId ? { institution_id: institutionId } : {}),
+        ...(profile?.fullName ? { full_name: profile.fullName } : {}),
+        ...(profile?.phone ? { phone: profile.phone } : {}),
+        ...(profile?.studentIdDoc ? { student_id_doc: profile.studentIdDoc } : {}),
+      },
     })
     .returning();
   return user;
+}
+
+// Idempotent campus insert keyed on slug
+async function upsertCampus(input: {
+  slug: string;
+  name: string;
+  division: string;
+  zilla: string;
+  upazilla?: string | null;
+  status?: string;
+}) {
+  const [existing] = await db.select().from(campuses).where(eq(campuses.slug, input.slug)).limit(1);
+  if (!existing) {
+    await db.insert(campuses).values({
+      slug: input.slug,
+      name: input.name,
+      division: input.division,
+      zilla: input.zilla,
+      upazilla: input.upazilla || null,
+      status: input.status || 'VERIFIED',
+    });
+  }
 }
 
 async function seed() {
   console.log('Seeding Chokro database...');
   const passwordHash = await hash(DEMO_PASSWORD, 10);
 
+  // Seed baseline university campuses
+  await upsertCampus({ slug: 'NSU', name: 'North South University', division: 'DHAKA', zilla: 'Dhaka', upazilla: 'Bashundhara R/A' });
+  await upsertCampus({ slug: 'BRACU', name: 'BRAC University', division: 'DHAKA', zilla: 'Dhaka', upazilla: 'Mohakhali' });
+  await upsertCampus({ slug: 'DU', name: 'University of Dhaka', division: 'DHAKA', zilla: 'Dhaka', upazilla: 'Shahbag' });
+
   // Demo accounts with institutional affiliation for inter-campus leaderboards
   const adminUser = await upsertUser('admin@chokro.org', 'ADMIN', passwordHash, 'NSU');
-  const normalUser = await upsertUser('user@chokro.org', 'INDIVIDUAL', passwordHash, 'BRACU');
+  const normalUser = await upsertUser('user@chokro.org', 'INDIVIDUAL', passwordHash, 'BRACU', { fullName: 'Demo Student', phone: '01700000000' });
   const partnerUser = await upsertUser('partner@chokro.org', 'PARTNER', passwordHash, 'DU');
 
   // Attach the demo partner user to a verified recycling org if absent

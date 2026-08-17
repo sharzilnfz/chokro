@@ -83,11 +83,13 @@ export const campusLeaderboardsRepo = {
             u.id AS user_id,
             SUM(CAST(ct.amount AS NUMERIC) * CAST(COALESCE(us.streak_multiplier, '1.00') AS NUMERIC)) AS user_points
           FROM users u
+          LEFT JOIN campuses c ON c.slug = u.institution_id
           JOIN credit_txns ct ON ct.user_id = u.id
           LEFT JOIN user_streaks us ON us.user_id = u.id
           WHERE u.institution_id IS NOT NULL
             AND u.institution_id <> ''
             AND ct.status = 'VERIFIED'
+            AND COALESCE(c.status, 'VERIFIED') = 'VERIFIED'
             AND COALESCE(us.leaderboard_opt_out, false) = false
             AND ${periodCondition}
           GROUP BY u.institution_id, u.id

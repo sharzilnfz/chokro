@@ -27,19 +27,26 @@ type SignupScreenProps = {
 };
 
 export function SignupScreen({ onShowLogin }: SignupScreenProps) {
-  // signUp mutation plus the three form fields and local error/loading flags.
+  // signUp mutation plus the three form fields, visibility toggles, and local error/loading flags.
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Validates completeness, password length, and match before calling signUp.
+  // Validates completeness, email format, password length, and match before calling signUp.
   const handleSignup = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail || !password || !confirmPassword) {
       setError('Complete all three fields.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      setError('Enter a valid email address.');
       return;
     }
     if (password.length < 6) {
@@ -94,6 +101,7 @@ export function SignupScreen({ onShowLogin }: SignupScreenProps) {
               autoCorrect={false}
               keyboardType="email-address"
               textContentType="emailAddress"
+              returnKeyType="next"
               editable={!loading}
             />
 
@@ -103,9 +111,25 @@ export function SignupScreen({ onShowLogin }: SignupScreenProps) {
               placeholder="At least 6 characters"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               textContentType="newPassword"
+              returnKeyType="next"
               editable={!loading}
+              rightAccessory={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  className="p-[6px] -mr-[4px] justify-center items-center active:opacity-60"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={22}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              }
             />
 
             <Input
@@ -114,10 +138,26 @@ export function SignupScreen({ onShowLogin }: SignupScreenProps) {
               placeholder="Repeat your password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
               textContentType="newPassword"
+              returnKeyType="done"
               editable={!loading}
               onSubmitEditing={() => void handleSignup()}
+              rightAccessory={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  className="p-[6px] -mr-[4px] justify-center items-center active:opacity-60"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => setShowConfirmPassword((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={22}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              }
             />
 
             {/* Surfaces a validation or sign-up failure message, if any. */}

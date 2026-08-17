@@ -9,6 +9,23 @@ export const users = pgTable('users', {
   password_hash: text('password_hash').notNull(),
   role: varchar('role', { length: 50 }).notNull().default('INDIVIDUAL'), // INDIVIDUAL, PARTNER, ADMIN
   institution_id: varchar('institution_id', { length: 255 }),
+  full_name: varchar('full_name', { length: 120 }),
+  phone: varchar('phone', { length: 30 }),
+  student_id_doc: text('student_id_doc'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Registered university/college campuses. slug === users.institution_id (leaderboard key).
+export const campuses = pgTable('campuses', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  division: varchar('division', { length: 50 }).notNull(), // DivisionEnum
+  zilla: varchar('zilla', { length: 120 }).notNull(),
+  upazilla: varchar('upazilla', { length: 120 }),
+  status: varchar('status', { length: 50 }).default('VERIFIED').notNull(), // VERIFIED, PENDING, BLACKLISTED
+  reason: text('reason'), // Notes or blacklisting reason
+  created_by: uuid('created_by').references(() => users.id),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
