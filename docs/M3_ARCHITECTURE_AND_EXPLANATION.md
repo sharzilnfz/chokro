@@ -65,8 +65,8 @@ Each member must deliver **4 unique functional features** (5 marks each = 20 mar
 | Feature | Frontend Surface (1M) | Backend / API Controller (1M) | Database Schema (1M) | Innovation Claim (1M) | External API Integration (1M) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **F1: Market-Benchmarked Valuation Engine** *(Retrofit)* | `RateCardScreen.tsx` + `ratecard/` modular components with live drift badge. | `GET /api/v1/rate-card/estimate`, `ValuationDomain.ts` | `rate_benchmarks`, `rate_card_entries` with `effective_from` versioning | Continuous FX & global commodity drift calculation (`±10%` threshold) | Open FX Feed (`open.er-api.com`) + Global Commodity Market Index |
-| **F2: AI Next-Life Scrap Vision Agent** | `VisionScanScreen.tsx` + `vision/` viewfinder & confidence overlay. | `POST /api/v1/valuation/classify-and-estimate`, `ValuationDomain.ts` | `valuation_scans` table storing AI audit trail & rationale | Regulated E-waste safety gate (forces `RECYCLE`, bypass-proof) + DB pricing join | OpenAI Vision (`gpt-4o-mini`) / Gemini Multimodal API |
-| **F3: Smart Geo-Dispatch & Route Optimizer** | `PickupScreen.tsx` + `dispatch/` booking & SVG collector console. | `POST /api/v1/pickups`, `GET /collector-route`, `PickupDomain.ts` | `pickup_orders`, `dispatch_assignments`, `partners` fleet columns | Capacity-constrained (`kg`), radius & license-aware nearest neighbor dispatch | Mapbox Directions Matrix API (TSP routing with Haversine fallback) |
+| **F2: AI Next-Life Scrap Vision Agent** | `VisionScanScreen.tsx` + `vision/` viewfinder & confidence overlay. | `POST /api/v1/valuation/classify-and-estimate`, `ValuationDomain.ts` | `valuation_scans` table storing AI audit trail & rationale | Regulated E-waste safety gate (forces `RECYCLE`, bypass-proof) + DB pricing join | Google Gemini 2.0 Flash (Free Multimodal) / OpenAI (`gpt-4o-mini`) + Heuristic Fallback |
+| **F3: Smart Geo-Dispatch & Route Optimizer** | `PickupScreen.tsx` + `dispatch/` booking & SVG collector console. | `POST /api/v1/pickups`, `GET /collector-route`, `PickupDomain.ts` | `pickup_orders`, `dispatch_assignments`, `partners` fleet columns | Capacity-constrained (`kg`), radius & license-aware nearest neighbor dispatch | OSRM (OpenStreetMap, Free & Keyless) / Mapbox API + Haversine Fallback |
 | **F4: B2B Bulk Scrap Auction & Live Bidding Engine** | `AuctionsScreen.tsx` + `auctions/` live bid cards, pulse & ticker. | `GET/POST /api/v1/auction-lots`, `POST /:id/bids`, `AuctionDomain.ts` | `auction_lots` (sealed reserve), `auction_bids` (monotonic sequence) | Sealed reserve price protection, anti-sniping dynamic clock extensions, lazy close | Pusher Channels (WebSockets for real-time bid tickers) |
 
 > **Banned Feature Defense:**  
@@ -107,7 +107,7 @@ chokro/
 2. **Strict Invariant Guard (`packages/shared`)**: Category unit rules are enforced at compile-time and runtime:
    - `APPLIANCES`, `E_WASTE` $\rightarrow$ must use `unit: 'piece'` and provide `piece_count`.
    - `CLOTHES`, `BOOKS`, `PLASTICS`, `PAPER`, `METAL`, `GLASS`, `FURNITURE` $\rightarrow$ must use `unit: 'kg'` and provide `declared_weight`.
-3. **Resilient Degradation**: Every external API (OpenAI, Mapbox, Open Commodity & FX Feed, Pusher) has a deterministic in-memory fallback. If API keys are missing or wifi drops during a live presentation, the system **never crashes**.
+3. **Resilient Degradation**: Every external API (Google Gemini / OpenAI, OSRM / Mapbox, Open Commodity & FX Feed, Pusher) has a deterministic in-memory fallback. If API keys are missing or wifi drops during a live presentation, the system **never crashes**.
 
 ---
 
@@ -124,7 +124,7 @@ In accordance with deep module design principles, M3 features are structured wit
   - Market Drift Calculation: computes percentage deviation between local rate card price and live international commodity spot price ($\pm 10\%$ alignment threshold).
   - Audit Trail: persists scan results into `valuation_scans` table.
 - **External Adapter Seams**:
-  - *Vision Adapter*: OpenAI `gpt-4o-mini` / Gemini API client with graceful local heuristic fallback.
+  - *Vision Adapter*: Google Gemini 2.0 Flash (Free) / OpenAI `gpt-4o-mini` API client with graceful local heuristic fallback.
   - *Market Index Adapter*: Open FX feed (`open.er-api.com`) + COMEX futures with baseline fallback.
 
 ### 2. `PickupDomain` (M3 F3)
@@ -136,7 +136,7 @@ In accordance with deep module design principles, M3 features are structured wit
   - E-Waste Regulatory Gate: requires `e_waste_licensed = true` for e-waste pickup orders.
   - Greedy TSP Tour Optimization: calculates nearest-neighbor route order from driver base and cumulative leg ETAs.
 - **External Adapter Seams**:
-  - *Matrix Routing Seam*: Mapbox Directions Matrix API with mathematical Haversine ($25\text{ km/h}$) fallback.
+  - *Matrix Routing Seam*: OSRM OpenStreetMap Table API (Free & Keyless) / Mapbox Directions Matrix API with mathematical Haversine ($25\text{ km/h}$) fallback.
 
 ### 3. `AuctionDomain` (M3 F4)
 - **Interface**: `createLot()`, `placeBid()`, `listPublicLots()`, `getPublicLotById()`
@@ -297,7 +297,7 @@ $$\text{Drift \%} = \left( \frac{P_{\text{local}} - P_{\text{benchmark}}}{P_{\te
 
 ---
 
-#### 4. Sequence Diagram
+#### 4. Backend Lifecycle & Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -329,16 +329,145 @@ sequenceDiagram
 
 ---
 
+#### 5. React Component Architecture & Code Logic (F1)
+
+##### Component Hierarchy Tree
+```
+RateCardScreen (Screen Container — Tab Switcher: 'estimate' vs 'browse')
+├── RateCardEstimator (Estimate Mode — Dynamic Form & Debounce Engine)
+│   ├── CategoryConditionSelector (Horizontal Pill Pickers with Native Touch Targets)
+│   ├── QuantityInputBox (Dual-Unit Aware: Integer Stepper for 'piece' / Number Input for 'kg')
+│   ├── EstimatorCard (Value Presentation Card)
+│   │   └── CommodityDriftBadge (Live Benchmark Pill + Market Drift Indicator)
+│   └── ErrorBanner (Inline Error Alerts)
+└── RateCardBrowser (Browse Mode — Published Rates by Category Accordion)
+    ├── Category Filter Tabs (Chips)
+    └── RateCardRow Items (Published Band Breakdown & Benchmark Footers)
+```
+
+##### React State Flow & Debounce Engine
+```mermaid
+graph TD
+    subgraph STATE_CONTAINER["RateCardEstimator.tsx (State & Debounce Engine)"]
+        State_Cat["category: Category ('PLASTICS')"]
+        State_Cond["condition: Condition ('GOOD')"]
+        State_Weight["weightText: string ('')"]
+        State_Piece["pieceCount: number (1)"]
+        State_Debounce["debouncedWeight: number (350ms timer)"]
+        
+        State_Cat --> UnitCalc["unit = getCategoryUnit(category)"]
+        State_Weight --> DebounceLogic["useEffect([unit, validWeight, parsedWeight])\n350ms Debounce Timer"]
+        DebounceLogic --> State_Debounce
+    end
+
+    subgraph HOOK_SEAM["useEstimate Hook (TanStack React Query v5)"]
+        UnitCalc --> QueryParams["weightParam = unit === 'kg' ? debouncedWeight : undefined\npieceParam = unit === 'piece' ? pieceCount : undefined"]
+        State_Debounce --> QueryParams
+        State_Piece --> QueryParams
+        QueryParams --> UseEstimateHook["useEstimate(category, condition, weightParam, pieceParam)\nqueryKey: ['estimate', category, condition, weight, piece]"]
+    end
+
+    subgraph DISPLAY_LEAF["EstimatorCard.tsx (Presentation Leaf)"]
+        UseEstimateHook --> EstimatorCardComp["EstimatorCard\n- Formats ৳bigValue (৳Total or ৳Unit Price)\n- Shows quantityLabel calculation\n- Renders CommodityDriftBadge"]
+    end
+```
+
+##### Core React Component Mechanics
+1. **`RateCardEstimator.tsx`**:
+   - **Debounced Weight Input**: Users type decimal weights continuously. The 350ms timer prevents unnecessary network calls until typing settles:
+     ```tsx
+     useEffect(() => {
+       if (unit !== 'kg') return;
+       const timer = setTimeout(() => {
+         setDebouncedWeight(validWeight ? parsedWeight : undefined);
+       }, 350);
+       return () => clearTimeout(timer);
+     }, [unit, validWeight, parsedWeight]);
+     ```
+   - **Dual-Unit Dynamic Seam**: Switching categories automatically resets weights, normalizes piece counts to `1`, and changes the parameters sent to `useEstimate`.
+2. **`EstimatorCard.tsx`**:
+   - **Dynamic Display Logic**: If no quantity is entered, it renders the unit rate (`৳110.00 / kg`); once a valid quantity is provided, it calculates and animates the total payout (`৳1,650.00`).
+   - **Market Benchmark Section**: Embedded directly in the card footer with full provenance (source name and benchmark rate).
+3. **`CommodityDriftBadge.tsx`**:
+   - Evaluates `drift_status` (`UNDER_MARKET`, `OVER_MARKET`, `IN_SYNC`) and renders tailored badge themes (amber/green/purple) with arrow icons (`trending-down`, `trending-up`, `swap-horizontal-outline`).
+
+---
+
 ### Feature 2: AI Next-Life Scrap Vision Agent
 
-#### What Problem It Solves
+#### 1. What Problem It Solves
 Untrained users don't know whether their scrap is recyclable, repairable, or hazardous e-waste. The Vision Agent acts as an expert multimodal appraiser: it classifies photos into canonical categories, estimates quantity, detects hazardous materials, determines circular next-life paths, and joins with the database rate card to provide an instant financial valuation.
 
-#### Safety & Regulatory Invariant
+#### 2. Safety & Regulatory Invariant
 - **E-Waste Gate:** If the item is classified as `E_WASTE` or electronic hazard, the next-life path is **permanently forced to `RECYCLE`**. The user cannot select `REUSE` or `DONATE` due to Department of Environment (DoE) toxic component regulations.
 - **Unit Enforcement:** Appliances and E-Waste output integer piece counts; all other categories output decimal kilograms.
 
-#### Sequence Diagram
+```mermaid
+flowchart TD
+    CameraInput["📸 Camera Capture / Gallery Pick (<500 KB Compressed)"] --> InferenceEngine["🧠 Vision Inference Seam (OpenAI / Local Heuristics)"]
+    
+    InferenceEngine --> RawOutput["Raw Detection:\nCategory, Condition, Quantity, Hazard Flag"]
+    
+    subgraph INVARIANT_ENFORCEMENT["Strict Domain Invariants"]
+        RawOutput --> UnitGate{"Category Unit Rule"}
+        UnitGate -->|"APPLIANCES / E_WASTE"| PieceUnit["Unit: 'piece' -> Math.round(qty)"]
+        UnitGate -->|"METALS, PLASTICS, PAPER, etc."| KgUnit["Unit: 'kg' -> Decimal weight"]
+        
+        RawOutput --> HazardGate{"Is Category E_WASTE\nor is_hazard=true?"}
+        HazardGate -->|"YES (Regulated)"| LockRecycle["🚨 HARD LOCK:\nnext_life_path = 'RECYCLE'\nis_ewaste_hazard = true\nOverride blocked"]
+        HazardGate -->|"NO (Standard)"| DecisionTree["🌳 Next-Life Decision Tree:\nREUSE | DONATE | REPAIR | RESELL | RECYCLE"]
+    end
+    
+    PieceUnit --> DBJoin["💰 Rate Card DB Join:\nQuery rate_card_entries for Category + Condition"]
+    KgUnit --> DBJoin
+    LockRecycle --> DBJoin
+    DecisionTree --> DBJoin
+    
+    DBJoin --> AuditPersist[("📝 Persist Scan to valuation_scans\n(scan_id, confidence, rationale, value_bdt)")]
+    
+    AuditPersist --> PrefillPayload["⚡ One-Tap ListingPrefill Payload:\n{ category, condition, unit, quantity, photo }"]
+    
+    PrefillPayload --> CreateListing["📝 Pre-fills CreateListingScreen"]
+    PrefillPayload --> BookPickup["🚚 Pre-fills Pickup Booking"]
+```
+
+---
+
+#### 3. Circular Next-Life Decision Logic Matrix
+
+```mermaid
+graph TD
+    subgraph APPLIANCES_DECISION["Appliances Transition"]
+        A[APPLIANCES] -->|EXCELLENT / GOOD| A1[RESELL: High residual value]
+        A -->|FAIR| A2[REPAIR: Minor fix needed]
+        A -->|POOR| A3[RECYCLE: Extract copper/motor scrap]
+    end
+
+    subgraph BOOKS_CLOTHES_DECISION["Books & Clothes Transition"]
+        B[BOOKS / CLOTHES] -->|EXCELLENT| B1[DONATE: Campus donation drive]
+        B -->|GOOD| B2[RESELL: Secondhand student market]
+        B -->|FAIR| B3[REUSE: Upcycling / rag use]
+        B -->|POOR| B4[RECYCLE: Textile / pulp reprocessing]
+    end
+
+    subgraph FURNITURE_DECISION["Furniture Transition"]
+        C[FURNITURE] -->|EXCELLENT / GOOD| C1[REUSE: Direct reuse eliminates timber footprint]
+        C -->|FAIR| C2[REPAIR: Carpentry restoration]
+        C -->|POOR| C3[RECYCLE: Wood composite chipping]
+    end
+
+    subgraph COMMODITY_SCRAP["Bulk Recyclables (Plastics, Metal, Paper, Glass)"]
+        D[PLASTICS / METAL / PAPER / GLASS] --> D1[RECYCLE: Industrial smelting / pelletizing]
+    end
+
+    subgraph EWASTE_SAFETY["Regulated E-Waste (Toxic Heavy Metals)"]
+        E[E_WASTE / BATTERIES / PCBS] -->|ALL CONDITIONS| E1[🚨 RECYCLE ONLY: Force-routed to DoE Licensed Facility]
+    end
+```
+
+---
+
+#### 4. Backend Lifecycle & Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -347,7 +476,7 @@ sequenceDiagram
     participant Screen as VisionScanScreen.tsx
     participant API as POST /api/v1/valuation/classify-and-estimate
     participant Domain as ValuationDomain.ts
-    participant LLM as OpenAI GPT-4o-mini (Vision Adapter)
+    participant LLM as Gemini / OpenAI (Vision Adapter)
     participant RateDB as PostgreSQL (rate_card_entries & rate_benchmarks)
     participant ScanDB as PostgreSQL (valuation_scans)
     participant ListScreen as CreateListingScreen.tsx
@@ -356,7 +485,7 @@ sequenceDiagram
     Screen->>API: POST Base64 image + user notes
     API->>Domain: classifyAndEstimate(input)
     
-    alt OpenAI Key Configured
+    alt Gemini / OpenAI Key Configured
         Domain->>LLM: Multimodal JSON completion (image + strict prompt)
         LLM-->>Domain: { category: "METAL", condition: "GOOD", confidence: 0.94 }
     else Fallback Classifier
@@ -383,6 +512,88 @@ sequenceDiagram
 
 ---
 
+#### 5. React Component Architecture & Code Logic (F2)
+
+##### Component Hierarchy Tree
+```
+VisionScanScreen (Screen Container — Lifecycle Coordinator & State Machine)
+├── ErrorBanner (Capture / Network Errors)
+├── [State 1] VisionCameraViewfinder (Live Viewfinder & Permission Handler)
+│   ├── CameraView (Expo Camera SDK with Quality 0.7 Capture)
+│   ├── Grid Guide Overlay (SVG Viewfinder Bracket)
+│   └── Trigger Bar (Shutter Button + Gallery Picker)
+├── [State 2] VisionPhotoReview (Captured Photo Review & Quantity Guide)
+│   ├── Image Preview Card
+│   ├── Quantity Override Switcher (Knows Qty Toggle -> Category & Numeric Input)
+│   ├── VisionQuantityGuide (Weight/Piece Guidelines per Material)
+│   └── Retake vs. Analyze Action Buttons
+├── [State 3] VisionAnalyzingOverlay (Scanning Laser Animation & Progress Feedback)
+├── [State 4] VisionResultCard (AI Appraisal Verdict & Handoff Actions)
+│   ├── Category & Condition Badges
+│   ├── ConfidenceMeter (Horizontal Animated SVG Confidence Progress Bar)
+│   ├── Value Breakdown (Unit Price x Quantity = Total Estimated ৳)
+│   ├── PathBadge (Circular Route Badge: RECYCLE / RESELL / DONATE / etc.)
+│   ├── EwasteHazardBanner (Rendered strictly when is_ewaste_hazard === true)
+│   ├── Rationale Quote Box (DoE regulatory context / material reasoning)
+│   ├── Market Drift Comparison Bar (Commodity Index comparison)
+│   └── Primary Action Buttons ("List this scrap" -> Prefills Marketplace / "Scan another")
+├── VisionHistorySection (Recent Scans List with Timestamp & Thumbnails)
+└── VisionScanHistoryModal (Detailed Modal for Past Scans)
+```
+
+##### Component State Machine Flow
+```mermaid
+stateDiagram-v2
+    [*] --> IdleViewfinder: Screen Mounts (Camera Ready)
+    
+    IdleViewfinder --> PhotoReview: Photo Captured (takePictureAsync) OR Picked from Gallery
+    PhotoReview --> IdleViewfinder: Tap "Retake Photo" (resetScan)
+    
+    PhotoReview --> Analyzing: Tap "Analyze Photo" -> useVisionScan.mutate()
+    Analyzing --> ResultCard: Mutation Success (200 OK) -> Displays AI Verdict
+    Analyzing --> PhotoReview: Mutation Failure -> Shows ErrorBanner
+    
+    ResultCard --> IdleViewfinder: Tap "Scan another item" (resetScan)
+    ResultCard --> CreateListingScreen: Tap "List this scrap" -> onListScrap(ListingPrefill)
+```
+
+##### Core React Component Mechanics
+1. **`VisionScanScreen.tsx`**:
+   - **Client-Side Image Optimization**: Before transmission, raw camera photos are resized and compressed to $<500\text{ KB}$ using `compressPhoto()`:
+     ```tsx
+     const picture = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+     const prepared = await compressPhoto({
+       uri: picture.uri,
+       width: picture.width ?? 0,
+       height: picture.height ?? 0,
+     });
+     setPhoto(prepared);
+     ```
+   - **Prefill Builder Contract**: Assembles normalized DTO matching `@chokro/shared` rules before calling `onListScrap`:
+     ```tsx
+     const buildPrefill = useCallback((): ListingPrefill => {
+       const category = result!.classification.category;
+       const condition = result!.classification.condition;
+       const unit = getCategoryUnit(category);
+       const rawQuantity = hasDeclaredQty ? declaredQtyNumber : result!.classification.quantity;
+       const quantity = unit === 'piece' 
+         ? Math.max(1, Math.round(rawQuantity)) 
+         : Math.round(rawQuantity * 10) / 10;
+       return { category, condition, unit, quantity, photo, seededAt: Date.now() };
+     }, [declaredQtyNumber, hasDeclaredQty, photo, result]);
+     ```
+2. **`VisionResultCard.tsx`**:
+   - **Animation & Invariant Indicators**: Uses `react-native-reanimated` (`FadeInUp`) to smoothly reveal the appraisal.
+   - **Regulated E-Waste Safety Banner**:
+     ```tsx
+     {classification.is_ewaste_hazard ? <EwasteHazardBanner /> : null}
+     ```
+   - Renders rationale, suggested actions, and commodity drift comparison alongside the primary conversion button.
+3. **`ConfidenceMeter.tsx` & `PathBadge.tsx`**:
+   - Visual tokens mapped to confidence intervals ($>90\%$ green, $75-90\%$ blue, $<75\%$ amber) and distinct semantic colorways for all 5 circular transition paths.
+
+---
+
 ### Feature 3: Smart Geo-Dispatch & Route Optimizer
 
 #### What Problem It Solves
@@ -396,11 +607,11 @@ Individual scrap collections fail when drivers are sent to pickups without check
    - *Capacity Constraint:* $\text{Driver Remaining Capacity} \ge \text{Pickup Weight}$, where:
      $$\text{Remaining Capacity} = \text{Vehicle Capacity} - \sum(\text{Active Assigned Order Weights})$$
 3. **Winner Selection:** Shortest distance driver is awarded the assignment.
-4. **Mapbox Matrix Route Optimization (TSP):**
-   - Coordinates (Driver Base + all active pickup stops) are sent to **Mapbox Directions Matrix API**.
+4. **OSRM / Mapbox Matrix Route Optimization (TSP):**
+   - Coordinates (Driver Base + all active pickup stops) are sent to **OSRM OpenStreetMap Table API** (100% Free & Keyless) or **Mapbox Matrix API**.
    - Solves the Traveling Salesperson Problem (TSP) using a greedy nearest-neighbor walk over the duration/distance cost matrix.
    - Calculates cumulative ETAs and ordered stop sequences ($1, 2, 3 \dots$).
-   - *Fallback:* If Mapbox is unreachable, computes an internal mathematical Haversine distance matrix at an average speed of $25\text{ km/h}$.
+   - *Fallback:* If external routing is unreachable, computes an internal mathematical Haversine distance matrix at an average speed of $25\text{ km/h}$.
 
 #### Sequence Diagram
 
@@ -412,7 +623,7 @@ sequenceDiagram
     participant API as POST /api/v1/pickups
     participant Domain as PickupDomain.ts
     participant DB as PostgreSQL (partners, pickup_orders, dispatch_assignments)
-    participant Mapbox as Mapbox Matrix API (Routing Seam)
+    participant Router as OSRM / Mapbox Matrix (Routing Seam)
     actor Collector as Collector Driver (Mobile App)
 
     Customer->>Mobile: Selects location, date & submits pickup booking
@@ -435,15 +646,15 @@ sequenceDiagram
     API->>Domain: optimizeRoute(collectorPartnerId)
     Domain->>DB: Fetch driver base coords + all active pickup stops
     
-    alt Mapbox Token Active
-        Domain->>Mapbox: GET /directions-matrix/v1/mapbox/driving (coords list)
-        Mapbox-->>Domain: Real duration & distance matrix
-    else Network / Token Fallback
+    alt OSRM / Mapbox Routing Active
+        Domain->>Router: GET Table/Matrix route (coords list)
+        Router-->>Domain: Real duration & distance matrix
+    else Network / Offline Fallback
         Domain->>Domain: Compute Haversine matrix @ 25 km/h
     end
     
     Domain->>Domain: Run nearest-neighbor TSP walk -> Order stops from base
-    Domain-->>API: { routing_source: 'mapbox', stops: [ordered stops with cumulative ETAs] }
+    Domain-->>API: { routing_source: 'osrm' | 'mapbox', stops: [ordered stops with cumulative ETAs] }
     API-->>Collector: Render SVG Stop Sequence, addresses, material info & ETAs
 ```
 
@@ -541,10 +752,10 @@ Here is the exact architectural defense:
 #### Q2: "How does your AI Vision Agent connect to Sameer's Marketplace?"
 > **Answer:** *"My Vision Agent accepts raw camera captures, extracts material properties, validates unit invariants (kg vs piece), and joins with our live database rate card. Once evaluated, it outputs a standardized `ListingPrefill` DTO. Clicking 'List this Scrap' hands off this DTO directly into the `CreateListingScreen`, pre-populating category, condition, estimated weight, and photos with zero duplicate data entry."*
 
-#### Q3: "What if external APIs like OpenAI, Mapbox, or Pusher fail or rate-limit during the evaluation?"
+#### Q3: "What if external APIs like Gemini, OpenAI, Mapbox, or Pusher fail or rate-limit during the evaluation?"
 > **Answer:** *"Every single external integration has a deterministic, in-engine fallback:
-> 1. **OpenAI Vision:** Falls back to an internal heuristic rule-based classifier that extracts category and condition while preserving all domain invariants and rate-card joins.
-> 2. **Mapbox Matrix:** Falls back to an internal mathematical Haversine distance matrix with nearest-neighbor TSP sequencing at 25 km/h city speed.
+> 1. **AI Vision:** Supports free Google Gemini Flash and OpenAI Vision, and falls back to an internal heuristic rule-based classifier that extracts category and condition while preserving all domain invariants and rate-card joins.
+> 2. **Routing & Dispatch:** Uses 100% free OSRM (OpenStreetMap) or Mapbox matrix routing, and falls back to an internal mathematical Haversine distance matrix with nearest-neighbor TSP sequencing at 25 km/h city speed.
 > 3. **Pusher Realtime:** The mobile app automatically activates a 4-second background polling cycle if WebSockets are unavailable.
 > 4. **Commodity & FX Feed:** Falls back to calibrated baseline commodity spot rates. The system never crashes."*
 
