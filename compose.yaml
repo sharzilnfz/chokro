@@ -65,18 +65,5 @@ services:
           cpus: '1.5'
     restart: unless-stopped
 
-  mobile:
-    build:
-      context: .
-      target: mobile
-    depends_on:
-      api:
-        condition: service_started
-    environment:
-      EXPO_PUBLIC_API_URL: http://localhost:3000
-    ports:
-      - "8081:8081"
-    restart: unless-stopped
-
 volumes:
   chokro-postgres:

@@ -20,19 +20,6 @@ export function PickupScreen() {
     );
   }
 
-  if (partnerQuery.error) {
-    return (
-      <StateView
-        fullScreen
-        error={partnerQuery.error}
-        errorTitle="Dispatch unavailable"
-        errorMessage={getErrorMessage(partnerQuery.error, 'Could not load your partner profile.')}
-        onRetry={() => void partnerQuery.refetch()}
-        retryLabel="Try again"
-      />
-    );
-  }
-
   return isCollectorPartner(partner) && partner ? (
     <CollectorRouteConsole partner={partner} />
   ) : (

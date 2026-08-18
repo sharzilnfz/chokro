@@ -32,9 +32,3 @@ USER nextjs
 EXPOSE 3000
 CMD ["node", "apps/api/server.js"]
 
-FROM deps AS mobile
-WORKDIR /app
-COPY . .
-EXPOSE 8081
-CMD ["pnpm", "--filter", "@chokro/mobile", "web", "--port", "8081"]
-

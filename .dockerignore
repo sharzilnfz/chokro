@@ -1,8 +1,9 @@
-node_modules
+**/node_modules
+**/.next
+**/.expo
+**/.turbo
 .git
-.next
-.expo
-.turbo
+.worktrees
 .env
 *.log
 .DS_Store
@@ -14,4 +15,7 @@ node_modules
 .postman
 postman
 docs
+specs
+demo
+
 

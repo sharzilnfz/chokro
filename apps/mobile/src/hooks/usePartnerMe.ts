@@ -23,11 +23,18 @@ export function usePartnerMe() {
   return useQuery<PartnerProfile | null>({
     queryKey: ['partner-me'],
     queryFn: async () => {
-      const data = await apiRequest<{ partner: PartnerProfile | null }>('/api/v1/partners/me');
-      return data.partner ?? null;
+      try {
+        const data = await apiRequest<{ partner: PartnerProfile | null }>('/api/v1/partners/me');
+        return data.partner ?? null;
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 401 || err.status === 403)) {
+          return null;
+        }
+        throw err;
+      }
     },
     retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.status === 404) return false;
+      if (error instanceof ApiError && (error.status === 404 || error.status === 401 || error.status === 403)) return false;
       return failureCount < 2;
     },
   });
