@@ -1,3 +1,4 @@
+// End-to-end walk of every Sprint 1 seam through the real route handlers.
 import { POST as createListing } from '../app/api/listings/route';
 import { GET as getFeed } from '../app/api/feed/route';
 import { POST as applyPartner } from '../app/api/partners/apply/route';
@@ -8,11 +9,14 @@ import { POST as adjustWallet } from '../app/api/admin/wallet/adjust/route';
 import { GET as getWalletBalance } from '../app/api/wallet/balance/route';
 import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
+// Walking skeleton: one happy path across all seams, plus a signed-debit check.
 describe('Sprint 1 walking skeleton', () => {
+  // Fresh store per run.
   beforeEach(async () => {
     await resetTestStore();
   });
 
+  // Runs the full user, partner, admin, feed, zone, and wallet loop together.
   it('runs the authenticated user, partner, admin, feed, zone, and wallet seams', async () => {
     const user = await createTestUser();
     const admin = await createTestUser('ADMIN');
@@ -52,6 +56,7 @@ describe('Sprint 1 walking skeleton', () => {
     expect((await balance.json()).balance.verified).toBe(200);
   });
 
+  // A signed negative adjustment is honored as a real debit, netting the balance.
   it('treats the signed amount as the ledger source of truth for debits', async () => {
     const user = await createTestUser();
     const admin = await createTestUser('ADMIN');

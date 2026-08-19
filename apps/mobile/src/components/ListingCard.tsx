@@ -1,3 +1,5 @@
+// Feed card presenting the essentials of one listing: photo, category/status, quantity and condition.
+// Third-party and app modules used to render the card.
 import React from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,6 +7,7 @@ import { colors } from '@/theme';
 import { categoryLabel, formatQuantityWithUnit } from '@/types';
 import type { Listing } from '@/hooks/useFeed';
 
+// Props: the feed listing to display.
 export interface ListingCardProps {
   item: Listing;
   onContactSeller?: () => void;
@@ -21,6 +24,7 @@ export function ListingCard({ item, onContactSeller, onToggleSaved, saving }: Li
   const priceText = item.price_bdt != null && item.price_bdt !== '' ? `৳${Number(item.price_bdt).toFixed(2)}` : null;
   const saved = Boolean(item.saved);
 
+  // Photo cover, or a placeholder when the listing has no image.
   return (
     <View
       className="bg-surface rounded-md border border-border overflow-hidden mt-[10px] shadow-card"

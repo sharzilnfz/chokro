@@ -1,4 +1,7 @@
+// WalletDomain: ledger math and adjustment writes behind user wallet balances.
 import { walletRepo } from '@/lib/repos/wallet';
+import { StreakDomain } from '@/lib/domain/StreakDomain';
+import { BadgeDomain } from '@/lib/domain/BadgeDomain';
 
 export interface BalanceSummary {
   verified: number;
@@ -29,6 +32,11 @@ export const WalletDomain = {
     return walletRepo.findTransactionsByOwner(userId);
   },
 
+  async onCreditsVerified(userId: string) {
+    await StreakDomain.recordActivity(userId);
+    await BadgeDomain.maybeAwardBadges(userId);
+  },
+
   async createAdjustment(input: {
     userId: string;
     amount: string | number;
@@ -40,10 +48,16 @@ export const WalletDomain = {
       throw new Error('Invalid adjustment amount');
     }
 
-    return walletRepo.createAdjustmentTransaction({
+    const txn = await walletRepo.createAdjustmentTransaction({
       userId: input.userId,
       amount: numAmount,
       reason: input.reason || input.description || null,
     });
+
+    if (numAmount > 0) {
+      await this.onCreditsVerified(input.userId);
+    }
+
+    return txn;
   },
 };

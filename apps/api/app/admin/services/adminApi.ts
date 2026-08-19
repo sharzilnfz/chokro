@@ -1,3 +1,5 @@
+// Shared fetch layer for the admin console: attaches the session token, classifies API failures, and routes auth callbacks.
+// Error type carrying the HTTP status and optional response payload for structured failure handling.
 export class AdminApiError extends Error {
   status: number;
   data?: unknown;
@@ -10,10 +12,12 @@ export class AdminApiError extends Error {
   }
 }
 
+// Module-level hooks registered by the auth context to react to session/authorization events.
 let tokenProvider: (() => string | null) | null = null;
 let unauthorizedHandler: (() => void) | null = null;
 let forbiddenHandler: ((message?: string) => void) | null = null;
 
+// Setters used by AdminAuthProvider to wire the token source and auth-error callbacks.
 export function setAdminTokenProvider(provider: (() => string | null) | null) {
   tokenProvider = provider;
 }
@@ -26,6 +30,7 @@ export function setAdminForbiddenHandler(handler: ((message?: string) => void) |
   forbiddenHandler = handler;
 }
 
+// Extracts a human-readable message from a failed API response body, falling back to a default.
 export async function parseApiError(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { error?: string; message?: string };
@@ -39,6 +44,7 @@ export type ApiRequestOptions = RequestInit & {
   token?: string | null;
 };
 
+// Fetch wrapper that injects the bearer token and normalizes auth/HTTP failures into AdminApiError.
 export async function adminApiRequest<T>(
   input: RequestInfo | URL,
   options: ApiRequestOptions = {},

@@ -1,5 +1,7 @@
+// Admin rate card page: publish category/condition rates and review the versioned price history.
 'use client';
 
+// Shared domain enums, admin UI primitives, data hooks, and formatting helpers used below.
 import { CONDITIONS, type Category, type Condition } from '@chokro/shared';
 import { useState, type FormEvent } from 'react';
 import { AdminPageHeader } from '../components/layout/AdminPageHeader';
@@ -13,25 +15,31 @@ import { useAdminRateCards, usePublishRate } from '../hooks/useAdminRateCards';
 import { formatDate, formatLabel, formatPrice, getErrorMessage, unitForCategory } from '../lib/formatters';
 import { CATEGORY_OPTIONS } from '../drop-zones/categories';
 
+// Static select options derived once from the shared condition enum.
 const CONDITION_OPTIONS = CONDITIONS.map((value) => ({
   value,
   label: formatLabel(value),
 }));
 
+// Success/error feedback surfaced to the admin, keyed by visual tone.
 type Notice = { tone: NoticeTone; text: string } | null;
 
 export default function AdminRateCardPage() {
+  // Fetch existing rate history and prepare the publish mutation against the admin API.
   const { data: rates = [], isLoading, isError, refetch } = useAdminRateCards();
   const publishRateMutation = usePublishRate();
 
+  // Form state for the rate being published and any validation/feedback text.
   const [category, setCategory] = useState<Category>('PLASTICS');
   const [conditionBand, setConditionBand] = useState<Condition>('GOOD');
   const [priceBdt, setPriceBdt] = useState('');
   const [priceError, setPriceError] = useState('');
   const [notice, setNotice] = useState<Notice>(null);
 
+  // Unit is derived from the chosen category (kg for materials, pieces for appliances/e-waste).
   const unit = unitForCategory(category);
 
+  // Sort rates newest-first and flag the most recent entry per category/condition as current.
   const sortedRatesWithVersion = [...rates]
     .sort((first, second) => {
       return new Date(second.effective_from).getTime() - new Date(first.effective_from).getTime();
@@ -44,6 +52,7 @@ export default function AdminRateCardPage() {
       return { ...rate, isCurrent };
     });
 
+  // Validate price, call the publish mutation, and surface success or error feedback.
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
@@ -78,12 +87,14 @@ export default function AdminRateCardPage() {
 
   return (
     <>
+      {/* Page header describing what this workflow controls */}
       <AdminPageHeader
         kicker="Pricing operations"
         title="Rate card"
         description="Add an effective rate for a category and condition. Materials use kilograms; appliances and e-waste use pieces."
       />
 
+      {/* Dismissible toast for publish results */}
       {notice && (
         <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
           {notice.text}
@@ -91,6 +102,7 @@ export default function AdminRateCardPage() {
       )}
 
       <div className="admin-workspace-grid">
+        {/* Form to publish a new rate for a category/condition */}
         <section className="admin-panel admin-form-panel" aria-labelledby="publish-rate-title">
           <h2 className="admin-section-heading" id="publish-rate-title">
             Publish a rate
@@ -114,6 +126,7 @@ export default function AdminRateCardPage() {
               onChange={(event) => setConditionBand(event.target.value as Condition)}
             />
 
+            {/* Derived unit readout so the admin confirms the pricing basis before submitting */}
             <div className="admin-field">
               <span className="admin-label">Pricing unit</span>
               <div className="admin-derived-value" aria-live="polite">
@@ -122,6 +135,7 @@ export default function AdminRateCardPage() {
               </div>
             </div>
 
+            {/* Price input clears its error as the admin types */}
             <AdminInput
               id="rate-price"
               label="Price in BDT"
@@ -140,6 +154,7 @@ export default function AdminRateCardPage() {
               required
             />
 
+            {/* Submit button shows pending state while the mutation runs */}
             <AdminButton
               variant="primary"
               fullWidth
@@ -152,6 +167,7 @@ export default function AdminRateCardPage() {
           </form>
         </section>
 
+        {/* Version history table with loading, error, and empty states */}
         <section className="admin-panel" aria-labelledby="rate-history-title">
           <div className="admin-panel-header">
             <div>
@@ -160,6 +176,7 @@ export default function AdminRateCardPage() {
               </h2>
               <p className="admin-section-copy">Newest entry for each category and condition is current.</p>
             </div>
+            {/* Entry count once data has loaded */}
             {!isLoading && (
               <span className="admin-panel-count">
                 {rates.length} {rates.length === 1 ? 'entry' : 'entries'}
@@ -167,6 +184,7 @@ export default function AdminRateCardPage() {
             )}
           </div>
 
+          {/* Branch on load / error / empty / data states for the history panel */}
           {isLoading ? (
             <AdminSkeleton rowCount={4} colCount={5} label="Loading rate history" />
           ) : isError && rates.length === 0 ? (

@@ -1,11 +1,14 @@
+// Accessible labeled select with hint/error messages and a described-by chain wired to the field id.
 import type { ReactNode, SelectHTMLAttributes } from 'react';
 import { cx } from '../../lib/formatters';
 
+// Single dropdown option; strings render as their own label.
 export type Option = {
   value: string;
   label: ReactNode;
 };
 
+// Wraps native select semantics with an id-driven hint/error mechanism.
 export type AdminSelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   label?: ReactNode;
   hint?: ReactNode;
@@ -23,11 +26,13 @@ export function AdminSelect({
   'aria-describedby': explicitDescribedBy,
   ...props
 }: AdminSelectProps) {
+  // Derives accessible ids for hint/error text and combines them with any caller provided value.
   const hintId = hint && id ? `${id}-hint` : undefined;
   const errorId = error && id ? `${id}-error` : undefined;
 
   const describedBy = cx(hintId, errorId, explicitDescribedBy) || undefined;
 
+  // Field group: label, select (error-styled and aria-invalid when needed), hint, and error blocks.
   return (
     <div className="admin-field">
       {label && (

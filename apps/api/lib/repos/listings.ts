@@ -1,8 +1,11 @@
+// listings repo: persistence for marketplace listings plus the filtered,
+// keyset-paginated browse query behind the public catalog.
 import { db, listings, users, savedListings, eq, desc, and } from '@chokro/db';
 import { withDb } from './seam';
 import { KeysetPagination } from '../domain/KeysetPagination';
 import type { KeysetCursor } from '../domain/KeysetPagination';
 
+// Row-shaped insert payload for a listing.
 export interface CreateListingInput {
   owner_id: string;
   category: string;
@@ -15,6 +18,7 @@ export interface CreateListingInput {
   status?: string;
 }
 
+// Catalog browse options: direct filters plus an optional keyset position and page size.
 export interface ListingFilter {
   category?: string;
   status?: string;
@@ -25,6 +29,7 @@ export interface ListingFilter {
 }
 
 export const listingRepo = {
+  // Lookup by primary key.
   async findById(id: string) {
     return withDb(async () => {
       const rows = await db
@@ -36,6 +41,7 @@ export const listingRepo = {
     });
   },
 
+  // A seller's own listings, newest first.
   async findByOwner(ownerId: string) {
     return withDb(async () => {
       return db
@@ -46,6 +52,8 @@ export const listingRepo = {
     });
   },
 
+  // Public catalog browse: always scoped to the requested status (ACTIVE by default)
+  // and deepened with optional category/condition filters and a keyset cursor.
   async findPublished(filter?: ListingFilter) {
     return withDb(async () => {
       const status = filter?.status || 'ACTIVE';
@@ -63,7 +71,7 @@ export const listingRepo = {
         }
       }
 
-      const query = db
+const query = db
         .select({
           id: listings.id,
           owner_id: listings.owner_id,
@@ -105,6 +113,7 @@ export const listingRepo = {
     });
   },
 
+  // Insert a listing; weight is stored as a string column, condition/status default.
   async create(input: CreateListingInput) {
     return withDb(async () => {
       const [listing] = await db
@@ -125,6 +134,7 @@ export const listingRepo = {
     });
   },
 
+  // Persist a listing's status change.
   async updateStatus(id: string, status: string) {
     return withDb(async () => {
       const [updated] = await db

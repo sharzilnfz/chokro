@@ -1,9 +1,13 @@
+// Paginated, filterable feed data source backed by React Query's infinite queries.
+// Query infra and the API client.
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
 import type { Category, Condition } from '@/types';
 
+// Possible lifecycle states a listing can be in.
 type ListingStatus = 'DRAFT' | 'ACTIVE' | 'CANCELLED' | 'MATCHED' | 'EXPIRED';
 
+// Shape of a single listing returned by the feed API.
 type Listing = {
   id: string;
   category: Category;
@@ -19,6 +23,7 @@ type Listing = {
   saved?: boolean;
 };
 
+// One feed page: entries plus the cursor for the next page.
 type FeedResponse = {
   items: Listing[];
   nextCursor?: string | null;
@@ -26,6 +31,7 @@ type FeedResponse = {
 
 export type { Listing };
 
+// Filter selectors; 'ALL' means no filter.
 type FeedFilter = 'ALL' | Category;
 type ConditionFilter = 'ALL' | Condition;
 

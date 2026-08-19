@@ -1,3 +1,7 @@
+// RateCardScreen shows "Today's rates": the current published per-unit rate for
+// each category, with pull-to-refresh and empty/error states.
+
+// React Native list primitives plus internal rate-card and UI imports.
 import React, { useCallback } from 'react';
 import {
   FlatList,
@@ -13,12 +17,15 @@ import { colors } from '@/theme';
 import { useRateCard, type RowRate } from '@/hooks/useRateCard';
 
 export function RateCardScreen() {
+  // Rate card query, falling back to an empty list so renderers stay simple.
   const { data: rows = [], isLoading, error, refetch, isRefetching } = useRateCard();
   const errorMessage = error ? getErrorMessage(error, 'Could not load the current rate card.') : '';
 
+  // Each row renders via the shared RateCardRow for a category.
   const renderItem = useCallback(({ item }: { item: RowRate }) => <RateCardRow item={item} />, []);
 
   return (
+    // Full-screen state wrapper: overlays loading/error, then renders the list.
     <StateView
       fullScreen
       isLoading={isLoading}
@@ -30,6 +37,7 @@ export function RateCardScreen() {
       onRetry={() => void refetch()}
       retryLabel="Try again"
     >
+      {/* Rate rows with the explanatory header and a bespoke empty state. */}
       <FlatList
         className="flex-1 bg-background"
         contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
@@ -49,6 +57,7 @@ export function RateCardScreen() {
           />
         }
         ListHeaderComponent={
+          // Title copy and unit explanation, plus an inline fetch error strip.
           <View>
             <Text className="text-leaf text-[11px] font-extrabold tracking-tight">PUBLISHED MARKET RATES</Text>
             <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Today&apos;s rates</Text>
@@ -60,6 +69,7 @@ export function RateCardScreen() {
           </View>
         }
         ListEmptyComponent={
+          // Shown only while an admin has not yet published any rate.
           <StateView
             isEmpty
             emptyIcon="pricetags-outline"

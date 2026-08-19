@@ -1,3 +1,5 @@
+// List row for a single credit transaction, showing direction, type, status and amount.
+// Third-party and app modules used to render the transaction row.
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,13 +11,16 @@ export interface TransactionItemProps {
   item: CreditTransaction;
 }
 
+// Status badge colors keyed by transaction status.
 const STATUS_COLORS: Record<CreditTransaction['status'], string> = {
   VERIFIED: colors.leafDark,
   PENDING: colors.amber,
   REJECTED: colors.danger,
 };
 
+// Memoized row; debits render with a negative amount and reversed icon.
 export const TransactionItem = React.memo(function TransactionItem({ item }: TransactionItemProps) {
+  // Derive sign and styling from the numeric amount.
   const amount = Number(item.amount ?? 0);
   const isDebit = amount < 0;
   const sign = isDebit ? '-' : '+';

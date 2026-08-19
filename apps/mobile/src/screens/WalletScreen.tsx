@@ -1,7 +1,10 @@
+// WalletScreen shows the "Green Credits" screen: verified and pending balances,
+// active streak multiplier, quick access to campus leaderboard/badges, and append-only ledger history.
 import React, { useCallback } from 'react';
 import {
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
   Text,
   View,
@@ -12,12 +15,32 @@ import { TransactionItem } from '@/components/TransactionItem';
 import { StateView } from '@/components/ui/StateView';
 import { colors } from '@/theme';
 import { useWallet, type CreditTransaction } from '@/hooks/useWallet';
+import { useStreaks } from '@/hooks/useStreaks';
+import { usePartner } from '@/hooks/usePartner';
 
-export function WalletScreen() {
+interface WalletScreenProps {
+  onOpenLeaderboard?: () => void;
+  onOpenBadges?: () => void;
+  onOpenPartner?: () => void;
+}
+
+export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner }: WalletScreenProps) {
   const { data, isLoading, error, refetch, isRefetching } = useWallet();
+  const { data: streakData, refetch: refetchStreak } = useStreaks();
+  const { data: partnerData, refetch: refetchPartner } = usePartner();
+
   const balance = data?.balance ?? { verified: 0, pending: 0 };
   const transactions = data?.transactions ?? [];
+  const streak = streakData?.streak;
+  const partner = partnerData?.partner;
+
   const errorMessage = error ? getErrorMessage(error, 'Could not load your wallet.') : '';
+
+  const handleRefreshAll = () => {
+    void refetch();
+    void refetchStreak();
+    void refetchPartner();
+  };
 
   const renderItem = useCallback(({ item }: { item: CreditTransaction }) => <TransactionItem item={item} />, []);
 
@@ -30,12 +53,12 @@ export function WalletScreen() {
       error={transactions.length === 0 ? error : null}
       errorTitle="Wallet unavailable"
       errorMessage={errorMessage}
-      onRetry={() => void refetch()}
+      onRetry={handleRefreshAll}
       retryLabel="Try again"
     >
       <FlatList
         className="flex-1 bg-background"
-        contentContainerClassName="p-[20px] pb-[36px]"
+        contentContainerClassName="p-5 pb-10"
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
@@ -46,36 +69,187 @@ export function WalletScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={() => void refetch()}
+            onRefresh={handleRefreshAll}
             colors={[colors.leaf]}
             tintColor={colors.leaf}
           />
         }
         ListHeaderComponent={
           <View>
-            <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">APPEND-ONLY LEDGER</Text>
-            <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Green Credits</Text>
-            <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">One credit equals ৳1. Only verified outcomes count toward spendable balance.</Text>
+            <Text className="text-leaf text-xs font-extrabold tracking-widest">APPEND-ONLY LEDGER</Text>
+            <Text accessibilityRole="header" className="text-3xl font-extrabold text-ink tracking-tight mt-1">
+              Green Credits
+            </Text>
+            <Text className="text-sm text-muted leading-5 mt-1.5 mb-4">
+              One credit equals ৳1. Only verified outcomes count toward spendable balance.
+            </Text>
 
-            <View className="bg-leaf-dark rounded-lg p-[20px] min-h-[190px] justify-end shadow-card" style={{ elevation: 2 }} accessibilityLabel={`Verified balance ${balance.verified.toFixed(2)} Green Credits`}>
-              <View className="absolute top-[18px] right-[18px] w-[48px] h-[48px] rounded-[16px] bg-leaf items-center justify-center">
-                <Ionicons name="shield-checkmark" size={23} color={colors.surface} />
+            {/* Spendable balance card */}
+            <View
+              className="bg-leaf-dark rounded-3xl p-5 min-h-[180px] justify-end shadow-card mb-3"
+              accessibilityLabel={`Verified balance ${balance.verified.toFixed(2)} Green Credits`}
+            >
+              <View className="absolute top-4 right-4 w-12 h-12 rounded-2xl bg-leaf items-center justify-center">
+                <Ionicons name="shield-checkmark" size={24} color={colors.surface} />
               </View>
-              <Text className="text-[#BBD5C5] text-[11px] font-extrabold tracking-[1.2px]">VERIFIED BALANCE</Text>
-              <Text className="text-surface text-[47px] leading-[53px] font-extrabold tracking-[-1.8px] mt-[4px]">{balance.verified.toFixed(2)}</Text>
-              <Text className="text-[#DCEADF] text-[13px] font-semibold">Green Credits</Text>
+              <Text className="text-[#BBD5C5] text-[11px] font-extrabold tracking-wider">VERIFIED BALANCE</Text>
+              <Text className="text-surface text-4xl font-black tracking-tight mt-1">
+                {balance.verified.toFixed(2)}
+              </Text>
+              <Text className="text-[#DCEADF] text-xs font-semibold mt-0.5">Green Credits</Text>
             </View>
 
-            <View className="flex-row items-center justify-between gap-[14px] border border-[#E4C991] rounded-md bg-amber-soft p-[16px] mt-[12px]" accessibilityLabel={`Pending balance ${balance.pending.toFixed(2)} Green Credits`}>
-              <View>
-                <Text className="text-amber text-[14px] font-extrabold">Pending verification</Text>
-                <Text className="text-muted text-[11px] leading-[16px] mt-[3px] max-w-[230px]">Not spendable until a Trust Gate decision verifies the outcome.</Text>
+            {/* Pending credits card */}
+            <View
+              className="flex-row items-center justify-between gap-3 border border-[#E4C991] rounded-2xl bg-amber-soft p-4 mb-4"
+              accessibilityLabel={`Pending balance ${balance.pending.toFixed(2)} Green Credits`}
+            >
+              <View className="flex-1">
+                <Text className="text-amber text-sm font-extrabold">Pending verification</Text>
+                <Text className="text-muted text-xs leading-4 mt-0.5">
+                  Not spendable until a Trust Gate decision verifies the outcome.
+                </Text>
               </View>
-              <Text className="text-amber text-[24px] font-extrabold">{balance.pending.toFixed(2)}</Text>
+              <Text className="text-amber text-xl font-black">{balance.pending.toFixed(2)}</Text>
             </View>
 
-            {errorMessage ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] mt-[12px] text-[13px] leading-[19px]">{errorMessage}</Text> : null}
-            <Text className="text-ink text-[18px] font-extrabold mt-[24px] mb-[10px]">Ledger history</Text>
+            {/* Engagement Streak & Multiplier Quick Action Widget */}
+            {streak && (
+              <View className="bg-surface border border-border p-4 rounded-2xl mb-4">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2.5">
+                    <View className="w-9 h-9 rounded-xl bg-amber-500/20 items-center justify-center">
+                      <Ionicons name="flame" size={20} color="#F59E0B" />
+                    </View>
+                    <View>
+                      <Text className="text-xs font-extrabold text-ink">
+                        {streak.current_streak_days}-Day Active Streak
+                      </Text>
+                      <Text className="text-[11px] text-muted">
+                        Active multiplier: <Text className="font-bold text-leaf-dark">{streak.streak_multiplier}x</Text>
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="flex-row items-center gap-2">
+                    {onOpenBadges && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="View badges"
+                        className="px-2.5 py-1.5 rounded-xl bg-leaf-soft active:opacity-70"
+                        onPress={onOpenBadges}
+                      >
+                        <Text className="text-xs font-bold text-leaf-dark">Badges</Text>
+                      </Pressable>
+                    )}
+                    {onOpenLeaderboard && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="View leaderboard"
+                        className="px-2.5 py-1.5 rounded-xl bg-leaf active:opacity-70"
+                        onPress={onOpenLeaderboard}
+                      >
+                        <Text className="text-xs font-bold text-surface">Standings</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Partner Portal Quick Entry */}
+            {onOpenPartner && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open partner hub"
+                className={`flex-row items-center justify-between p-4 rounded-2xl border mb-4 active:opacity-75 ${
+                  partner?.status === 'VERIFIED'
+                    ? 'bg-leaf-soft border-leaf'
+                    : partner?.status === 'APPLIED'
+                      ? 'bg-amber-soft border-amber/40'
+                      : partner?.status === 'REJECTED'
+                        ? 'bg-danger-soft border-danger/40'
+                        : 'bg-surface border-border'
+                }`}
+                onPress={onOpenPartner}
+              >
+                <View className="flex-row items-center gap-3">
+                  <View
+                    className={`w-9 h-9 rounded-xl items-center justify-center ${
+                      partner?.status === 'VERIFIED'
+                        ? 'bg-leaf'
+                        : partner?.status === 'APPLIED'
+                          ? 'bg-amber/20'
+                          : partner?.status === 'REJECTED'
+                            ? 'bg-danger/20'
+                            : 'bg-leaf-soft'
+                    }`}
+                  >
+                    <Ionicons
+                      name={
+                        partner?.status === 'VERIFIED'
+                          ? 'shield-checkmark'
+                          : partner?.status === 'APPLIED'
+                            ? 'time-outline'
+                            : partner?.status === 'REJECTED'
+                              ? 'alert-circle-outline'
+                              : 'business-outline'
+                      }
+                      size={18}
+                      color={
+                        partner?.status === 'VERIFIED'
+                          ? colors.surface
+                          : partner?.status === 'APPLIED'
+                            ? colors.amber
+                            : partner?.status === 'REJECTED'
+                              ? colors.danger
+                              : colors.leafDark
+                      }
+                    />
+                  </View>
+                  <View>
+                    <View className="flex-row items-center gap-1.5">
+                      <Text className="text-xs font-extrabold text-ink">
+                        {partner?.status === 'VERIFIED'
+                          ? 'Partner Console'
+                          : partner?.status === 'APPLIED'
+                            ? 'Partner Hub (In Review)'
+                            : partner?.status === 'REJECTED'
+                              ? 'Partner Application'
+                              : 'Join as Recycling Partner'}
+                      </Text>
+                      {partner?.status === 'VERIFIED' ? (
+                        <View className="px-1.5 py-0.5 rounded bg-leaf">
+                          <Text className="text-[9px] font-black text-surface">VERIFIED</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text className="text-[11px] text-muted mt-0.5">
+                      {partner?.status === 'VERIFIED'
+                        ? 'Manage collection queue, pickups & capabilities'
+                        : partner?.status === 'APPLIED'
+                          ? 'Application under review by Chokro team'
+                          : partner?.status === 'REJECTED'
+                            ? 'Feedback provided — review & re-apply'
+                            : 'Collect, repair, or process circular deposits'}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={partner?.status === 'VERIFIED' ? colors.leafDark : colors.muted}
+                />
+              </Pressable>
+            )}
+
+            {errorMessage ? (
+              <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-3 rounded-xl mb-3 text-xs">
+                {errorMessage}
+              </Text>
+            ) : null}
+
+            <Text className="text-base font-extrabold text-ink mt-2 mb-2.5">Ledger history</Text>
           </View>
         }
         ListEmptyComponent={
@@ -83,8 +257,8 @@ export function WalletScreen() {
             isEmpty
             emptyIcon="receipt-outline"
             emptyTitle="No ledger entries yet"
-            emptyMessage="Recognizing a Drop Zone in Sprint 1 does not create a deposit or credit."
-            containerClassName="border border-border rounded-md bg-surface"
+            emptyMessage="Recognizing a Drop Zone or completing a circular deposit adds entries to your ledger."
+            containerClassName="border border-border rounded-2xl bg-surface p-6"
           />
         }
       />

@@ -1,5 +1,7 @@
+// Catches render errors in the admin tree and offers a retry instead of a blank screen.
 'use client';
 
+// Error boundaries need a class component; AdminButton powers the recovery action.
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AdminButton } from './AdminButton';
 
@@ -15,6 +17,7 @@ type State = {
 };
 
 export class AdminErrorBoundary extends Component<Props, State> {
+  // Captured render error and a flag deciding whether to show the fallback UI.
   state: State = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -25,11 +28,13 @@ export class AdminErrorBoundary extends Component<Props, State> {
     console.error('[AdminErrorBoundary] Uncaught rendering error:', error, errorInfo);
   }
 
+  // Records the failure and clears it so the section can be retried.
   handleReset = () => {
     this.setState({ hasError: false, error: null });
     this.props.onReset?.();
   };
 
+  // Falls back to a retry screen after an error; otherwise forwards children untouched.
   render() {
     if (this.state.hasError) {
       return (

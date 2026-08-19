@@ -1,3 +1,5 @@
+// Highlighted payout summary for a live rate estimate on a listing quantity.
+// Third-party and app modules used to render the estimate card.
 import React from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,6 +7,7 @@ import { colors } from '@/theme';
 import { formatQuantityWithUnit } from '@/types';
 import type { Estimate } from '@/hooks/useEstimate';
 
+// Props: current estimate, loading flag, parsed quantity and computed payout.
 export interface RateEstimateCardProps {
   estimate: Estimate | null;
   isLoading: boolean;
@@ -12,12 +15,14 @@ export interface RateEstimateCardProps {
   totalEstimatedBdt: number | null;
 }
 
+// Shows a loading state, then the payout breakdown once an estimate is available.
 export function RateEstimateCard({
   estimate,
   isLoading,
   parsedQuantity,
   totalEstimatedBdt,
 }: RateEstimateCardProps) {
+  // While the rate is being fetched, render a spinner in the card's place.
   if (isLoading) {
     return (
       <View
@@ -30,8 +35,10 @@ export function RateEstimateCard({
     );
   }
 
+  // No estimate yet, so nothing to show.
   if (!estimate) return null;
 
+  // Unit-specific wording for the quantity label.
   const unitLabel = estimate.unit === 'kg' ? 'weight' : 'quantity';
   const quantityText = formatQuantityWithUnit(estimate.unit, parsedQuantity);
 

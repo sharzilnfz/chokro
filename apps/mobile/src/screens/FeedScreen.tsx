@@ -19,6 +19,7 @@ import { useSaveListing } from '@/hooks/useSaveListing';
 import type { MessagesTarget } from '@/screens/MessagesScreen';
 
 
+// Filter presets: every shared category/condition plus "ALL" to clear the filter.
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
 const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
 
@@ -35,7 +36,7 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
   const [savedOnly, setSavedOnly] = useState(false);
 
-  const chooseCategory = (next: FeedFilter) => {
+const chooseCategory = (next: FeedFilter) => {
     setCategory(next);
     onCategoryChange?.(next);
   };
@@ -72,6 +73,7 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
     );
   };
 
+  // The feed list, with filters in the header and bespoke empty/footer states.
   return (
     <View className="flex-1 bg-background">
       <FlatList
@@ -88,12 +90,13 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
           />
         }
         ListHeaderComponent={
+          // Title copy plus scrollable category and condition filter chips.
           <View>
             <Text className="text-leaf text-[11px] font-extrabold tracking-tight">COMMUNITY CIRCULATION</Text>
             <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Browse</Text>
             <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">Active listings from people giving useful things another turn.</Text>
 
-            <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Show</Text>
+<Text className="text-ink text-[12px] font-extrabold mb-[7px]">Show</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               <Pressable
                 accessibilityRole="checkbox"
@@ -107,6 +110,7 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
               </Pressable>
             </ScrollView>
 
+            {/* Category chip row — tapping one narrows the feed. */}
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CATEGORIES.map((item) => {
@@ -127,6 +131,7 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
               })}
             </ScrollView>
 
+            {/* Condition chip row — taps narrow the feed to a declared condition. */}
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Condition</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CONDITIONS.map((item) => {
@@ -149,6 +154,7 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
           </View>
         }
         ListEmptyComponent={
+          // Covers loading, fetch error, and "no listings match" in one view.
           <StateView
             isLoading={isLoading}
             loadingTitle="Loading active listings"
@@ -165,6 +171,7 @@ export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange
           />
         }
         ListFooterComponent={
+          // Load-more / end-of-feed / inline fetch-error controls for the feed.
           items.length > 0 ? (
             <View className="items-center pt-[18px] pb-[4px]">
               {errorMessage ? <Text accessibilityRole="alert" className="text-danger text-center text-[13px] leading-[19px] mb-[8px]">{errorMessage}</Text> : null}

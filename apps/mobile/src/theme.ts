@@ -1,3 +1,4 @@
+// App color palette for props that can't take Tailwind classes.
 /**
  * @deprecated Prefer Tailwind classes via NativeWind (see tailwind.config.js).
  * These JS values are kept only for props that don't accept className

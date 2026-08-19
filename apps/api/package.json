@@ -9,7 +9,7 @@
     "notify:now": "tsx scripts/notifications.ts --once",
     "notify:schedule": "tsx scripts/notifications.ts",
     "lint": "eslint .",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --forceExit",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --forceExit",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

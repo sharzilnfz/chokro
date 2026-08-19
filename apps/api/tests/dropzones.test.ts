@@ -1,14 +1,19 @@
+// Covers drop-zone management, opaque QR token resolution, and the admin poster
+// endpoint with HTML escaping.
 import { POST as createDropZone, GET as listDropZones } from '../app/api/drop-zones/route';
 import { GET as resolveDropZone } from '../app/api/drop-zones/resolve/route';
 import { GET as getPoster } from '../app/api/drop-zones/[id]/poster/route';
 import { createQrToken } from '../lib/qr';
 import { authHeaders, createTestUser, resetTestStore, routeParams, tokenFor } from './test-utils';
 
+// Drop-zone API: admin-only management, signed QR flow, and poster rendering.
 describe('drop-zone API', () => {
+  // Reset store before each case.
   beforeEach(async () => {
     await resetTestStore();
   });
 
+  // Create and list are admin-only actions for anonymous/non-admin callers.
   it('requires admin for create and list', async () => {
     const body = JSON.stringify({ institutionId: 'BUET', name: 'Main Zone', acceptedCategories: ['PAPER'] });
     const missing = await createDropZone(new Request('http://localhost/api/drop-zones', { method: 'POST', body }));
@@ -18,6 +23,7 @@ describe('drop-zone API', () => {
     expect(forbidden.status).toBe(403);
   });
 
+  // Opaque signed tokens resolve to a zone and reject unknown or tampered input.
   it('creates and resolves an opaque signed token, rejecting tampering', async () => {
     const admin = await createTestUser('ADMIN');
     const user = await createTestUser();
@@ -44,6 +50,7 @@ describe('drop-zone API', () => {
     expect(tampered.status).toBe(400);
   });
 
+  // The poster is admin-only and renders user-supplied data HTML-escaped.
   it('renders an admin-only scannable QR poster and escapes user data', async () => {
     const admin = await createTestUser('ADMIN');
     const token = tokenFor(admin);
