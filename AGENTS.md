@@ -80,5 +80,6 @@ Single-context layout (`CONTEXT.md` + `docs/adr/` at root). See `docs/agents/dom
 
 ### Fast-Context & Architectural Guide
 
-For complete, token-efficient architecture, domain rules, DB schemas, and API catalog, see [`AGENT_GUIDE.md`](file:///Users/sharzilnafis/Desktop/Project/chokro/AGENT_GUIDE.md) and [`CONTEXT.md`](file:///Users/sharzilnafis/Desktop/Project/chokro/CONTEXT.md).
+For complete, token-efficient architecture, domain rules, DB schemas, and API catalog, see [`AGENT_GUIDE.md`](file:///Users/sharzilnafis/Desktop/Project/chokro-m3/AGENT_GUIDE.md) and [`CONTEXT.md`](file:///Users/sharzilnafis/Desktop/Project/chokro-m3/CONTEXT.md).
+
 

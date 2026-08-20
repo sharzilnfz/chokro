@@ -38,8 +38,11 @@ pnpm-debug.log*
 .superpowers/
 .freebuff/
 
+# Local demos, architecture guides & viva materials (untracked)
+docs/demos/
 
 #nx
 .nx/cache
 .nx/workspace-data
 .nx/migrate-runscompose.override.yaml
+

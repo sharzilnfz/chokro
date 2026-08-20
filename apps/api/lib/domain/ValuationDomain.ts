@@ -510,57 +510,57 @@ export const ValuationDomain = {
       }
     }
 
-    if (process.env.OPENAI_API_KEY && (input.imageUrl || input.imageBase64)) {
-      const imageDataUri = input.imageBase64
-        ? (input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`)
-        : input.imageUrl;
-      try {
-        const payload = {
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are Chokro Vision AI. Classify scrap items into: CLOTHES, BOOKS, PLASTICS, PAPER, METAL, GLASS, FURNITURE, APPLIANCES, E_WASTE. Condition: EXCELLENT, GOOD, FAIR, POOR. Output JSON only.',
-            },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: `Classify this recyclable item. User notes: ${input.promptNotes || 'none'}` },
-                { type: 'image_url', image_url: { url: imageDataUri } },
-              ],
-            },
-          ],
-          response_format: { type: 'json_object' },
-        };
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(4000),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const parsed = JSON.parse(data.choices[0].message.content);
-          if (parsed.category && parsed.condition) {
-            return {
-              category: parsed.category,
-              condition: parsed.condition,
-              estimatedQuantity: parsed.quantity || (isPieceCategory(parsed.category) ? 1 : 2.5),
-              proposedPath: parsed.path || 'RECYCLE',
-              confidence: parsed.confidence || 0.94,
-              isHazard: parsed.category === 'E_WASTE' || Boolean(parsed.is_hazard),
-              rationale: parsed.rationale || 'AI image recognition detected item properties.',
-              suggestedAction: parsed.suggested_action || 'Proceed with Chokro listing.',
-            };
-          }
-        }
-      } catch {
-        // Fallback to local heuristic classifier
-      }
-    }
+    // if (process.env.OPENAI_API_KEY && (input.imageUrl || input.imageBase64)) {
+    //   const imageDataUri = input.imageBase64
+    //     ? (input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`)
+    //     : input.imageUrl;
+    //   try {
+    //     const payload = {
+    //       model: 'gpt-4o-mini',
+    //       messages: [
+    //         {
+    //           role: 'system',
+    //           content: 'You are Chokro Vision AI. Classify scrap items into: CLOTHES, BOOKS, PLASTICS, PAPER, METAL, GLASS, FURNITURE, APPLIANCES, E_WASTE. Condition: EXCELLENT, GOOD, FAIR, POOR. Output JSON only.',
+    //         },
+    //         {
+    //           role: 'user',
+    //           content: [
+    //             { type: 'text', text: `Classify this recyclable item. User notes: ${input.promptNotes || 'none'}` },
+    //             { type: 'image_url', image_url: { url: imageDataUri } },
+    //           ],
+    //         },
+    //       ],
+    //       response_format: { type: 'json_object' },
+    //     };
+    //     const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    //       method: 'POST',
+    //       headers: {
+    //         'Content-Type': 'application/json',
+    //         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    //       },
+    //       body: JSON.stringify(payload),
+    //       signal: AbortSignal.timeout(4000),
+    //     });
+    //     if (res.ok) {
+    //       const data = await res.json();
+    //       const parsed = JSON.parse(data.choices[0].message.content);
+    //       if (parsed.category && parsed.condition) {
+    //         return {
+    //           category: parsed.category,
+    //           condition: parsed.condition,
+    //           estimatedQuantity: parsed.quantity || (isPieceCategory(parsed.category) ? 1 : 2.5),
+    //           proposedPath: parsed.path || 'RECYCLE',
+    //           confidence: parsed.confidence || 0.94,
+    //           isHazard: parsed.category === 'E_WASTE' || Boolean(parsed.is_hazard),
+    //           rationale: parsed.rationale || 'AI image recognition detected item properties.',
+    //           suggestedAction: parsed.suggested_action || 'Proceed with Chokro listing.',
+    //         };
+    //       }
+    //     }
+    //   } catch {
+    //     // Fallback to local heuristic classifier
+    //   }
+    // }
 
     let category: Category = 'PLASTICS';
     let condition: Condition = 'GOOD';

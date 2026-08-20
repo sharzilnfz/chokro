@@ -1,11 +1,11 @@
 # Chokro — Product Requirements Document (PRD v2.0)
 
 **Status:** Ratified baseline — pending team sign-off on open decisions OD-1…OD-6 (§14)
-**Supersedes:** [`../archive/chokro-IDEAS.txt`](../archive/chokro-IDEAS.txt) (v1.0 ideas document, kept for history)
 **Date:** 2026-08-02
-**Synthesized from:** v1.0 ideas doc · [`./prd-review.md`](./prd-review.md) (gaps G1–G12, amendments A1–A10) · [`./competitive-analysis.md`](./competitive-analysis.md) · [`./validation-report.md`](./validation-report.md) · [`../specs/`](../specs/) · [`../planning/sprint-plan.md`](../planning/sprint-plan.md)
+**Synthesized from:** [`./competitive-analysis.md`](./competitive-analysis.md) · [`./validation-report.md`](./validation-report.md) · [`../specs/`](../specs/) · [`../planning/feature-slate.md`](../planning/feature-slate.md)
 
-**Reading rule:** this PRD states **what and why**. Engineering constraints live in [`../specs/00-product-capability.md`](../specs/00-product-capability.md); detailed requirements live in specs 01–04; delivery lives in [`../planning/sprint-plan.md`](../planning/sprint-plan.md). On conflict: this PRD wins on product intent, SPEC 00 wins on engineering constraint.
+**Reading rule:** this PRD states **what and why**. Engineering constraints live in [`../specs/00-product-capability.md`](../specs/00-product-capability.md); detailed requirements live in specs 01–04; delivery lives in [`../planning/feature-slate.md`](../planning/feature-slate.md). On conflict: this PRD wins on product intent, SPEC 00 wins on engineering constraint.
+
 
 ---
 
@@ -55,7 +55,8 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 - Off-the-shelf vision classifies item **category** well and cheaply (~$0.002–0.01/image) but **cannot reliably grade condition** → AI suggests; humans confirm condition/price at pickup.
 - Reward-fraud is documented and existential (RVM exploits, GPS spoofing, self-dealing) → Trust Gate runs an explicit signal stack with random audits.
 
-## 7. Product Decisions Adopted (from [`./prd-review.md`](./prd-review.md), amendments A1–A10)
+## 7. Product Decisions Adopted (Amendments A1–A10)
+
 
 1. **A1 — AI advises, humans decide value.** Agent output = category + *suggested* condition + value range + path + rationale. Final condition/price confirmed by the partner at pickup, with price adjustment.
 2. **A2 — Rate card:** dual-unit (per-kg / per-piece with condition bands), versioned, weekly admin review, launch with 8–10 SKUs.
@@ -156,7 +157,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 - Vision pipeline tested against recorded golden-set fixtures (real low-end-phone photos) — no live API in CI; accuracy tracked as a trend artifact.
 - Ledger invariants (balance == SUM(ledger); no negative under concurrency) tested explicitly; 100-concurrent-deposit load spot-check.
 - `verification-loop` (build/types/lint/tests/security/diff) before every merge; coverage ≥80% on Trust Gate + wallet.
-- Sprint-exit V&V gates 1–4 per [`../planning/sprint-plan.md`](../planning/sprint-plan.md) §S1–S4 — verification (did we build it right) + validation (did we build the right thing: timed user tasks, auto-clear-rate targets, pilot dry-run).
+- Sprint-exit V&V gates 1–4 per [`../planning/feature-slate.md`](../planning/feature-slate.md) — verification (did we build it right) + validation (did we build the right thing: timed user tasks, auto-clear-rate targets, pilot dry-run).
 
 ## 13. Non-Functional Requirements
 
@@ -178,7 +179,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 | OD-5 | Pilot credit funding | Campus/sponsor budget (A8) | Sprint 3 |
 | OD-6 | Credit economics ratification | 1 credit = ৳1; min ৳300; cap ৳50k/mo | Sprint 3 |
 
-## 15. Delivery Plan (4 members × 4 sprints × 2 weeks — full detail in [`../planning/sprint-plan.md`](../planning/sprint-plan.md))
+## 15. Delivery Plan (4 members × 4 features = 16 features — full detail in [`../planning/feature-slate.md`](../planning/feature-slate.md))
 
 | Member | Capability area (spec) | S1 | S2 | S3 | S4 |
 |---|---|---|---|---|---|
@@ -209,8 +210,7 @@ MVP succeeds if, at pilot end: (a) ≥60% of listings reach a completed next-lif
 | [`./PRD.md`](./PRD.md) (this file) | Product truth: what & why |
 | [`../specs/00-product-capability.md`](../specs/00-product-capability.md) | Engineering constraints: states, invariants, interfaces, entities |
 | [`../specs/`](../specs/) | Detailed requirements per capability area (100+ user stories, 01–04) |
-| [`../planning/sprint-plan.md`](../planning/sprint-plan.md) | 26 tickets (TA1–TD8) with blocking edges; V&V gates; 25-feature traceability |
-| [`./prd-review.md`](./prd-review.md) | Why v1.0 changed: gaps G1–G12, amendments A1–A10 |
+| [`../planning/feature-slate.md`](../planning/feature-slate.md) | 16-feature allocation across team members with external APIs and DB entities |
 | [`./competitive-analysis.md`](./competitive-analysis.md) | Market evidence: 11 platforms, patterns, failure modes, white space |
 | [`./validation-report.md`](./validation-report.md) | Ground-truth evidence: assumption ledger, risks, sources |
-| [`../archive/chokro-IDEAS.txt`](../archive/chokro-IDEAS.txt) | v1.0 — superseded, kept for history |
+
