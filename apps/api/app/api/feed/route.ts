@@ -1,4 +1,4 @@
-// GET /api/feed — public. Streams published listings, filterable by category/condition
+// GET /api/feed — public. Streams published listings, filterable by category/condition/geo
 // and paged via a keyset cursor.
 import { listingRepo } from '../../../lib/repos/listings';
 import { savedListingRepo } from '../../../lib/repos/savedListings';
@@ -15,15 +15,34 @@ export const GET = safeRoute(async (req: Request) => {
   const conditionResult = searchParams.get('condition') ? ConditionEnum.safeParse(searchParams.get('condition')) : null;
   const limitResult = z.coerce.number().int().min(1).max(50).safeParse(searchParams.get('limit') ?? 20);
   const cursor = KeysetPagination.parseCursor(searchParams.get('cursor'));
+
+  const latParam = searchParams.get('lat');
+  const lngParam = searchParams.get('lng');
+  const radiusKmParam = searchParams.get('radiusKm') || searchParams.get('radius');
+  const thana = searchParams.get('thana') || undefined;
+  const sort = searchParams.get('sort') || undefined;
+
+  const lat = latParam ? Number(latParam) : undefined;
+  const lng = lngParam ? Number(lngParam) : undefined;
+  const radiusKm = radiusKmParam ? Number(radiusKmParam) : undefined;
+
   // Reject the query if any optional filter or the cursor failed to parse.
-  if (categoryResult?.success === false || conditionResult?.success === false || !limitResult.success || cursor === undefined) {
+  if (
+    categoryResult?.success === false ||
+    conditionResult?.success === false ||
+    !limitResult.success ||
+    cursor === undefined ||
+    (lat != null && isNaN(lat)) ||
+    (lng != null && isNaN(lng)) ||
+    (radiusKm != null && isNaN(radiusKm))
+  ) {
     return apiError('Invalid feed query', 400);
   }
   const category = categoryResult?.data;
   const condition = conditionResult?.data;
   const limit = limitResult.data;
 
-const user = verifyAuthHeader(req);
+  const user = verifyAuthHeader(req);
   const savedFilter = searchParams.get('saved') === 'true';
   if (savedFilter && !user) {
     return apiData({ items: [], nextCursor: null });
@@ -31,7 +50,18 @@ const user = verifyAuthHeader(req);
 
   const savedFor = savedFilter && user ? user.userId : null;
   // Fetch one row beyond the page size so we can tell whether another page exists.
-  const allItems = await listingRepo.findPublished({ category, condition, cursor, limit, savedFor });
+  const allItems = await listingRepo.findPublished({
+    category,
+    condition,
+    cursor,
+    limit,
+    savedFor,
+    lat,
+    lng,
+    radiusKm,
+    thana,
+    sort,
+  });
   const hasMore = allItems.length > limit;
   const items = allItems.slice(0, limit);
 
@@ -46,4 +76,3 @@ const user = verifyAuthHeader(req);
     nextCursor: hasMore ? KeysetPagination.encodeCursor(items[items.length - 1]) : null,
   });
 });
-

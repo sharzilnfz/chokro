@@ -14,4 +14,5 @@ export * from './dto/leaderboard';
 export * from './dto/campuses';
 export * from './dto/profile';
 export * from './dto/media';
+export * from './dto/demands';
 

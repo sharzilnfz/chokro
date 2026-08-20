@@ -57,6 +57,10 @@ const TABLE_DDLS = [
     price_bdt decimal(10, 2) NOT NULL,
     photos jsonb NOT NULL DEFAULT '[]'::jsonb,
     status varchar(50) NOT NULL DEFAULT 'ACTIVE',
+    lat double precision,
+    lng double precision,
+    thana varchar(120),
+    zilla varchar(120),
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
 
@@ -287,6 +291,32 @@ const TABLE_DDLS = [
     is_privacy_stripped boolean NOT NULL DEFAULT true,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS buyer_demands (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    buyer_id uuid NOT NULL REFERENCES users(id),
+    category varchar(50) NOT NULL,
+    min_quantity decimal(10, 2) NOT NULL,
+    max_quantity decimal(10, 2),
+    unit varchar(20) NOT NULL,
+    max_price_per_unit_bdt decimal(10, 2) NOT NULL,
+    target_thana varchar(120),
+    target_lat double precision,
+    target_lng double precision,
+    max_radius_km integer NOT NULL DEFAULT 10,
+    status varchar(30) NOT NULL DEFAULT 'ACTIVE',
+    expires_at timestamp NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS demand_matches (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    demand_id uuid NOT NULL REFERENCES buyer_demands(id),
+    listing_id uuid NOT NULL REFERENCES listings(id),
+    match_score decimal(4, 2) NOT NULL,
+    distance_km decimal(10, 2),
+    notification_sent boolean NOT NULL DEFAULT false,
+    status varchar(30) NOT NULL DEFAULT 'UNNOTICED',
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -303,7 +333,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

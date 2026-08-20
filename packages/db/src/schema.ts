@@ -72,6 +72,10 @@ export const listings = pgTable('listings', {
   price_bdt: decimal('price_bdt', { precision: 10, scale: 2 }).notNull(),
   photos: jsonb('photos').default([]).notNull(),
   status: varchar('status', { length: 50 }).default('ACTIVE').notNull(), // DRAFT, ACTIVE, CANCELLED
+  lat: doublePrecision('lat'),
+  lng: doublePrecision('lng'),
+  thana: varchar('thana', { length: 120 }),
+  zilla: varchar('zilla', { length: 120 }),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -345,6 +349,36 @@ export const listingMedia = pgTable('listing_media', {
   extracted_lat: doublePrecision('extracted_lat'),
   extracted_lng: doublePrecision('extracted_lng'),
   is_privacy_stripped: boolean('is_privacy_stripped').default(true).notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Recycler Standing Demands (Ticket 05 / SPEC 17)
+export const buyerDemands = pgTable('buyer_demands', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  buyer_id: uuid('buyer_id').notNull().references(() => users.id),
+  category: varchar('category', { length: 50 }).notNull(),
+  min_quantity: decimal('min_quantity', { precision: 10, scale: 2 }).notNull(),
+  max_quantity: decimal('max_quantity', { precision: 10, scale: 2 }),
+  unit: varchar('unit', { length: 20 }).notNull(), // kg, piece
+  max_price_per_unit_bdt: decimal('max_price_per_unit_bdt', { precision: 10, scale: 2 }).notNull(),
+  target_thana: varchar('target_thana', { length: 120 }), // e.g. "Dhanmondi", "Tejgaon"
+  target_lat: doublePrecision('target_lat'),
+  target_lng: doublePrecision('target_lng'),
+  max_radius_km: integer('max_radius_km').default(10).notNull(),
+  status: varchar('status', { length: 30 }).default('ACTIVE').notNull(), // ACTIVE, PAUSED, FULFILLED, EXPIRED
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Auto-Match Records between Listings and Demands (Ticket 05 / SPEC 17)
+export const demandMatches = pgTable('demand_matches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  demand_id: uuid('demand_id').notNull().references(() => buyerDemands.id),
+  listing_id: uuid('listing_id').notNull().references(() => listings.id),
+  match_score: decimal('match_score', { precision: 4, scale: 2 }).notNull(), // 0.00 to 1.00
+  distance_km: decimal('distance_km', { precision: 10, scale: 2 }),
+  notification_sent: boolean('notification_sent').default(false).notNull(),
+  status: varchar('status', { length: 30 }).default('UNNOTICED').notNull(), // UNNOTICED, VIEWED, OFFERED, DECLINED
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
