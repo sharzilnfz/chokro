@@ -421,6 +421,27 @@ const TABLE_DDLS = [
     expires_at timestamp NOT NULL,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS custody_handovers (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id uuid NOT NULL REFERENCES pickup_orders(id),
+    otp_code_hash varchar(255) NOT NULL,
+    giver_user_id uuid NOT NULL REFERENCES users(id),
+    collector_partner_id uuid NOT NULL REFERENCES partners(id),
+    status varchar(30) NOT NULL DEFAULT 'PENDING',
+    expires_at timestamp NOT NULL,
+    confirmed_at timestamp,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS decision_contests (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    decision_id uuid NOT NULL REFERENCES trust_decisions(id),
+    user_id uuid NOT NULL REFERENCES users(id),
+    reason text NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'PENDING',
+    reviewed_by uuid REFERENCES users(id),
+    reviewed_at timestamp,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -437,7 +458,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

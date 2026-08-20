@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { colors } from '@/theme';
 import { categoryLabel, formatQuantityWithUnit } from '@/types';
 import type { RouteStop } from '@/hooks/useCollectorRoute';
 import type { PickupStatus } from '@/hooks/usePickups';
+import { HandoverOtpModal } from '@/components/HandoverOtpModal';
 
 export interface CollectorStopCardProps {
   stop: RouteStop;
@@ -59,6 +60,8 @@ export const CollectorStopCard = React.memo(function CollectorStopCard({
   onAdvance,
   advancing,
 }: CollectorStopCardProps) {
+  const [showOtpModal, setShowOtpModal] = useState(false);
+
   return (
     <Animated.View
       entering={FadeInUp.duration(350).delay(Math.min(stop.stop_sequence, 8) * 60)}
@@ -106,39 +109,49 @@ export const CollectorStopCard = React.memo(function CollectorStopCard({
             </View>
           </View>
 
-          {stop.status === 'ASSIGNED' || stop.status === 'EN_ROUTE' ? (
+          {stop.status === 'ASSIGNED' ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={
-                stop.status === 'ASSIGNED'
-                  ? `Start route to ${stop.address}`
-                  : `Mark pickup at ${stop.address} as collected`
-              }
+              accessibilityLabel={`Start route to ${stop.address}`}
               accessibilityState={{ disabled: advancing }}
               disabled={advancing}
               className="min-h-[44px] rounded-sm items-center justify-center mt-[12px] active:opacity-[0.72] bg-leaf flex-row gap-[6px]"
-              onPress={() =>
-                onAdvance(stop, stop.status === 'ASSIGNED' ? 'EN_ROUTE' : 'COLLECTED')
-              }
+              onPress={() => onAdvance(stop, 'EN_ROUTE')}
             >
               {advancing ? (
                 <ActivityIndicator size="small" color={colors.surface} />
               ) : (
                 <>
-                  <Ionicons
-                    name={stop.status === 'ASSIGNED' ? 'navigate' : 'checkmark'}
-                    size={15}
-                    color={colors.surface}
-                  />
-                  <Text className="text-surface text-[13px] font-extrabold">
-                    {stop.status === 'ASSIGNED' ? 'Start route' : 'Mark collected'}
-                  </Text>
+                  <Ionicons name="navigate" size={15} color={colors.surface} />
+                  <Text className="text-surface text-[13px] font-extrabold">Start route</Text>
                 </>
               )}
+            </Pressable>
+          ) : stop.status === 'EN_ROUTE' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Verify handover at ${stop.address}`}
+              className="min-h-[44px] rounded-sm items-center justify-center mt-[12px] active:opacity-[0.72] bg-leaf flex-row gap-[6px]"
+              onPress={() => setShowOtpModal(true)}
+            >
+              <Ionicons name="keypad" size={15} color={colors.surface} />
+              <Text className="text-surface text-[13px] font-extrabold">
+                Verify Handover (OTP)
+              </Text>
             </Pressable>
           ) : null}
         </View>
       </View>
+
+      <HandoverOtpModal
+        visible={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        taskId={stop.order_id}
+        mode="COLLECTOR"
+        listingCategory={stop.listing.category}
+        declaredQuantity={stop.listing.declared_weight || stop.listing.piece_count}
+        unit={stop.listing.unit}
+      />
     </Animated.View>
   );
 });

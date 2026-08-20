@@ -1,5 +1,7 @@
 import { partnerRepo } from '@/lib/repos/partners';
 import { pickupRepo, type PickupWithRefs } from '@/lib/repos/pickups';
+import { trustGateRepo } from '@/lib/repos/trustGate';
+import { TrustGateDomain } from './TrustGateDomain';
 
 const EARTH_RADIUS_KM = 6371;
 const FALLBACK_AVG_SPEED_KMH = 25; // Dhaka city average for vans/rickshaws-loaded pickups
@@ -27,7 +29,11 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-export type SkipReason = 'OUT_OF_RADIUS' | 'INSUFFICIENT_CAPACITY' | 'E_WASTE_LICENSE_REQUIRED';
+export type SkipReason =
+  | 'OUT_OF_RADIUS'
+  | 'INSUFFICIENT_CAPACITY'
+  | 'E_WASTE_LICENSE_REQUIRED'
+  | 'FLAGGED_FRAUD_RISK';
 
 export interface CollectorEvaluation {
   partner_id: string;
@@ -240,6 +246,7 @@ export const PickupDomain = {
 
   async findBestCollector(input: FindBestCollectorInput): Promise<FindBestCollectorResult> {
     const collectors = await partnerRepo.findVerifiedCollectors();
+    const { config: thresholds } = await TrustGateDomain.getEffectiveThresholds();
     const evaluations: CollectorEvaluation[] = [];
     const eligible: Array<CollectorEvaluation & { partnerId: string }> = [];
 
@@ -258,8 +265,12 @@ export const PickupDomain = {
         remainingCapacityKg = Math.round((capacityKg - committedKg) * 100) / 100;
       }
 
+      const activeFlagCount = await trustGateRepo.countActiveFraudFlags('PARTNER', partner.id);
+
       let skipReason: SkipReason | null = null;
-      if (input.category === 'E_WASTE' && !partner.e_waste_licensed) {
+      if (activeFlagCount > thresholds.max_active_fraud_flags) {
+        skipReason = 'FLAGGED_FRAUD_RISK';
+      } else if (input.category === 'E_WASTE' && !partner.e_waste_licensed) {
         skipReason = 'E_WASTE_LICENSE_REQUIRED';
       } else if (distanceKm > (partner.service_radius_km ?? 10)) {
         skipReason = 'OUT_OF_RADIUS';
