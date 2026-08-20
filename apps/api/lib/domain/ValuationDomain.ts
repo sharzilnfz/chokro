@@ -62,6 +62,8 @@ export interface VisionClassifyOutput {
   valuation: {
     unit_price_bdt: number;
     total_estimated_bdt: number;
+    has_published_rate?: boolean;
+    rate_card_entry_id?: string | null;
     market_benchmark_bdt?: number;
     drift_pct?: number;
     drift_status?: string;
@@ -346,15 +348,16 @@ export const ValuationDomain = {
       (r) => r.category === category && r.condition_band === condition,
     );
 
-    const unitPriceBdt = rateMatch ? Number(rateMatch.price_bdt) : this.getDefaultPrice(category, condition);
-    const totalEstimatedBdt = Math.round(unitPriceBdt * quantity * 100) / 100;
+    const hasPublishedRate = Boolean(rateMatch);
+    const unitPriceBdt = rateMatch ? Number(rateMatch.price_bdt) : 0;
+    const totalEstimatedBdt = rateMatch ? Math.round(unitPriceBdt * quantity * 100) / 100 : 0;
 
     // Cross-reference with commodity benchmark
     const benchmark = await benchmarksRepo.findByCategory(category);
     let benchmarkBdt: number | undefined;
     let driftInfo: { drift_pct: number; drift_status: string } | undefined;
 
-    if (benchmark) {
+    if (benchmark && rateMatch) {
       benchmarkBdt = Number(benchmark.benchmark_bdt);
       const drift = this.calculateDrift(unitPriceBdt, benchmarkBdt);
       driftInfo = {
@@ -396,6 +399,8 @@ export const ValuationDomain = {
       valuation: {
         unit_price_bdt: unitPriceBdt,
         total_estimated_bdt: totalEstimatedBdt,
+        has_published_rate: hasPublishedRate,
+        rate_card_entry_id: rateMatch ? rateMatch.id : null,
         market_benchmark_bdt: benchmarkBdt,
         drift_pct: driftInfo?.drift_pct,
         drift_status: driftInfo?.drift_status,
@@ -676,28 +681,5 @@ export const ValuationDomain = {
       default:
         return `Drop at nearest Chokro Smart Bin or book a collector pickup for instant BDT credits.`;
     }
-  },
-
-  getDefaultPrice(category: Category, condition: Condition): number {
-    const multipliers: Record<Condition, number> = {
-      EXCELLENT: 1.3,
-      GOOD: 1.0,
-      FAIR: 0.8,
-      POOR: 0.5,
-    };
-    const baseRates: Record<Category, number> = {
-      PLASTICS: 45,
-      PAPER: 25,
-      METAL: 110,
-      GLASS: 18,
-      CLOTHES: 30,
-      BOOKS: 35,
-      FURNITURE: 95,
-      APPLIANCES: 500,
-      E_WASTE: 250,
-    };
-    const base = baseRates[category] || 30;
-    const factor = multipliers[condition] || 1.0;
-    return Math.round(base * factor);
   },
 };

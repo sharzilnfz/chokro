@@ -18,7 +18,12 @@ export const GET = safeRoute(async (req: Request) => {
   let zone = null;
   // Prefer geolocation when supplied, otherwise fall back to validating the QR token.
   if (lat && lng) {
-    zone = await dropZoneRepo.resolveByLocation();
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      return apiError('Invalid coordinates', 400);
+    }
+    zone = await dropZoneRepo.resolveByLocation(latNum, lngNum);
   } else {
     if (!token || !isValidQrToken(token)) {
       return apiError('Invalid drop zone token', 400);

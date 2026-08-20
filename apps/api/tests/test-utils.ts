@@ -161,7 +161,17 @@ const TABLE_DDLS = [
     bidder_user_id uuid NOT NULL REFERENCES users(id),
     amount_bdt decimal(12, 2) NOT NULL,
     bid_number integer NOT NULL,
-    received_at timestamp NOT NULL DEFAULT NOW()
+    received_at timestamp NOT NULL DEFAULT NOW(),
+    UNIQUE (lot_id, bid_number)
+  );`,
+  `CREATE TABLE IF NOT EXISTS evidence_records (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    uploader_id uuid REFERENCES users(id),
+    storage_path text NOT NULL,
+    url text NOT NULL,
+    mime_type varchar(50) NOT NULL,
+    byte_size integer NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS conversations (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -232,7 +242,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, saved_listings, messages, conversations, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

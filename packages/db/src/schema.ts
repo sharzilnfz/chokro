@@ -82,7 +82,7 @@ export const rateCardEntries = pgTable('rate_card_entries', {
   condition_band: varchar('condition_band', { length: 50 }).notNull(),
   unit: varchar('unit', { length: 20 }).notNull(),
   price_bdt: decimal('price_bdt', { precision: 10, scale: 2 }).notNull(),
-  effective_from: timestamp('effective_from').defaultNow().notNull(),
+  effective_from: timestamp('effective_from').$defaultFn(() => new Date()).notNull(),
   updated_by: uuid('updated_by').references(() => users.id),
 });
 
@@ -217,14 +217,31 @@ export const auctionLots = pgTable('auction_lots', {
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const auctionBids = pgTable('auction_bids', {
+export const auctionBids = pgTable(
+  'auction_bids',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    lot_id: uuid('lot_id').notNull().references(() => auctionLots.id),
+    bidder_user_id: uuid('bidder_user_id').notNull().references(() => users.id),
+    amount_bdt: decimal('amount_bdt', { precision: 12, scale: 2 }).notNull(),
+    // Server-assigned monotonic sequence per lot: a bid only counts if the server accepted it first.
+    bid_number: integer('bid_number').notNull(),
+    received_at: timestamp('received_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('auction_bids_lot_bid_number_unique').on(table.lot_id, table.bid_number),
+  ],
+);
+
+// Retrievable stored evidence records for drop-zones, listings, and disputes
+export const evidenceRecords = pgTable('evidence_records', {
   id: uuid('id').defaultRandom().primaryKey(),
-  lot_id: uuid('lot_id').notNull().references(() => auctionLots.id),
-  bidder_user_id: uuid('bidder_user_id').notNull().references(() => users.id),
-  amount_bdt: decimal('amount_bdt', { precision: 12, scale: 2 }).notNull(),
-  // Server-assigned monotonic sequence per lot: a bid only counts if the server accepted it first.
-  bid_number: integer('bid_number').notNull(),
-  received_at: timestamp('received_at').defaultNow().notNull(),
+  uploader_id: uuid('uploader_id').references(() => users.id),
+  storage_path: text('storage_path').notNull(),
+  url: text('url').notNull(),
+  mime_type: varchar('mime_type', { length: 50 }).notNull(),
+  byte_size: integer('byte_size').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Engagement streak per user; multiplier applied to leaderboard points.

@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "a22348ccc2e1b4c4c731fc6077f0314b7b9f01f0",
-    "indexed_at": "2026-08-17T14:03:22Z",
+    "commit": "8631bb7f034905455f551b80ccaec580a5d15c03",
+    "indexed_at": "2026-08-20T08:44:10Z",
     "project": "Users-sharzilnafis-Desktop-Project-chokro-m3",
-    "nodes": 7866,
-    "edges": 14947,
-    "original_size": 15859712,
-    "compressed_size": 2719821,
-    "compression_level": 9
+    "nodes": 8558,
+    "edges": 16838,
+    "original_size": 24707072,
+    "compressed_size": 4049407,
+    "compression_level": 3
 }

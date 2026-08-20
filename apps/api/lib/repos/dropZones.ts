@@ -49,16 +49,45 @@ export const dropZoneRepo = {
     });
   },
 
-  // Pick a single active zone for a drop-off; a stub that currently ignores
-  // coordinates until geo-based matching is wired up.
-  async resolveByLocation() {
+  // Pick the nearest active zone for a drop-off using Haversine formula bounded by maxRadiusKm.
+  async resolveByLocation(lat?: number | null, lng?: number | null, maxRadiusKm = 10) {
     return withDb(async () => {
       const rows = await db
         .select()
         .from(dropZones)
-        .where(eq(dropZones.status, 'ACTIVE'))
-        .limit(1);
-      return rows[0] || null;
+        .where(eq(dropZones.status, 'ACTIVE'));
+
+      if (!rows.length) return null;
+      if (lat === undefined || lat === null || lng === undefined || lng === null) {
+        return rows[0] || null;
+      }
+
+      function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+        const R = 6371; // Earth radius in km
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+
+      const withDistances = rows
+        .map((zone) => {
+          const geo = zone.geo_location as { lat: number; lng: number } | null;
+          if (!geo || typeof geo.lat !== 'number' || typeof geo.lng !== 'number') {
+            return null;
+          }
+          const dist = haversineDistance(lat, lng, geo.lat, geo.lng);
+          return { zone, distanceKm: dist };
+        })
+        .filter((item): item is { zone: (typeof rows)[0]; distanceKm: number } => item !== null && item.distanceKm <= maxRadiusKm)
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+
+      return withDistances[0]?.zone || null;
     });
   },
 

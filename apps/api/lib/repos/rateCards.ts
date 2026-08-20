@@ -2,7 +2,7 @@
 // single currently-published price per category/condition/unit.
 //
 // Drizzle rate-card table, category unit default from shared, and the DB seam.
-import { db, rateCardEntries, desc, lte } from '@chokro/db';
+import { db, rateCardEntries, desc, lte, sql } from '@chokro/db';
 import { getCategoryUnit } from '@chokro/shared';
 import { withDb } from './seam';
 
@@ -40,7 +40,7 @@ export const rateCardRepo = {
   },
 
   // Published rate snapshot: entries already effective, newest per category/condition/unit.
-  async findPublished(now: Date = new Date(Date.now() + 1000)): Promise<RateCardEntry[]> {
+  async findPublished(now: Date = new Date()): Promise<RateCardEntry[]> {
     return withDb(async () => {
       const all: RateCardEntry[] = await db
         .select()
