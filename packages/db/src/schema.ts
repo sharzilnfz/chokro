@@ -510,4 +510,27 @@ export const negotiationOffers = pgTable('negotiation_offers', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Custody Handovers & OTP Verification (Ticket 08b / SPEC 12)
+export const custodyHandovers = pgTable('custody_handovers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  task_id: uuid('task_id').notNull().references(() => pickupOrders.id),
+  otp_code_hash: varchar('otp_code_hash', { length: 255 }).notNull(),
+  giver_user_id: uuid('giver_user_id').notNull().references(() => users.id),
+  collector_partner_id: uuid('collector_partner_id').notNull().references(() => partners.id),
+  status: varchar('status', { length: 30 }).default('PENDING').notNull(), // PENDING, CONFIRMED, EXPIRED, FAILED
+  expires_at: timestamp('expires_at').notNull(),
+  confirmed_at: timestamp('confirmed_at'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
 
+// Decision Contests & Appeals (Ticket 08b / SPEC 12)
+export const decisionContests = pgTable('decision_contests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  decision_id: uuid('decision_id').notNull().references(() => trustDecisions.id),
+  user_id: uuid('user_id').notNull().references(() => users.id),
+  reason: text('reason').notNull(),
+  status: varchar('status', { length: 30 }).default('PENDING').notNull(), // PENDING, UPHELD, OVERTURNED
+  reviewed_by: uuid('reviewed_by').references(() => users.id),
+  reviewed_at: timestamp('reviewed_at'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});

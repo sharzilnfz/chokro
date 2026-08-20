@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 import { categoryLabel, formatQuantityWithUnit } from '@/types';
 import type { PickupOrder, PickupStatus } from '@/hooks/usePickups';
+import { HandoverOtpModal } from '@/components/HandoverOtpModal';
 
 export interface PickupCardProps {
   order: PickupOrder;
@@ -57,7 +58,9 @@ export const PickupCard = React.memo(function PickupCard({
   onCancel,
   cancelling,
 }: PickupCardProps) {
+  const [showOtpModal, setShowOtpModal] = useState(false);
   const isCancellable = order.status === 'REQUESTED' || order.status === 'ASSIGNED';
+  const hasHandoverCode = order.status === 'ASSIGNED' || order.status === 'EN_ROUTE';
 
   return (
     <View
@@ -94,22 +97,46 @@ export const PickupCard = React.memo(function PickupCard({
         </View>
       ) : null}
 
-      {isCancellable ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Cancel this pickup"
-          accessibilityState={{ disabled: cancelling }}
-          disabled={cancelling}
-          className="self-end mt-[12px] px-[12px] py-[6px] rounded-pill border border-border bg-surface-muted active:opacity-[0.72]"
-          onPress={() => onCancel(order)}
-        >
-          {cancelling ? (
-            <ActivityIndicator size="small" color={colors.danger} />
-          ) : (
-            <Text className="text-danger text-[12px] font-bold">Cancel</Text>
-          )}
-        </Pressable>
-      ) : null}
+      <View className="flex-row items-center justify-end gap-[8px] mt-[12px]">
+        {hasHandoverCode && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show custody handover OTP challenge code"
+            className="px-[12px] py-[6px] rounded-pill bg-leaf flex-row items-center gap-[4px] active:opacity-[0.72]"
+            onPress={() => setShowOtpModal(true)}
+          >
+            <Ionicons name="keypad" size={13} color={colors.surface} />
+            <Text className="text-surface text-[12px] font-extrabold">Handover Code</Text>
+          </Pressable>
+        )}
+
+        {isCancellable && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel this pickup"
+            accessibilityState={{ disabled: cancelling }}
+            disabled={cancelling}
+            className="px-[12px] py-[6px] rounded-pill border border-border bg-surface-muted active:opacity-[0.72]"
+            onPress={() => onCancel(order)}
+          >
+            {cancelling ? (
+              <ActivityIndicator size="small" color={colors.danger} />
+            ) : (
+              <Text className="text-danger text-[12px] font-bold">Cancel</Text>
+            )}
+          </Pressable>
+        )}
+      </View>
+
+      <HandoverOtpModal
+        visible={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        taskId={order.id}
+        mode="GIVER"
+        listingCategory={order.listing.category}
+        declaredQuantity={order.listing.declared_weight || order.listing.piece_count}
+        unit={order.listing.unit}
+      />
     </View>
   );
 });
