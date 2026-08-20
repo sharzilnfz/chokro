@@ -6,6 +6,7 @@ import { pickupRepo } from '../repos/pickups';
 import { trustGateRepo } from '../repos/trustGate';
 import { walletRepo } from '../repos/wallet';
 import { depositRepo } from '../repos/deposits';
+import { disputeRepo } from '../repos/disputes';
 import { TrustGateDomain } from './TrustGateDomain';
 import { WalletDomain } from './WalletDomain';
 import { NotificationSeam } from '../notify';
@@ -268,6 +269,11 @@ export class HandoverDomain {
     let creditTxn = null;
 
     if (input.action === 'VERIFY') {
+      const openDispute = await disputeRepo.findOpenBySource(decision.subject_type, decision.subject_id);
+      if (openDispute) {
+        throw new Error(`Cannot verify credits while an open dispute is active on this ${decision.subject_type.toLowerCase()}`);
+      }
+
       // 1. Flip credit transaction to VERIFIED
       creditTxn = await walletRepo.verifyCreditTransaction({
         trustDecisionId: decisionId,

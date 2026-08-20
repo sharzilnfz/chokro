@@ -1,6 +1,7 @@
 import { auctionRepo, type AuctionBid, type AuctionLot, type CreateLotInput as CreateAuctionLotInput } from '@/lib/repos/auctions';
 import { partnerRepo } from '@/lib/repos/partners';
 import { AuctionRealtimeService } from '@/lib/services/AuctionRealtimeService';
+import { EscrowDomain } from './EscrowDomain';
 
 const TRANSITIONS: Record<string, string[]> = {
   DRAFT: ['LIVE', 'CANCELLED'],
@@ -146,6 +147,9 @@ export const AuctionDomain = {
       status: 'ENDED',
       winning_bid_id: winner?.id ?? null,
     });
+    if (winner) {
+      await EscrowDomain.createHoldForWinningLot(lot, winner);
+    }
     return updated ?? lot;
   },
 

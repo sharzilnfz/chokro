@@ -534,3 +534,33 @@ export const decisionContests = pgTable('decision_contests', {
   reviewed_at: timestamp('reviewed_at'),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
+
+// B2B Auction Escrow Holds (Ticket 09b / SPEC 13)
+export const escrowHolds = pgTable('escrow_holds', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  lot_id: uuid('lot_id').notNull().references(() => auctionLots.id),
+  buyer_id: uuid('buyer_id').notNull().references(() => users.id),
+  seller_id: uuid('seller_id').notNull().references(() => users.id),
+  amount_bdt: decimal('amount_bdt', { precision: 10, scale: 2 }).notNull(),
+  status: varchar('status', { length: 30 }).default('HELD').notNull(), // HELD, RELEASED_TO_SELLER, RETURNED_TO_BUYER, PARTIALLY_RELEASED, FROZEN_IN_DISPUTE
+  inspection_expires_at: timestamp('inspection_expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Unified Dispute Arbitration (Ticket 09b / SPEC 13)
+export const disputes = pgTable('disputes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  source_type: varchar('source_type', { length: 50 }).notNull(), // PICKUP, DEPOSIT, AUCTION_LOT
+  source_id: uuid('source_id').notNull(),
+  opened_by: uuid('opened_by').notNull().references(() => users.id),
+  against_user_id: uuid('against_user_id').notNull().references(() => users.id),
+  reason: text('reason').notNull(),
+  evidence_urls: jsonb('evidence_urls').$type<string[]>().default([]).notNull(),
+  status: varchar('status', { length: 30 }).default('OPEN').notNull(), // OPEN, UNDER_REVIEW, RESOLVED, CLOSED
+  resolution: varchar('resolution', { length: 50 }),
+  resolution_notes: text('resolution_notes'),
+  resolved_by: uuid('resolved_by').references(() => users.id),
+  resolved_at: timestamp('resolved_at'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+

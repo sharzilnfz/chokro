@@ -21,6 +21,7 @@ const NAVIGATION_ITEMS = [
   { href: '/admin/zone-capacity', label: 'Zone capacity' },
   { href: '/admin/thresholds', label: 'Trust thresholds' },
   { href: '/admin/trust-gate', label: 'Escalations (A07)' },
+  { href: '/admin/disputes', label: 'Disputes (A09)' },
 ] as const;
 
 export function AdminShell({ children }: { children: ReactNode }) {
