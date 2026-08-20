@@ -358,6 +358,29 @@ const TABLE_DDLS = [
     emptied_at timestamp NOT NULL DEFAULT NOW(),
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS negotiation_threads (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    listing_id uuid NOT NULL REFERENCES listings(id),
+    buyer_id uuid NOT NULL REFERENCES users(id),
+    seller_id uuid NOT NULL REFERENCES users(id),
+    status varchar(30) NOT NULL DEFAULT 'OPEN',
+    last_offer_id uuid,
+    created_at timestamp NOT NULL DEFAULT NOW(),
+    updated_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS negotiation_offers (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id uuid NOT NULL REFERENCES negotiation_threads(id),
+    offered_by_user_id uuid NOT NULL REFERENCES users(id),
+    offer_amount_bdt decimal(10, 2) NOT NULL,
+    offered_quantity decimal(10, 2) NOT NULL,
+    unit varchar(20) NOT NULL,
+    proposed_pickup_at timestamp,
+    notes text,
+    status varchar(30) NOT NULL DEFAULT 'PENDING',
+    expires_at timestamp NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -374,7 +397,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE negotiation_offers, negotiation_threads, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 
