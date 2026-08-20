@@ -95,7 +95,22 @@ export const dropZones = pgTable('drop_zones', {
   qr_token: text('qr_token').notNull().unique(),
   accepted_categories: jsonb('accepted_categories').notNull(),
   status: varchar('status', { length: 50 }).default('ACTIVE').notNull(),
+  max_capacity_kg: decimal('max_capacity_kg', { precision: 10, scale: 2 }).default('50.00'),
+  current_fill_kg: decimal('current_fill_kg', { precision: 10, scale: 2 }).default('0.00').notNull(),
+  last_emptied_at: timestamp('last_emptied_at'),
+  contracted_partner_id: uuid('contracted_partner_id').references(() => partners.id),
   created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Drop Zone Capacity Telemetry & Emptying History
+export const zoneCapacityLogs = pgTable('zone_capacity_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  zone_id: uuid('zone_id').notNull().references(() => dropZones.id),
+  recorded_fill_kg: decimal('recorded_fill_kg', { precision: 10, scale: 2 }).notNull(),
+  capacity_percentage: integer('capacity_percentage').notNull(), // 0 to 100
+  status: varchar('status', { length: 30 }).default('NORMAL').notNull(), // NORMAL, APPROACHING_CAPACITY, FULL, OVERFLOW_ALARM
+  trigger_reason: varchar('trigger_reason', { length: 60 }).notNull(), // DEPOSIT_ACCUMULATION, MANUAL_OVERRIDE, COLLECTOR_EMPTYING, SENSOR_TELEMETRY
+  logged_at: timestamp('logged_at').defaultNow().notNull(),
 });
 
 export const conversations = pgTable(
@@ -175,8 +190,8 @@ export const valuationScans = pgTable('valuation_scans', {
 
 export const pickupOrders = pgTable('pickup_orders', {
   id: uuid('id').defaultRandom().primaryKey(),
-  listing_id: uuid('listing_id').notNull().references(() => listings.id),
-  customer_id: uuid('customer_id').notNull().references(() => users.id),
+  listing_id: uuid('listing_id').references(() => listings.id),
+  customer_id: uuid('customer_id').references(() => users.id),
   collector_partner_id: uuid('collector_partner_id').references(() => partners.id), // null until assigned
   status: varchar('status', { length: 50 }).default('REQUESTED').notNull(), // REQUESTED, ASSIGNED, EN_ROUTE, COLLECTED, CANCELLED
   address: text('address').notNull(),
