@@ -16,4 +16,5 @@ export * from './dto/profile';
 export * from './dto/media';
 export * from './dto/demands';
 export * from './dto/deposits';
+export * from './dto/trustGate';
 

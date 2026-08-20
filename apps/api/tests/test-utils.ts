@@ -105,6 +105,7 @@ const TABLE_DDLS = [
     source_id varchar(255),
     custody_ref varchar(255) UNIQUE,
     rate_card_entry_id uuid REFERENCES rate_card_entries(id),
+    trust_decision_id uuid,
     reason text,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
@@ -358,6 +359,45 @@ const TABLE_DDLS = [
     emptied_at timestamp NOT NULL DEFAULT NOW(),
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS trust_threshold_configs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    config_json jsonb NOT NULL,
+    effective_from timestamp NOT NULL DEFAULT NOW(),
+    updated_by uuid REFERENCES users(id),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS trust_decisions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    subject_type varchar(50) NOT NULL,
+    subject_id uuid NOT NULL,
+    decision varchar(30) NOT NULL,
+    failing_signals jsonb NOT NULL DEFAULT '[]'::jsonb,
+    evaluated_signals jsonb NOT NULL,
+    threshold_config_id uuid,
+    decided_by varchar(50) NOT NULL DEFAULT 'SYSTEM',
+    decided_at timestamp NOT NULL DEFAULT NOW(),
+    notes text,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS fraud_flags (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type varchar(50) NOT NULL,
+    entity_id uuid NOT NULL,
+    flag_type varchar(50) NOT NULL,
+    reason text NOT NULL,
+    severity varchar(20) NOT NULL DEFAULT 'MEDIUM',
+    is_cleared boolean NOT NULL DEFAULT false,
+    cleared_by uuid REFERENCES users(id),
+    cleared_at timestamp,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS evidence_hashes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    evidence_url text NOT NULL,
+    phash_hex varchar(64) NOT NULL,
+    uploader_id uuid NOT NULL REFERENCES users(id),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -374,7 +414,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

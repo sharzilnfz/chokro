@@ -224,7 +224,7 @@ export default function AdminZoneCapacityPage() {
               Live Zone Fill Levels
             </h2>
             <p className="admin-section-copy">
-              Calibrated limits ($C_{\max}$) vs current accumulated mass with automated threshold breach flags.
+              Calibrated limits (C_max) vs current accumulated mass with automated threshold breach flags.
             </p>
           </div>
           <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
