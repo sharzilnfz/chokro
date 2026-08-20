@@ -226,6 +226,24 @@ const TABLE_DDLS = [
     snapshot_date date NOT NULL,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS listing_media (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    listing_id uuid REFERENCES listings(id),
+    uploader_id uuid NOT NULL REFERENCES users(id),
+    storage_provider varchar(50) NOT NULL DEFAULT 'CLOUDINARY',
+    public_url text NOT NULL,
+    thumbnail_url text NOT NULL,
+    original_filename varchar(255) NOT NULL,
+    mime_type varchar(50) NOT NULL,
+    byte_size integer NOT NULL,
+    width integer,
+    height integer,
+    exif_gps_extracted boolean NOT NULL DEFAULT false,
+    extracted_lat double precision,
+    extracted_lng double precision,
+    is_privacy_stripped boolean NOT NULL DEFAULT true,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -242,7 +260,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE listing_media, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 
