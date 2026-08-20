@@ -1,9 +1,12 @@
+// Renders loading, error, empty, or content states for a screen region.
+// Third-party and app modules used to render the states.
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 
+// Config for each renderable state (loading, error, empty) and content fallback.
 export type StateViewProps = {
   isLoading?: boolean;
   loadingTitle?: string;
@@ -23,6 +26,7 @@ export type StateViewProps = {
   fullScreen?: boolean;
 };
 
+// Chooses and renders the highest-priority visible state.
 export function StateView({
   isLoading = false,
   loadingTitle = 'Loading...',
@@ -41,9 +45,11 @@ export function StateView({
   containerClassName,
   fullScreen = false,
 }: StateViewProps) {
+  // Normalize the error into a displayable message, using props or the API helper.
   const hasError = Boolean(error || errorMessage);
   const resolvedErrorMessage = errorMessage ?? (typeof error === 'string' ? error : getErrorMessage(error, 'Something went wrong'));
 
+  // Pick a centered container layout; optionally expand to fill the screen.
   const baseContainerClass = fullScreen
     ? 'flex-1 items-center justify-center bg-background p-[28px]'
     : 'items-center justify-center p-[22px]';
@@ -52,6 +58,7 @@ export function StateView({
     ? `${baseContainerClass} ${containerClassName}`
     : baseContainerClass;
 
+  // Loading state with spinner and optional descriptive text.
   if (isLoading) {
     return (
       <View className={containerClass} accessibilityLiveRegion="polite">
@@ -70,6 +77,7 @@ export function StateView({
     );
   }
 
+  // Error state with message and optional retry action.
   if (hasError) {
     return (
       <View className={containerClass} accessibilityRole="alert">
@@ -96,6 +104,7 @@ export function StateView({
     );
   }
 
+  // Empty state with icon, message, and optional action.
   if (isEmpty) {
     return (
       <View className={containerClass}>
@@ -115,5 +124,6 @@ export function StateView({
     );
   }
 
+  // Default: no special state, render the caller's content.
   return <>{children ?? null}</>;
 }

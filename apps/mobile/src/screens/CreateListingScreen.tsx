@@ -1,3 +1,8 @@
+// CreateListingScreen is the "List" tab form: it captures a photo, category,
+// quantity, and declared condition, shows a live BDT estimate, and publishes
+// the item as an active listing.
+
+// Imports: core React/hooks, UI primitives, icons, and internal data modules.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +23,7 @@ import { useEstimate } from '@/hooks/useEstimate';
 import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
 import type { ListingPrefill } from '@/types';
 
+// onCreated fires after a successful publish so the shell returns to Browse.
 type CreateListingScreenProps = {
   onCreated: () => void;
   prefill?: ListingPrefill | null;
@@ -27,6 +33,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
   const [category, setCategory] = useState<Category>(prefill?.category ?? 'PLASTICS');
   const [condition, setCondition] = useState<Condition>(prefill?.condition ?? 'GOOD');
   const [quantity, setQuantity] = useState(prefill && prefill.quantity > 0 ? String(prefill.quantity) : '');
+  const [price, setPrice] = useState('');
   const [photo, setPhoto] = useState<PreparedPhoto | null>(prefill?.photo ?? null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [error, setError] = useState('');
@@ -35,28 +42,35 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
   );
   const createListing = useCreateListing();
   const { data: estimate, isLoading: estimateLoading } = useEstimate(category, condition);
+  // Fires the onCreated navigation once after a successful publish.
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Clear the pending publish-navigation timer when the screen unmounts.
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
+  // Derived values: per-category unit, parsed/validated quantity, and BDT total.
   const unit = getCategoryUnit(category);
   const parsedQuantity = parseFloat(quantity);
   const hasValidQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0;
+  const parsedPrice = parseFloat(price);
+  const hasValidPrice = Number.isFinite(parsedPrice) && parsedPrice > 0;
   const ratePerUnit = estimate ? Number(estimate.price_bdt) : 0;
   const totalEstimatedBdt = (hasValidQuantity && estimate && Number.isFinite(ratePerUnit))
     ? parsedQuantity * ratePerUnit
     : null;
 
+  // Changing category also clears the old quantity since the unit label changes.
   const selectCategory = useCallback((nextCategory: Category) => {
     setCategory(nextCategory);
     setQuantity('');
     setError('');
   }, []);
 
+  // Picks and compresses a photo, reporting the resulting size in the notice.
   const pickPhoto = useCallback(async () => {
     setPreparingPhoto(true);
     setError('');
@@ -73,6 +87,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
     }
   }, []);
 
+  // Validates photo + quantity, then publishes and schedules navigation away.
   const handleSubmit = useCallback(async () => {
     if (!photo) {
       setError('Add a real item photo before publishing.');
@@ -86,6 +101,14 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
       setError('Piece count must be a whole number.');
       return;
     }
+    const effectivePrice = hasValidPrice
+      ? parsedPrice
+      : (totalEstimatedBdt !== null ? totalEstimatedBdt : (ratePerUnit > 0 ? ratePerUnit * parsedQuantity : null));
+
+    if (!effectivePrice || effectivePrice <= 0) {
+      setError('Enter an asking price greater than 0.');
+      return;
+    }
 
     setError('');
     setNotice('');
@@ -97,6 +120,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
           ? { declaredWeight: parsedQuantity }
           : { pieceCount: parsedQuantity }),
         declaredCondition: condition,
+        price: effectivePrice,
         photos: [photo.dataUri],
       });
       setNotice('Listing published as active. It is now available in Browse.');
@@ -104,18 +128,21 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not publish this listing.'));
     }
-  }, [category, condition, createListing, hasValidQuantity, onCreated, parsedQuantity, photo, unit]);
+  }, [category, condition, createListing, hasValidPrice, hasValidQuantity, onCreated, parsedPrice, parsedQuantity, photo, ratePerUnit, totalEstimatedBdt, unit]);
 
+  // Scrollable, keyboard-aware form; each field group is a numbered step card.
   return (
     <ScrollView
       className="flex-1 bg-background"
       contentContainerClassName="p-[20px] pb-[36px]"
       keyboardShouldPersistTaps="handled"
     >
+      {/* Header copy: partners confirm exact condition/value later. */}
       <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">GIVE IT A NEXT LIFE</Text>
       <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">List an item</Text>
       <Text className="text-muted text-[14px] leading-[21px] mt-[7px] mb-[22px]">Choose only what you know. Final condition and value are confirmed by a partner later.</Text>
 
+      {/* Photo step: required before publishing; shows preview and remove control. */}
       <PhotoUploader
         photo={photo}
         preparingPhoto={preparingPhoto}
@@ -127,6 +154,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
       />
 
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        {/* Step 02 — category selection as radio-style chips. */}
         <View className="flex-row items-center gap-[9px] mb-[13px]">
           <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">02</Text>
           <Text className="text-ink text-[17px] font-extrabold">Category</Text>
@@ -151,6 +179,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
       </View>
 
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        {/* Step 03 — weight (kg) or piece-count input depending on the category. */}
         <View className="flex-row items-center gap-[9px] mb-[13px]">
           <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">03</Text>
           <Text className="text-ink text-[17px] font-extrabold">{unit === 'kg' ? 'Weight' : 'Quantity'}</Text>
@@ -173,6 +202,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
       </View>
 
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        {/* Step 04 — declared condition chips plus the publish-status row. */}
         <View className="flex-row items-center gap-[9px] mb-[13px]">
           <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">04</Text>
           <Text className="text-ink text-[17px] font-extrabold">Declared condition</Text>
@@ -194,10 +224,33 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
             );
           })}
         </View>
+        {/* Listings go live as Active; shown as a static status indicator. */}
         <View className="min-h-[48px] flex-row items-center gap-[8px] border-t border-border mt-[14px] pt-[12px]">
           <Ionicons name="radio-button-on" size={17} color={colors.leaf} />
           <Text className="text-muted text-[13px] font-bold">Publishing status: Active</Text>
         </View>
+      </View>
+
+      <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
+        <View className="flex-row items-center gap-[9px] mb-[13px]">
+          <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">05</Text>
+          <Text className="text-ink text-[17px] font-extrabold">Asking price (optional)</Text>
+        </View>
+        <View className="flex-row">
+          <View className="min-w-[70px] min-h-[52px] border border-r-0 border-border rounded-tl-[12px] rounded-bl-[12px] bg-surface-muted items-center justify-center px-[12px]">
+            <Text className="text-ink text-[16px] font-extrabold">৳</Text>
+          </View>
+          <TextInput
+            accessibilityLabel="Asking price in Bangladeshi Taka"
+            className="flex-1 min-h-[52px] border border-border rounded-tr-[12px] rounded-br-[12px] bg-background text-ink text-[17px] px-[14px]"
+            placeholder={totalEstimatedBdt !== null ? `Est. ৳${totalEstimatedBdt.toFixed(2)}` : 'e.g. 50'}
+            placeholderTextColor={colors.muted}
+            keyboardType="decimal-pad"
+            value={price}
+            onChangeText={setPrice}
+          />
+        </View>
+        <Text className="text-muted text-[12px] leading-[18px] mt-[7px]">Leave blank to use the official benchmarked rate estimate.</Text>
       </View>
 
       <EstimatorCard
@@ -212,9 +265,11 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
         totalBdt={totalEstimatedBdt}
       />
 
+      {/* Inline error or success notice for validation and publish outcomes. */}
       {error ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{error}</Text> : null}
       {notice ? <Text accessibilityRole="alert" className="text-leaf-dark bg-leaf-soft p-[13px] rounded-[12px] text-[14px] leading-[20px] font-semibold mb-[12px]">{notice}</Text> : null}
 
+      {/* Submit button, disabled while a photo is preparing or the publish is pending. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Publish active listing"

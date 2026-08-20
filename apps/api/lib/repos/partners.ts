@@ -1,3 +1,5 @@
+// partners repo: persistence for service-provider partner records and their
+// verification state (status + e-waste licence flag + reason + capability flags).
 import { db, partners, eq, desc } from '@chokro/db';
 import { withDb } from './seam';
 
@@ -8,6 +10,8 @@ export interface ApplyPartnerInput {
   e_waste_licensed?: boolean;
   doe_license_doc?: string | null;
   status?: string;
+  reason?: string | null;
+  capability_flags?: Record<string, boolean>;
 }
 
 export const partnerRepo = {
@@ -28,6 +32,7 @@ export const partnerRepo = {
         .select()
         .from(partners)
         .where(eq(partners.user_id, userId))
+        .orderBy(desc(partners.created_at))
         .limit(1);
       return rows[0] || null;
     });
@@ -65,21 +70,69 @@ export const partnerRepo = {
           e_waste_licensed: input.e_waste_licensed ?? false,
           doe_license_doc: input.doe_license_doc || null,
           status: input.status || 'APPLIED',
+          reason: input.reason || null,
+          capability_flags: input.capability_flags || {},
+        })
+        .onConflictDoUpdate({
+          target: partners.user_id,
+          set: {
+            org_name: input.org_name,
+            types: input.types,
+            e_waste_licensed: input.e_waste_licensed ?? false,
+            doe_license_doc: input.doe_license_doc || null,
+            status: input.status || 'APPLIED',
+            reason: input.reason || null,
+            capability_flags: input.capability_flags || {},
+          },
         })
         .returning();
       return partner;
     });
   },
 
-  async updateVerification(id: string, status: string, eWasteLicensed?: boolean) {
+  async reapply(id: string, input: ApplyPartnerInput) {
     return withDb(async () => {
-      const license = eWasteLicensed ?? Boolean((await this.findById(id))?.doe_license_doc);
-      const [updated] = await db
+      const [partner] = await db
         .update(partners)
         .set({
-          status,
-          e_waste_licensed: license,
+          org_name: input.org_name,
+          types: input.types,
+          e_waste_licensed: input.e_waste_licensed ?? false,
+          doe_license_doc: input.doe_license_doc || null,
+          status: 'APPLIED',
+          reason: null, // Clear previous rejection reason
+          capability_flags: input.capability_flags || {},
         })
+        .where(eq(partners.id, id))
+        .returning();
+      return partner || null;
+    });
+  },
+
+  async updateVerification(id: string, status: string, eWasteLicensed?: boolean, reason?: string | null) {
+    return withDb(async () => {
+      const license = eWasteLicensed ?? Boolean((await this.findById(id))?.doe_license_doc);
+      const updateData: Record<string, unknown> = {
+        status,
+        e_waste_licensed: license,
+      };
+      if (reason !== undefined) {
+        updateData.reason = reason;
+      }
+      const [updated] = await db
+        .update(partners)
+        .set(updateData)
+        .where(eq(partners.id, id))
+        .returning();
+      return updated || null;
+    });
+  },
+
+  async updateCapabilities(id: string, capabilityFlags: Record<string, boolean>) {
+    return withDb(async () => {
+      const [updated] = await db
+        .update(partners)
+        .set({ capability_flags: capabilityFlags })
         .where(eq(partners.id, id))
         .returning();
       return updated || null;

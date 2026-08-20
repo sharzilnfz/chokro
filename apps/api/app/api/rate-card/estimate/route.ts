@@ -2,6 +2,7 @@ import { apiData, apiError, safeRoute } from '../../../../lib/http';
 import { ValuationDomain } from '../../../../lib/domain/ValuationDomain';
 import { EstimateQuerySchema, type Category, type Condition } from '@chokro/shared';
 
+// Looks up a published price; both category and condition are required.
 export const GET = safeRoute(async (request: Request) => {
   const url = new URL(request.url);
   const category = url.searchParams.get('category');
@@ -34,6 +35,7 @@ export const GET = safeRoute(async (request: Request) => {
     return apiError('No rate card entry found for this category and condition', 404);
   }
 
+  // Return the quote fields a client would display next to the estimate.
   return apiData({
     estimate: {
       price_bdt: estimate.price_bdt,

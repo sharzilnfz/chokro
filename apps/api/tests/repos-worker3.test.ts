@@ -1,13 +1,18 @@
+// Repository-layer tests for worker 3 modules: drop zones and the wallet ledger.
 import { dropZoneRepo } from '../lib/repos/dropZones';
 import { walletRepo } from '../lib/repos/wallet';
 import { createTestUser, resetTestStore } from './test-utils';
 
+// Both repos cover their create/query contracts end to end.
 describe('Worker 3 Repositories (dropZoneRepo & walletRepo)', () => {
+  // Reset store before each case.
   beforeEach(async () => {
     await resetTestStore();
   });
 
+  // Drop-zone repo: create, lookup, list-all, and resolution all round-trip a zone.
   describe('dropZoneRepo', () => {
+    // Full CRUD-ish round trip for a drop zone in one flow.
     it('creates, finds by id, lists all, and resolves by location', async () => {
       const created = await dropZoneRepo.create({
         institutionId: 'INST-1',
@@ -32,7 +37,9 @@ describe('Worker 3 Repositories (dropZoneRepo & walletRepo)', () => {
     });
   });
 
+  // Wallet repo: adjustment inserts and owner-scoped queries return consistent rows.
   describe('walletRepo', () => {
+    // An adjustment lands in the ledger and is visible to its owner.
     it('creates adjustment transaction and finds transactions by owner', async () => {
       const user = await createTestUser();
       const adjustment = await walletRepo.createAdjustmentTransaction({

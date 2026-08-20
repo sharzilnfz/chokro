@@ -1,3 +1,5 @@
+// Covers admin rate-card management plus the public published and estimate
+// endpoints that consume the stored rates.
 import { db, rateCardEntries } from '@chokro/db';
 import crypto from 'crypto';
 import { POST as createRate, GET as getAdminRates } from '../app/api/admin/rate-card/route';
@@ -5,11 +7,14 @@ import { GET as getPublishedRates } from '../app/api/rate-card/published/route';
 import { GET as getEstimate } from '../app/api/rate-card/estimate/route';
 import { authHeaders, createTestUser, resetTestStore, tokenFor } from './test-utils';
 
+// Rate card API: admin write gate, unit derivation, versioning, and lookups.
 describe('rate card API', () => {
+  // Reset store before each case.
   beforeEach(async () => {
     await resetTestStore();
   });
 
+  // Admin rate writes are blocked for anonymous and non-admin callers.
   it('returns 401 without auth and 403 for a non-admin', async () => {
     const body = JSON.stringify({ category: 'PLASTICS', conditionBand: 'GOOD', priceBdt: 50 });
     const missing = await createRate(new Request('http://localhost/api/admin/rate-card', { method: 'POST', body }));
@@ -21,6 +26,7 @@ describe('rate card API', () => {
     expect(forbidden.status).toBe(403);
   });
 
+  // Unit is derived from the category: kg for materials, piece for e-waste.
   it('derives the unit from the category instead of accepting one', async () => {
     const admin = await createTestUser('ADMIN');
     const token = tokenFor(admin);
@@ -39,6 +45,7 @@ describe('rate card API', () => {
     expect((await eWaste.json()).entry.unit).toBe('piece');
   });
 
+  // Publication picks the single latest-effective entry per key, ignoring future ones.
   it('publishes only the latest effective rate per category, condition, and unit', async () => {
     const admin = await createTestUser('ADMIN');
     const hour = 3_600_000;
@@ -66,6 +73,7 @@ describe('rate card API', () => {
     expect(data.rates[0]).toMatchObject({ price_bdt: '55.00', unit: 'kg' });
   });
 
+  // Admins can version rates; the published set mirrors stored entries only.
   it('allows an admin to version rates and exposes stored published rates only', async () => {
     const admin = await createTestUser('ADMIN');
     const token = tokenFor(admin);
@@ -80,6 +88,7 @@ describe('rate card API', () => {
     expect((await published.json()).rates).toHaveLength(1);
   });
 
+  // Estimate resolves a known combo and distinguishes missing params from unknown rates.
   it('estimates value for a given category and condition combo', async () => {
     const admin = await createTestUser('ADMIN');
     const token = tokenFor(admin);

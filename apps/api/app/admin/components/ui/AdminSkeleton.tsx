@@ -1,3 +1,4 @@
+// Accessible loading placeholder that mimics a data table of rowCount × colCount cell lines.
 import { cx } from '../../lib/formatters';
 
 export type AdminSkeletonProps = {
@@ -7,6 +8,7 @@ export type AdminSkeletonProps = {
   className?: string;
 };
 
+// Generates the shimmer rows and exposes a screen-reader-only label while marking the region busy.
 export function AdminSkeleton({
   rowCount = 4,
   colCount = 5,

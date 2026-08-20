@@ -1,8 +1,11 @@
+// Card grouping published rates for one category in the rate card screen.
+// Third-party and app modules used to render the row.
 import React from 'react';
 import { Text, View } from 'react-native';
 import { categoryLabel } from '@/types';
 import type { RowRate } from '@/hooks/useRateCard';
 
+// Props: the category-level rate group to display.
 export interface RateCardRowProps {
   item: RowRate;
 }
@@ -19,6 +22,7 @@ function driftLabel(status: string, pct?: number): string {
   return `${sign}${Math.abs(pct)}% market`;
 }
 
+// Memoized per-category block listing each condition band's per-unit price.
 export const RateCardRow = React.memo(function RateCardRow({ item }: RateCardRowProps) {
   return (
     <View

@@ -1,6 +1,9 @@
+// Published rate card grouped by category for the rate card screen.
+// Query infra and the API client.
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
 
+// A published per-unit price for a category across a condition band.
 type Rate = {
   id: string;
   category: string;
@@ -14,6 +17,7 @@ type Rate = {
   drift_badge?: string;
 };
 
+// Rates collapsed under a single category heading.
 type RowRate = {
   category: string;
   entries: Rate[];
@@ -21,10 +25,12 @@ type RowRate = {
 
 export type { Rate, RowRate };
 
+// Rank condition bands from best to worst for display ordering.
 function conditionOrder(condition: Rate['condition_band']) {
   return ['EXCELLENT', 'GOOD', 'FAIR', 'POOR'].indexOf(condition);
 }
 
+// Group flat rates by category and sort each group's entries by condition band.
 function groupRates(rates: Rate[]): RowRate[] {
   const byCategory = new Map<string, Rate[]>();
   for (const rate of rates) {
@@ -40,6 +46,7 @@ function groupRates(rates: Rate[]): RowRate[] {
   }));
 }
 
+// Query that fetches the published card and returns the grouped rows.
 export function useRateCard() {
   return useQuery<RowRate[]>({
     queryKey: ['rateCard'],

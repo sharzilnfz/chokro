@@ -1,5 +1,7 @@
+// Admin session context: owns the token, sign-in/sign-out lifecycle, and an authenticated fetch helper.
 'use client';
 
+// React Query exposes the client for cache clearing; auth state uses React context primitives.
 import { useQueryClient } from '@tanstack/react-query';
 import {
   createContext,
@@ -15,10 +17,13 @@ import {
   setAdminUnauthorizedHandler,
 } from '../services/adminApi';
 
+// Session token is kept in session storage so it survives reloads but not tab closure.
 const TOKEN_KEY = 'chokro.admin.token';
 
+// Auth states: initial rehydration, signed out, or holding a valid session.
 export type SessionStatus = 'loading' | 'signed-out' | 'signed-in';
 
+// The full surface exposed to the admin feature pages.
 export type AdminAuthContextType = {
   status: SessionStatus;
   token: string | null;
@@ -32,6 +37,7 @@ export type AdminAuthContextType = {
 
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
 
+// Typed consumer that fails fast when used outside the provider tree.
 export function useAdminAuth(): AdminAuthContextType {
   const context = useContext(AdminAuthContext);
   if (!context) {
@@ -40,6 +46,7 @@ export function useAdminAuth(): AdminAuthContextType {
   return context;
 }
 
+// Session/query/UI state plus the query client used to wipe cached admin data on logout.
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<SessionStatus>('loading');
@@ -63,6 +70,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Tear down the session: clear storage, state, and any cached admin queries.
   const endSession = useCallback(
     (sessionMessage: string) => {
       try {
@@ -79,20 +87,24 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
+  // Explicit user-initiated sign-out.
   const logout = useCallback(() => {
     endSession('You have signed out.');
   }, [endSession]);
 
+  // Session expired mid-use (401) — force the admin back to the sign-in screen.
   const handleUnauthorized = useCallback(() => {
     endSession('Your session has expired. Sign in again to continue.');
   }, [endSession]);
 
+  // 403s surface a non-fatal permission banner that can be dismissed.
   const handleForbidden = useCallback((message?: string) => {
     setPermissionMessage(
       message || 'This admin account does not have permission to complete that request.',
     );
   }, []);
 
+  // Register session/forbidden callbacks on the shared adminApi and clean them up on unmount.
   useEffect(() => {
     setAdminUnauthorizedHandler(handleUnauthorized);
     setAdminForbiddenHandler(handleForbidden);
@@ -104,6 +116,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     };
   }, [handleUnauthorized, handleForbidden]);
 
+  // Persists the new session token and flips state to signed-in.
   const setTokenAndSignIn = useCallback((nextToken: string) => {
     try {
       window.sessionStorage.setItem(TOKEN_KEY, nextToken);
@@ -120,6 +133,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setPermissionMessage('');
   }, []);
 
+  // Authenticated fetch used by hand-rolled calls (e.g. poster HTML), reacting to 401/403.
   const request = useCallback(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers(init?.headers);
@@ -142,6 +156,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     [token, handleUnauthorized, handleForbidden],
   );
 
+  // Expose the context value to the admin tree.
   return (
     <AdminAuthContext.Provider
       value={{

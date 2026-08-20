@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,29 +8,72 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
 import { CATEGORIES, CONDITIONS, categoryLabel } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { StateView } from '@/components/ui/StateView';
 import { useFeed, type FeedFilter, type ConditionFilter, type Listing } from '@/hooks/useFeed';
+import { useSaveListing } from '@/hooks/useSaveListing';
+import type { MessagesTarget } from '@/screens/MessagesScreen';
 
 
+// Filter presets: every shared category/condition plus "ALL" to clear the filter.
 const FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
 const FEED_CONDITIONS: ConditionFilter[] = ['ALL', ...CONDITIONS];
 
 
 
-export function FeedScreen() {
+type FeedScreenProps = {
+  onContactSeller?: (target: MessagesTarget) => void;
+  deepLinkCategory?: FeedFilter | null;
+  onCategoryChange?: (category: FeedFilter) => void;
+};
+
+export function FeedScreen({ onContactSeller, deepLinkCategory, onCategoryChange }: FeedScreenProps) {
   const [category, setCategory] = useState<FeedFilter>('ALL');
   const [condition, setCondition] = useState<ConditionFilter>('ALL');
+  const [savedOnly, setSavedOnly] = useState(false);
 
-  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeed(category, condition);
+const chooseCategory = (next: FeedFilter) => {
+    setCategory(next);
+    onCategoryChange?.(next);
+  };
+
+  useEffect(() => {
+    if (deepLinkCategory && deepLinkCategory !== 'ALL') {
+      setCategory(deepLinkCategory);
+      onCategoryChange?.(deepLinkCategory);
+    }
+  }, [deepLinkCategory]);
+
+  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeed(category, condition, savedOnly);
+  const saveListing = useSaveListing();
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const errorMessage = error ? getErrorMessage(error, 'Could not load listings.') : '';
 
-  const renderCard = ({ item }: { item: Listing }) => <ListingCard item={item} />;
+  const renderCard = ({ item }: { item: Listing }) => {
+    const isSavingThis = saveListing.isPending && saveListing.variables?.listingId === item.id;
+    return (
+      <ListingCard
+        item={item}
+        saving={isSavingThis}
+        onToggleSaved={() => saveListing.save({ listingId: item.id, save: !item.saved })}
+        onContactSeller={
+          onContactSeller
+            ? () => onContactSeller({
+                listingId: item.id,
+                peerEmail: item.seller_email ?? 'Seller',
+                listingCategory: item.category,
+              })
+            : undefined
+        }
+      />
+    );
+  };
 
+  // The feed list, with filters in the header and bespoke empty/footer states.
   return (
     <View className="flex-1 bg-background">
       <FlatList
@@ -47,11 +90,27 @@ export function FeedScreen() {
           />
         }
         ListHeaderComponent={
+          // Title copy plus scrollable category and condition filter chips.
           <View>
             <Text className="text-leaf text-[11px] font-extrabold tracking-tight">COMMUNITY CIRCULATION</Text>
             <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Browse</Text>
             <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">Active listings from people giving useful things another turn.</Text>
 
+<Text className="text-ink text-[12px] font-extrabold mb-[7px]">Show</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityLabel="Saved listings"
+                accessibilityState={{ checked: savedOnly }}
+                className={`min-h-[48px] px-[14px] rounded-pill border items-center justify-center flex-row gap-[6px] active:opacity-[0.72] ${savedOnly ? 'border-leaf bg-leaf-soft' : 'border-border bg-surface'}`}
+                onPress={() => setSavedOnly((prev) => !prev)}
+              >
+                <Ionicons name={savedOnly ? 'bookmark' : 'bookmark-outline'} size={16} color={savedOnly ? colors.leafDark : colors.muted} />
+                <Text className={`text-[13px] font-bold ${savedOnly ? 'text-leaf-dark' : 'text-muted'}`}>Saved</Text>
+              </Pressable>
+            </ScrollView>
+
+            {/* Category chip row — tapping one narrows the feed. */}
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CATEGORIES.map((item) => {
@@ -64,7 +123,7 @@ export function FeedScreen() {
                     accessibilityLabel={`${label} category`}
                     accessibilityState={{ checked: selected }}
                     className={`min-h-[48px] px-[14px] rounded-pill border items-center justify-center active:opacity-[0.72] ${selected ? 'border-leaf bg-leaf-soft' : 'border-border bg-surface'}`}
-                    onPress={() => setCategory(item)}
+                    onPress={() => chooseCategory(item)}
                   >
                     <Text className={`text-[13px] font-bold ${selected ? 'text-leaf-dark' : 'text-muted'}`}>{label}</Text>
                   </Pressable>
@@ -72,6 +131,7 @@ export function FeedScreen() {
               })}
             </ScrollView>
 
+            {/* Condition chip row — taps narrow the feed to a declared condition. */}
             <Text className="text-ink text-[12px] font-extrabold mb-[7px]">Condition</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 13 }}>
               {FEED_CONDITIONS.map((item) => {
@@ -94,6 +154,7 @@ export function FeedScreen() {
           </View>
         }
         ListEmptyComponent={
+          // Covers loading, fetch error, and "no listings match" in one view.
           <StateView
             isLoading={isLoading}
             loadingTitle="Loading active listings"
@@ -110,6 +171,7 @@ export function FeedScreen() {
           />
         }
         ListFooterComponent={
+          // Load-more / end-of-feed / inline fetch-error controls for the feed.
           items.length > 0 ? (
             <View className="items-center pt-[18px] pb-[4px]">
               {errorMessage ? <Text accessibilityRole="alert" className="text-danger text-center text-[13px] leading-[19px] mb-[8px]">{errorMessage}</Text> : null}

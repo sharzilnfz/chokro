@@ -1,16 +1,22 @@
+// Covers listing creation, ownership scoping, canonical status transitions, and
+// category-derived quantity validation.
 import { POST as createListing, GET as listListings } from '../app/api/listings/route';
 import { GET as getListing, PATCH as updateListing } from '../app/api/listings/[id]/route';
 import { authHeaders, createTestUser, resetTestStore, routeParams, tokenFor } from './test-utils';
 
+// A valid, reusable material payload shared by most cases.
 const materialListing = {
-  category: 'PLASTICS', unit: 'kg', declaredWeight: 12.5, declaredCondition: 'GOOD', photos: [],
+  category: 'PLASTICS', unit: 'kg', declaredWeight: 12.5, declaredCondition: 'GOOD', price: 500, photos: [],
 };
 
+// Listings API: auth gate, ownership rules, transition rules, and validation.
 describe('listing API', () => {
+  // Fresh store for each case.
   beforeEach(async () => {
     await resetTestStore();
   });
 
+  // No token -> 401 before any listing logic runs.
   it('requires authentication to create a listing', async () => {
     const response = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST', body: JSON.stringify(materialListing),
@@ -18,6 +24,7 @@ describe('listing API', () => {
     expect(response.status).toBe(401);
   });
 
+  // The list endpoint is scoped to the caller, not the whole table.
   it('returns only the authenticated user&apos;s own listings', async () => {
     const owner = await createTestUser();
     const other = await createTestUser();
@@ -35,6 +42,7 @@ describe('listing API', () => {
     expect(data.listings[0].owner_id).toBe(owner.id);
   });
 
+  // Read-by-id enforces owner/admin-only visibility for each caller class.
   it('lets only the owner or an admin read a listing by id', async () => {
     const owner = await createTestUser();
     const other = await createTestUser();
@@ -55,6 +63,7 @@ describe('listing API', () => {
     expect(byAdmin.status).toBe(200);
   });
 
+  // Category-driven quantity rules reject invalid unit/weight/piece combos.
   it.each([
     { body: { ...materialListing, unit: 'piece', pieceCount: 1 }, description: 'material with piece unit' },
     { body: { category: 'E_WASTE', unit: 'piece', declaredCondition: 'GOOD', photos: [] }, description: 'e-waste without piece count' },
@@ -71,18 +80,20 @@ describe('listing API', () => {
     expect(response.status).toBe(400);
   });
 
+  // A valid piece listing records an integer count with no fabricated photos.
   it('creates piece listings with a positive integer piece count and no mock photos', async () => {
     const user = await createTestUser();
     const response = await createListing(new Request('http://localhost/api/listings', {
       method: 'POST',
       headers: authHeaders(tokenFor(user)),
-      body: JSON.stringify({ category: 'E_WASTE', unit: 'piece', pieceCount: 2, declaredCondition: 'FAIR' }),
+      body: JSON.stringify({ category: 'E_WASTE', unit: 'piece', pieceCount: 2, declaredCondition: 'FAIR', price: 700 }),
     }));
     const data = await response.json();
     expect(response.status).toBe(201);
-    expect(data.listing).toMatchObject({ owner_id: user.id, unit: 'piece', piece_count: 2, declared_weight: null, photos: [] });
+    expect(data.listing).toMatchObject({ owner_id: user.id, unit: 'piece', piece_count: 2, declared_weight: null, price_bdt: '700.00', photos: [] });
   });
 
+  // Status changes follow canonical transitions and stay owner/admin-gated.
   it('allows only the owner or an admin to apply canonical transitions', async () => {
     const owner = await createTestUser();
     const other = await createTestUser();

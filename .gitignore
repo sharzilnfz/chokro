@@ -41,8 +41,11 @@ pnpm-debug.log*
 # Local demos, architecture guides & viva materials (untracked)
 docs/demos/
 
-#nx
+# nx
 .nx/cache
 .nx/workspace-data
-.nx/migrate-runscompose.override.yaml
+.nx/migrate-runs
+compose.override.yaml
+
+*.tsbuildinfo
 

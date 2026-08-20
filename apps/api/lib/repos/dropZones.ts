@@ -1,7 +1,12 @@
+// dropZones repo: persistence of spot/drop-off zones, including minting the QR
+// token that physically identifies each zone.
+//
+// Drizzle drop-zone table, QR token generator, and the DB seam.
 import { db, dropZones, eq, desc } from '@chokro/db';
 import { createQrToken } from '../qr';
 import { withDb } from './seam';
 
+// Values accepted when establishing a new drop zone.
 export interface CreateDropZoneInput {
   institutionId: string;
   name: string;
@@ -10,6 +15,7 @@ export interface CreateDropZoneInput {
 }
 
 export const dropZoneRepo = {
+  // Lookup by primary key.
   async findById(id: string) {
     return withDb(async () => {
       const rows = await db
@@ -21,6 +27,7 @@ export const dropZoneRepo = {
     });
   },
 
+  // Lookup by printed QR token — the scan path at a physical zone.
   async findByQrToken(token: string) {
     return withDb(async () => {
       const rows = await db
@@ -32,6 +39,7 @@ export const dropZoneRepo = {
     });
   },
 
+  // Every zone, newest first (admin console).
   async findAll() {
     return withDb(async () => {
       return db
@@ -41,6 +49,8 @@ export const dropZoneRepo = {
     });
   },
 
+  // Pick a single active zone for a drop-off; a stub that currently ignores
+  // coordinates until geo-based matching is wired up.
   async resolveByLocation() {
     return withDb(async () => {
       const rows = await db
@@ -52,6 +62,7 @@ export const dropZoneRepo = {
     });
   },
 
+  // Establish a zone: a fresh QR token is minted at creation and stored with the row.
   async create(input: CreateDropZoneInput) {
     return withDb(async () => {
       const qrToken = createQrToken();

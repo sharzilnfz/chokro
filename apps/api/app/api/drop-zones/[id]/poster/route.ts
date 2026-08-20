@@ -1,8 +1,11 @@
+// GET /api/drop-zones/{id}/poster — admin only. Serves a printable HTML poster
+// containing the drop zone's QR code and accepted materials.
 import QRCode from 'qrcode';
 import { requireAdmin } from '../../../../../lib/auth';
 import { apiError, safeRoute } from '../../../../../lib/http';
 import { dropZoneRepo } from '../../../../../lib/repos/dropZones';
 
+// Escapes user-supplied values so they're safe to interpolate into the poster HTML.
 function escapeHtml(value: unknown) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -12,6 +15,7 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", '&#039;');
 }
 
+// Renders a printable drop-zone poster for the given zone id.
 export const GET = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAdmin(req);
   if (auth.response) return auth.response;
@@ -22,11 +26,13 @@ export const GET = safeRoute(async (req: Request, { params }: { params: Promise<
     return apiError('Drop zone not found', 404);
   }
 
+  // Render the QR as an inline SVG and HTML-escape zone fields before embedding.
   const qrSvg = await QRCode.toString(zone.qr_token, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 });
   const zoneName = escapeHtml(zone.name);
   const institutionId = escapeHtml(zone.institution_id);
   const categories: unknown[] = Array.isArray(zone.accepted_categories) ? zone.accepted_categories : [];
 
+  // Assemble a self-contained poster page (inline styling + markup) for printing.
   const html = `
     <!DOCTYPE html>
     <html>
@@ -64,6 +70,7 @@ export const GET = safeRoute(async (req: Request, { params }: { params: Promise<
     </html>
   `;
 
+  // Serve as HTML so the poster can be printed or screenshotted directly.
   return new Response(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });

@@ -1,12 +1,15 @@
+// DTOs for listing creation and status updates.
 import { z } from 'zod';
 import { CategoryEnum, ConditionEnum, isPieceCategory } from '../enums';
 
+// Validates a new listing; enforces category x unit x measurement consistency
 export const CreateListingSchema = z.object({
   category: CategoryEnum,
   unit: z.enum(['kg', 'piece']),
   declaredWeight: z.number().positive().finite().optional(),
   pieceCount: z.number().int().positive().optional(),
   declaredCondition: ConditionEnum,
+  price: z.number().positive().finite().default(50),
   photos: z.array(z.string()).default([]),
   status: z.enum(['DRAFT', 'ACTIVE']).default('ACTIVE'),
 }).superRefine((listing, context) => {
@@ -20,5 +23,6 @@ export const CreateListingSchema = z.object({
 });
 export type CreateListingInput = z.infer<typeof CreateListingSchema>;
 
+// Validates the status change on an existing listing
 export const UpdateListingSchema = z.object({ status: z.enum(['DRAFT', 'ACTIVE', 'CANCELLED']) });
 export type UpdateListingInput = z.infer<typeof UpdateListingSchema>;

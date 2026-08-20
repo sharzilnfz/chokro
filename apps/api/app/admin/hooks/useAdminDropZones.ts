@@ -1,10 +1,13 @@
+// Data hooks for drop zones: list registered collection points and create new ones.
 'use client';
 
+// Shared category type, React Query primitives, auth session, and the admin fetch wrapper.
 import type { Category } from '@chokro/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminApiRequest } from '../services/adminApi';
 
+// A registered drop zone as returned by the API, including its signed QR token.
 export type DropZone = {
   id: string;
   institution_id: string;
@@ -15,14 +18,17 @@ export type DropZone = {
   created_at: string;
 };
 
+// Payload used to register a new drop zone.
 export type CreateDropZoneInput = {
   institutionId: string;
   name: string;
   acceptedCategories: Category[];
 };
 
+// Cache key shared by the zone list query and the create mutation.
 export const ADMIN_DROP_ZONES_QUERY_KEY = ['admin', 'drop-zones'] as const;
 
+// Loads the registered drop zones once the admin session is active.
 export function useAdminDropZones() {
   const { status } = useAdminAuth();
 
@@ -36,6 +42,7 @@ export function useAdminDropZones() {
   });
 }
 
+// Creates a new drop zone and refreshes the list on success.
 export function useCreateDropZone() {
   const queryClient = useQueryClient();
 

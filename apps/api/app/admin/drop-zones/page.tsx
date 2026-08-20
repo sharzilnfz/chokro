@@ -1,5 +1,7 @@
+// Admin drop zones page: register collection points and open each zone's printable QR poster.
 'use client';
 
+// Form/ref primitives, admin UI components, data hooks, and auth for poster printing.
 import { useRef, useState, type FormEvent } from 'react';
 import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
@@ -17,17 +19,21 @@ import { formatLabel, getErrorMessage } from '../lib/formatters';
 import { parseApiError } from '../services/adminApi';
 import { CATEGORY_OPTIONS } from './categories';
 
+// Success/error feedback banner state.
 type Notice = { tone: NoticeTone; text: string } | null;
 
 export default function AdminDropZonesPage() {
+  // Authenticated request helper for the poster endpoint, plus list/create data hooks.
   const { request } = useAdminAuth();
   const { data: zones = [], isLoading, isError, refetch } = useAdminDropZones();
   const createZoneMutation = useCreateDropZone();
   const formRef = useRef<HTMLFormElement>(null);
 
+  // UI state: feedback banner and which zone (if any) is generating its poster.
   const [notice, setNotice] = useState<Notice>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
+  // Collects the checked categories and the zone's identifying fields, then creates the zone.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
@@ -65,6 +71,7 @@ export default function AdminDropZonesPage() {
     }
   }
 
+  // Fetches the signed QR poster for a zone and opens it in a new window primed for printing.
   async function openPoster(zone: DropZone) {
     setPrintingId(zone.id);
     setNotice(null);
@@ -109,12 +116,14 @@ export default function AdminDropZonesPage() {
         description="Register collection points and print their QR poster. The QR is what a Chokro user scans to recognize a drop zone; it does not create a deposit or credit in Sprint 1."
       />
 
+      {/* Dismissible toast for create/poster results */}
       {notice && (
         <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
           {notice.text}
         </AdminStatusMessage>
       )}
 
+      {/* Registration form for a new collection point */}
       <section className="admin-panel" aria-labelledby="create-zone-title">
         <div className="admin-panel-header">
           <div>
@@ -150,6 +159,7 @@ export default function AdminDropZonesPage() {
             required
           />
 
+          {/* Category checkboxes the new zone will accept */}
           <fieldset className="admin-field admin-checkbox-group">
             <legend className="admin-label">Accepted categories</legend>
             {CATEGORY_OPTIONS.map((category) => (
@@ -173,6 +183,7 @@ export default function AdminDropZonesPage() {
         </form>
       </section>
 
+      {/* Registered-zones table with loading, error, and empty states */}
       <section className="admin-panel" aria-labelledby="zone-list-title">
         <div className="admin-panel-header">
           <div>
@@ -184,6 +195,7 @@ export default function AdminDropZonesPage() {
           {!isLoading && <span className="admin-panel-count">{zones.length} shown</span>}
         </div>
 
+        {/* Branch on load / error / empty / data states for the zones panel */}
         {isLoading ? (
           <AdminSkeleton rowCount={4} colCount={4} label="Loading drop zones" />
         ) : isError && zones.length === 0 ? (
@@ -228,6 +240,7 @@ export default function AdminDropZonesPage() {
                         ))}
                       </div>
                     </td>
+                    {/* Poster button opens the printable QR poster for the current zone */}
                     <td data-label="Poster">
                       <AdminButton
                         variant="secondary"

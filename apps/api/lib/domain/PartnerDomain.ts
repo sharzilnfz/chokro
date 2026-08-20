@@ -1,4 +1,6 @@
+// PartnerDomain: partner application and verification lifecycle.
 import { partnerRepo } from '@/lib/repos/partners';
+import { userRepo } from '@/lib/repos/users';
 import type { PartnerStatus } from '@chokro/shared';
 
 const PARTNER_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -13,6 +15,7 @@ export interface ApplyPartnerDomainInput {
   types: string[];
   eWasteLicensed?: boolean;
   doeLicenseDoc?: string | null;
+  capabilityFlags?: Record<string, boolean>;
 }
 
 export const PartnerDomain = {
@@ -27,10 +30,21 @@ export const PartnerDomain = {
 
     const existing = await partnerRepo.findByUserId(input.userId);
     if (existing) {
-      throw new Error('User already has a partner application');
+      if (existing.status === 'VERIFIED') {
+        throw new Error('User already has a verified partner application');
+      }
+      // Re-application or update of pending/rejected application (updates the single row)
+      return partnerRepo.reapply(existing.id, {
+        user_id: input.userId,
+        org_name: input.orgName,
+        types: input.types,
+        e_waste_licensed: false,
+        doe_license_doc: input.doeLicenseDoc || null,
+        status: 'APPLIED',
+        capability_flags: input.capabilityFlags || {},
+      });
     }
 
-    // SPEC 00 §2.5: e_waste_licensed capability is granted only by an admin during verification
     return partnerRepo.apply({
       user_id: input.userId,
       org_name: input.orgName,
@@ -38,6 +52,7 @@ export const PartnerDomain = {
       e_waste_licensed: false,
       doe_license_doc: input.doeLicenseDoc || null,
       status: 'APPLIED',
+      capability_flags: input.capabilityFlags || {},
     });
   },
 
@@ -53,7 +68,12 @@ export const PartnerDomain = {
     return partnerRepo.findAll();
   },
 
-  async updateVerification(id: string, status: PartnerStatus | string, eWasteLicensed?: boolean) {
+  async updateVerification(
+    id: string,
+    status: PartnerStatus | string,
+    eWasteLicensed?: boolean,
+    reason?: string | null
+  ) {
     const existing = await partnerRepo.findById(id);
     if (!existing) {
       throw new Error('Partner not found');
@@ -63,6 +83,23 @@ export const PartnerDomain = {
       throw new Error(`Invalid partner status transition from ${existing.status} to ${status}`);
     }
 
-    return partnerRepo.updateVerification(id, status, eWasteLicensed);
+    const updated = await partnerRepo.updateVerification(id, status, eWasteLicensed, reason);
+
+    // Promote user account to PARTNER role upon verification; reset to INDIVIDUAL if rejected
+    if (status === 'VERIFIED') {
+      await userRepo.updateRole(existing.user_id, 'PARTNER');
+    } else if (status === 'REJECTED') {
+      await userRepo.updateRole(existing.user_id, 'INDIVIDUAL');
+    }
+
+    return updated;
+  },
+
+  async updateCapabilities(id: string, capabilityFlags: Record<string, boolean>) {
+    const existing = await partnerRepo.findById(id);
+    if (!existing) {
+      throw new Error('Partner not found');
+    }
+    return partnerRepo.updateCapabilities(id, capabilityFlags);
   },
 };
