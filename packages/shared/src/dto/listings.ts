@@ -12,6 +12,10 @@ export const CreateListingSchema = z.object({
   price: z.number().positive().finite().default(50),
   photos: z.array(z.string()).default([]),
   status: z.enum(['DRAFT', 'ACTIVE']).default('ACTIVE'),
+  lat: z.number().finite().optional().nullable(),
+  lng: z.number().finite().optional().nullable(),
+  thana: z.string().max(120).optional().nullable(),
+  zilla: z.string().max(120).optional().nullable(),
 }).superRefine((listing, context) => {
   const pieceCategory = isPieceCategory(listing.category);
   if (pieceCategory && (listing.unit !== 'piece' || listing.pieceCount === undefined || listing.declaredWeight !== undefined)) {
