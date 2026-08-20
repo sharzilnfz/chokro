@@ -6,6 +6,11 @@ node_modules/
 .next/
 out/
 
+# Uploads & Runtime Storage
+apps/api/public/uploads/
+public/uploads/
+
+
 # Expo / React Native
 .expo/
 dist/

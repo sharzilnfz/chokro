@@ -16,6 +16,7 @@
     "expo:doctor": "pnpm --filter @chokro/mobile run doctor",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
+    "test:changed": "pnpm --filter @chokro/api test:changed",
     "lint": "nx run-many -t lint",
     "affected:test": "nx affected -t test",
     "graph": "nx graph"

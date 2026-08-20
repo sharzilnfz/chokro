@@ -1,10 +1,27 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/jest.config.[jt]s",
+      "!{projectRoot}/tests/**/*",
+      "!{projectRoot}/public/uploads/**"
+    ],
+    "testing": [
+      "default",
+      "!{projectRoot}/public/uploads/**"
+    ],
+    "sharedGlobals": []
+  },
   "targetDefaults": {
     "build": {
       "dependsOn": [
         "^build"
       ],
+      "inputs": ["production", "^production"],
       "outputs": [
         "{projectRoot}/.next/**",
         "{projectRoot}/dist/**"
@@ -15,13 +32,17 @@
       "cache": false
     },
     "lint": {
+      "inputs": ["default"],
       "cache": true
     },
     "test": {
+      "inputs": ["testing", "^production"],
       "cache": true
     },
     "typecheck": {
+      "inputs": ["default", "^production"],
       "cache": true
     }
-  }
+  },
+  "analytics": false
 }

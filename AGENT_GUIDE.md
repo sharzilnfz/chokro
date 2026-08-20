@@ -63,7 +63,9 @@ pnpm install                 # Install dependencies
 pnpm dev                     # Start API (localhost:3000) and Mobile bundler concurrently
 pnpm --filter @chokro/api dev     # Start API server only
 pnpm --filter @chokro/mobile start# Start Expo mobile app
-pnpm test                    # Run all tests (API tests use in-memory PGlite DB)
+pnpm test                    # Run all tests (cached by Nx when inputs unchanged)
+pnpm test:changed            # Run tests only for modified files (fastest for agent loops)
+pnpm run affected:test       # Run tests only for git-affected packages
 pnpm db:setup                # Run Drizzle migrations & seed data
 pnpm typecheck               # Typecheck entire monorepo
 ```

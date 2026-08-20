@@ -10,6 +10,8 @@
     "notify:schedule": "tsx scripts/notifications.ts",
     "lint": "eslint .",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --forceExit",
+    "test:changed": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --onlyChanged --forceExit",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
