@@ -483,3 +483,31 @@ export const evidenceHashes = pgTable('evidence_hashes', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Bilateral Negotiation Threads (Ticket 06 / SPEC 18)
+export const negotiationThreads = pgTable('negotiation_threads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  listing_id: uuid('listing_id').notNull().references(() => listings.id),
+  buyer_id: uuid('buyer_id').notNull().references(() => users.id),
+  seller_id: uuid('seller_id').notNull().references(() => users.id),
+  status: varchar('status', { length: 30 }).default('OPEN').notNull(), // OPEN, COMPLETED, CLOSED, SUPERSEDED_BY_SALE
+  last_offer_id: uuid('last_offer_id'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Formal Binding Offers within a Thread (Ticket 06 / SPEC 18)
+export const negotiationOffers = pgTable('negotiation_offers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  thread_id: uuid('thread_id').notNull().references(() => negotiationThreads.id),
+  offered_by_user_id: uuid('offered_by_user_id').notNull().references(() => users.id),
+  offer_amount_bdt: decimal('offer_amount_bdt', { precision: 10, scale: 2 }).notNull(),
+  offered_quantity: decimal('offered_quantity', { precision: 10, scale: 2 }).notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(),
+  proposed_pickup_at: timestamp('proposed_pickup_at'),
+  notes: text('notes'),
+  status: varchar('status', { length: 30 }).default('PENDING').notNull(), // PENDING, ACCEPTED, REJECTED, SUPERSEDED, EXPIRED, SUPERSEDED_BY_SALE
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+

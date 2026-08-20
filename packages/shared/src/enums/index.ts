@@ -39,6 +39,21 @@ export type PartnerStatus = z.infer<typeof PartnerStatusEnum>;
 export const ListingStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'CANCELLED', 'MATCHED', 'EXPIRED']);
 export type ListingStatus = z.infer<typeof ListingStatusEnum>;
 
+// Lifecycle state of a bilateral negotiation thread (Ticket 06 / SPEC 18)
+export const NegotiationThreadStatusEnum = z.enum(['OPEN', 'COMPLETED', 'CLOSED', 'SUPERSEDED_BY_SALE']);
+export type NegotiationThreadStatus = z.infer<typeof NegotiationThreadStatusEnum>;
+
+// Lifecycle state of a formal binding negotiation offer (Ticket 06 / SPEC 18)
+export const NegotiationOfferStatusEnum = z.enum([
+  'PENDING',
+  'ACCEPTED',
+  'REJECTED',
+  'SUPERSEDED',
+  'EXPIRED',
+  'SUPERSEDED_BY_SALE',
+]);
+export type NegotiationOfferStatus = z.infer<typeof NegotiationOfferStatusEnum>;
+
 // Kind of movement on the credit ledger
 export const CreditTxnKindEnum = z.enum(['EARN', 'REDEEM', 'ADJUST']);
 export type CreditTxnKind = z.infer<typeof CreditTxnKindEnum>;
@@ -51,6 +66,8 @@ export type CreditTxnStatus = z.infer<typeof CreditTxnStatusEnum>;
 export const CATEGORIES = CategoryEnum.options;
 export const CONDITIONS = ConditionEnum.options;
 export const LISTING_STATUSES = ListingStatusEnum.options;
+export const NEGOTIATION_THREAD_STATUSES = NegotiationThreadStatusEnum.options;
+export const NEGOTIATION_OFFER_STATUSES = NegotiationOfferStatusEnum.options;
 export const ROLES = RoleEnum.options;
 export const UNITS = UnitEnum.options;
 export const PATHS = PathEnum.options;
