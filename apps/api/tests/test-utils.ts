@@ -442,6 +442,60 @@ const TABLE_DDLS = [
     reviewed_at timestamp,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS impact_records (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    custody_type varchar(50) NOT NULL,
+    custody_id uuid NOT NULL UNIQUE,
+    trust_decision_id uuid NOT NULL REFERENCES trust_decisions(id),
+    user_id uuid NOT NULL REFERENCES users(id),
+    institution_id uuid REFERENCES campuses(id),
+    category varchar(50) NOT NULL,
+    next_life_path varchar(50) NOT NULL,
+    mass_kg decimal(10, 2) NOT NULL,
+    avoided_co2e_kg decimal(10, 3) NOT NULL,
+    factor_version varchar(20) NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS emission_factors (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    category varchar(50) NOT NULL,
+    next_life_path varchar(50) NOT NULL,
+    factor_co2e_per_kg decimal(10, 4) NOT NULL,
+    range_low decimal(10, 4) NOT NULL,
+    range_high decimal(10, 4) NOT NULL,
+    source varchar(100) NOT NULL,
+    version varchar(20) NOT NULL,
+    effective_from timestamp NOT NULL DEFAULT NOW(),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS institution_accounts (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    campus_id uuid NOT NULL REFERENCES campuses(id),
+    invite_code varchar(50) NOT NULL,
+    contact_email varchar(100) NOT NULL,
+    total_diverted_kg decimal(12, 2) NOT NULL DEFAULT '0',
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS sustainability_certificates (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id uuid NOT NULL REFERENCES campuses(id),
+    certificate_ref varchar(100) NOT NULL UNIQUE,
+    period_start timestamp NOT NULL,
+    period_end timestamp NOT NULL,
+    total_mass_kg decimal(12, 2) NOT NULL,
+    total_co2e_kg decimal(12, 3) NOT NULL,
+    covered_record_ids jsonb NOT NULL,
+    signature_hash varchar(100) NOT NULL,
+    issued_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS sponsorship_pools (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id uuid NOT NULL REFERENCES campuses(id),
+    total_budget_bdt decimal(12, 2) NOT NULL,
+    remaining_budget_bdt decimal(12, 2) NOT NULL,
+    monthly_draw_cap_bdt decimal(12, 2) NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -458,7 +512,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE sustainability_certificates, sponsorship_pools, institution_accounts, emission_factors, impact_records, decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 
@@ -488,5 +542,5 @@ export function authHeaders(token: string) {
 }
 
 export function routeParams(id: string) {
-  return { params: Promise.resolve({ id }) };
+  return { params: Promise.resolve({ id, ref: id }) };
 }

@@ -534,3 +534,74 @@ export const decisionContests = pgTable('decision_contests', {
   reviewed_at: timestamp('reviewed_at'),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Impact records generated strictly upon Trust Gate verification (SPEC 14 / Ticket 10)
+export const impactRecords = pgTable(
+  'impact_records',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    custody_type: varchar('custody_type', { length: 50 }).notNull(), // DEPOSIT, PICKUP, MANUAL
+    custody_id: uuid('custody_id').notNull(),
+    trust_decision_id: uuid('trust_decision_id').notNull().references(() => trustDecisions.id),
+    user_id: uuid('user_id').notNull().references(() => users.id),
+    institution_id: uuid('institution_id').references(() => campuses.id),
+    category: varchar('category', { length: 50 }).notNull(),
+    next_life_path: varchar('next_life_path', { length: 50 }).notNull(),
+    mass_kg: decimal('mass_kg', { precision: 10, scale: 2 }).notNull(),
+    avoided_co2e_kg: decimal('avoided_co2e_kg', { precision: 10, scale: 3 }).notNull(),
+    factor_version: varchar('factor_version', { length: 20 }).notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('impact_records_custody_id_unique').on(table.custody_id),
+  ]
+);
+
+// Emission factors table with stated uncertainty ranges and versioning (SPEC 14 / Ticket 10)
+export const emissionFactors = pgTable('emission_factors', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  category: varchar('category', { length: 50 }).notNull(),
+  next_life_path: varchar('next_life_path', { length: 50 }).notNull(),
+  factor_co2e_per_kg: decimal('factor_co2e_per_kg', { precision: 10, scale: 4 }).notNull(),
+  range_low: decimal('range_low', { precision: 10, scale: 4 }).notNull(),
+  range_high: decimal('range_high', { precision: 10, scale: 4 }).notNull(),
+  source: varchar('source', { length: 100 }).notNull(),
+  version: varchar('version', { length: 20 }).notNull(),
+  effective_from: timestamp('effective_from').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Institutional accounts for university/corporate sustainability reporting (SPEC 14 / Ticket 10)
+export const institutionAccounts = pgTable('institution_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  campus_id: uuid('campus_id').notNull().references(() => campuses.id),
+  invite_code: varchar('invite_code', { length: 50 }).notNull(),
+  contact_email: varchar('contact_email', { length: 100 }).notNull(),
+  total_diverted_kg: decimal('total_diverted_kg', { precision: 12, scale: 2 }).default('0').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// SHA-256 signed ESG sustainability certificates (SPEC 14 / Ticket 10)
+export const sustainabilityCertificates = pgTable('sustainability_certificates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  institution_id: uuid('institution_id').notNull().references(() => campuses.id),
+  certificate_ref: varchar('certificate_ref', { length: 100 }).notNull().unique(),
+  period_start: timestamp('period_start').notNull(),
+  period_end: timestamp('period_end').notNull(),
+  total_mass_kg: decimal('total_mass_kg', { precision: 12, scale: 2 }).notNull(),
+  total_co2e_kg: decimal('total_co2e_kg', { precision: 12, scale: 3 }).notNull(),
+  covered_record_ids: jsonb('covered_record_ids').$type<string[]>().notNull(),
+  signature_hash: varchar('signature_hash', { length: 100 }).notNull(),
+  issued_at: timestamp('issued_at').defaultNow().notNull(),
+});
+
+// Institutional credit sponsorship pools with monthly draw caps (SPEC 14 / Ticket 10)
+export const sponsorshipPools = pgTable('sponsorship_pools', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  institution_id: uuid('institution_id').notNull().references(() => campuses.id),
+  total_budget_bdt: decimal('total_budget_bdt', { precision: 12, scale: 2 }).notNull(),
+  remaining_budget_bdt: decimal('remaining_budget_bdt', { precision: 12, scale: 2 }).notNull(),
+  monthly_draw_cap_bdt: decimal('monthly_draw_cap_bdt', { precision: 12, scale: 2 }).notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+

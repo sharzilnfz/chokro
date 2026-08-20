@@ -13,6 +13,7 @@ import { trustGateRepo } from '../repos/trustGate';
 import { walletRepo } from '../repos/wallet';
 import { depositRepo } from '../repos/deposits';
 import { WalletDomain } from './WalletDomain';
+import { ImpactDomain } from './ImpactDomain';
 
 export interface DecisionEvaluationResult {
   decision: 'AUTO_CLEAR' | 'ESCALATE';
@@ -511,6 +512,22 @@ export class TrustGateDomain {
             'VERIFIED'
           );
         }
+      }
+
+      // Record verified impact
+      try {
+        await ImpactDomain.recordVerifiedImpact({
+          custodyType: input.subjectType,
+          custodyId: input.subjectId,
+          trustDecisionId: decisionRecord.id,
+          userId: input.userId,
+          category: input.category,
+          declaredQuantity: input.declaredQuantity,
+          verifiedQuantity: input.verifiedQuantity,
+          unit: input.unit,
+        });
+      } catch (err) {
+        console.error('Failed to record verified impact on auto-clear:', err);
       }
     } else {
       // Escalated
