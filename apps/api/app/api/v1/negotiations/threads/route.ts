@@ -1,1 +1,1 @@
-export { GET, POST, OPTIONS } from '../../../../negotiations/threads/route';
+export { GET, POST, OPTIONS } from '../route';

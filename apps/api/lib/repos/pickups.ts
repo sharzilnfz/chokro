@@ -115,6 +115,18 @@ export const pickupRepo = {
     });
   },
 
+  async findActiveByCollectors(collectorPartnerIds: string[]): Promise<PickupWithRefs[]> {
+    if (collectorPartnerIds.length === 0) return [];
+    return withDb(async () => {
+      return joinedSelection()
+        .where(and(
+          inArray(pickupOrders.collector_partner_id, collectorPartnerIds),
+          inArray(pickupOrders.status, [...ACTIVE_PICKUP_STATUSES]),
+        ))
+        .orderBy(pickupOrders.scheduled_for);
+    });
+  },
+
   async assignCollector(orderId: string, collectorPartnerId: string) {
     return withDb(async () => {
       const [updated] = await db

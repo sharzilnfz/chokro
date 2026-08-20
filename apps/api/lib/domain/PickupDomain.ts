@@ -79,7 +79,7 @@ export interface RouteStop {
     piece_count: number | null;
     condition: string;
   };
-  customer_id: string;
+  customer_id: string | null;
   distance_from_previous_km: number;
   cumulative_eta_minutes: number;
 }
@@ -190,7 +190,7 @@ export const PickupDomain = {
     }
   },
 
-  isCustomer(order: { customer_id: string }, userId: string): boolean {
+  isCustomer(order: { customer_id: string | null }, userId: string): boolean {
     return order.customer_id === userId;
   },
 
@@ -240,21 +240,35 @@ export const PickupDomain = {
 
   async findBestCollector(input: FindBestCollectorInput): Promise<FindBestCollectorResult> {
     const collectors = await partnerRepo.findVerifiedCollectors();
+    const candidateCollectors = collectors.filter(
+      (partner) => partner.base_lat != null && partner.base_lng != null,
+    );
+
+    // Batch-fetch all active orders for candidates with capacity in a single query
+    const collectorsWithCapacityIds = candidateCollectors
+      .filter((partner) => partner.vehicle_capacity_kg != null)
+      .map((partner) => partner.id);
+
+    const activeOrders = await pickupRepo.findActiveByCollectors(collectorsWithCapacityIds);
+    const committedKgByCollector = new Map<string, number>();
+    for (const row of activeOrders) {
+      const partnerId = row.order.collector_partner_id;
+      if (partnerId) {
+        const prev = committedKgByCollector.get(partnerId) ?? 0;
+        committedKgByCollector.set(partnerId, prev + (listingWeightKg(row.listing) ?? 0));
+      }
+    }
+
     const evaluations: CollectorEvaluation[] = [];
     const eligible: Array<CollectorEvaluation & { partnerId: string }> = [];
 
-    for (const partner of collectors) {
-      if (partner.base_lat == null || partner.base_lng == null) continue;
-      const distanceKm = haversineKm(partner.base_lat, partner.base_lng, input.lat, input.lng);
+    for (const partner of candidateCollectors) {
+      const distanceKm = haversineKm(partner.base_lat!, partner.base_lng!, input.lat, input.lng);
 
       const capacityKg = partner.vehicle_capacity_kg != null ? Number(partner.vehicle_capacity_kg) : null;
       let remainingCapacityKg: number | null = null;
       if (capacityKg != null) {
-        const activeOrders = await pickupRepo.findActiveByCollector(partner.id);
-        const committedKg = activeOrders.reduce(
-          (sum, row) => sum + (listingWeightKg(row.listing) ?? 0),
-          0,
-        );
+        const committedKg = committedKgByCollector.get(partner.id) ?? 0;
         remainingCapacityKg = Math.round((capacityKg - committedKg) * 100) / 100;
       }
 
@@ -290,7 +304,7 @@ export const PickupDomain = {
 
     let best: FindBestCollectorResult['best'] = null;
     if (winner) {
-      const partner = await partnerRepo.findById(winner.partnerId);
+      const partner = candidateCollectors.find((p) => p.id === winner.partnerId) ?? (await partnerRepo.findById(winner.partnerId));
       if (partner) {
         best = {
           partner: {
