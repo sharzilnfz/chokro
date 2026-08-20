@@ -35,6 +35,7 @@ import { BecomePartnerScreen } from '@/screens/BecomePartnerScreen';
 import { PartnerStatusScreen } from '@/screens/PartnerStatusScreen';
 import { PartnerConsoleScreen } from '@/screens/PartnerConsoleScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { RedemptionRequestScreen } from '@/screens/RedemptionRequestScreen';
 import { CATEGORIES } from '@chokro/shared';
 import type { FeedFilter } from '@/hooks/useFeed';
 
@@ -73,6 +74,7 @@ type SubView =
   | 'become_partner'
   | 'partner_console'
   | 'profile'
+  | 'redemption'
   | null;
 
 export function AppShell() {
@@ -278,6 +280,11 @@ export function AppShell() {
             }}
             onOpenStatus={() => setSubView('partner_status')}
           />
+        ) : subView === 'redemption' ? (
+          <RedemptionRequestScreen
+            onBack={() => setSubView(null)}
+            onSuccess={() => setSubView(null)}
+          />
         ) : (
           <>
             {activeTab === 'browse' && (
@@ -311,8 +318,10 @@ export function AppShell() {
                 onOpenLeaderboard={() => setSubView('leaderboard')}
                 onOpenBadges={() => setSubView('badges')}
                 onOpenPartner={() => setSubView(isVerifiedPartner ? 'partner_console' : 'partner_status')}
+                onOpenRedemption={() => setSubView('redemption')}
               />
             )}
+
             {activeTab === 'vision' && (
               <VisionScanScreen
                 onListScrap={(prefill) => {
