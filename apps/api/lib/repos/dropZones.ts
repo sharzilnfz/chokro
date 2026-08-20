@@ -12,6 +12,9 @@ export interface CreateDropZoneInput {
   name: string;
   acceptedCategories: string[];
   geoLocation?: { lat: number; lng: number } | null;
+  maxCapacityKg?: number | string | null;
+  contractedPartnerId?: string | null;
+  status?: string;
 }
 
 export const dropZoneRepo = {
@@ -103,10 +106,25 @@ export const dropZoneRepo = {
           geo_location: input.geoLocation || null,
           qr_token: qrToken,
           accepted_categories: input.acceptedCategories,
-          status: 'ACTIVE',
+          status: input.status || 'ACTIVE',
+          max_capacity_kg: input.maxCapacityKg != null ? String(input.maxCapacityKg) : '50.00',
+          current_fill_kg: '0.00',
+          contracted_partner_id: input.contractedPartnerId || null,
         })
         .returning();
       return zone;
+    });
+  },
+
+  // Update drop zone record fields.
+  async update(id: string, partial: Partial<typeof dropZones.$inferInsert>) {
+    return withDb(async () => {
+      const [updated] = await db
+        .update(dropZones)
+        .set(partial)
+        .where(eq(dropZones.id, id))
+        .returning();
+      return updated || null;
     });
   },
 };

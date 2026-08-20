@@ -77,7 +77,20 @@ const TABLE_DDLS = [
     qr_token text NOT NULL UNIQUE,
     accepted_categories jsonb NOT NULL,
     status varchar(50) NOT NULL DEFAULT 'ACTIVE',
+    max_capacity_kg decimal(10, 2) DEFAULT 50.00,
+    current_fill_kg decimal(10, 2) NOT NULL DEFAULT 0.00,
+    last_emptied_at timestamp,
+    contracted_partner_id uuid REFERENCES partners(id),
     created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS zone_capacity_logs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    zone_id uuid NOT NULL REFERENCES drop_zones(id),
+    recorded_fill_kg decimal(10, 2) NOT NULL,
+    capacity_percentage integer NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'NORMAL',
+    trigger_reason varchar(60) NOT NULL,
+    logged_at timestamp NOT NULL DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS credit_txns (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -117,8 +130,8 @@ const TABLE_DDLS = [
   );`,
   `CREATE TABLE IF NOT EXISTS pickup_orders (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    listing_id uuid NOT NULL REFERENCES listings(id),
-    customer_id uuid NOT NULL REFERENCES users(id),
+    listing_id uuid REFERENCES listings(id),
+    customer_id uuid REFERENCES users(id),
     collector_partner_id uuid REFERENCES partners(id),
     status varchar(50) NOT NULL DEFAULT 'REQUESTED',
     address text NOT NULL,
@@ -272,7 +285,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE partner_compliance_audits, kyc_extractions, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

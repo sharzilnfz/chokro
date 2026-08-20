@@ -50,12 +50,15 @@ export default function AdminDropZonesPage() {
 
     const institutionId = String(formData.get('institutionId') || '').trim();
     const name = String(formData.get('name') || '').trim();
+    const maxCapStr = String(formData.get('maxCapacityKg') || '').trim();
+    const maxCapacityKg = maxCapStr ? parseFloat(maxCapStr) : 50;
 
     try {
       await createZoneMutation.mutateAsync({
         institutionId,
         name,
         acceptedCategories: selected,
+        maxCapacityKg: isNaN(maxCapacityKg) ? 50 : maxCapacityKg,
       });
 
       setNotice({
@@ -111,9 +114,9 @@ export default function AdminDropZonesPage() {
   return (
     <>
       <AdminPageHeader
-        kicker="Collections infrastructure"
+        kicker="Collections infrastructure (A02)"
         title="Drop zones"
-        description="Register collection points and print their QR poster. The QR is what a Chokro user scans to recognize a drop zone; it does not create a deposit or credit in Sprint 1."
+        description="Register collection points, manage calibrated capacities, and print cryptographic QR posters for on-site physical bins."
       />
 
       {/* Dismissible toast for create/poster results */}
@@ -131,7 +134,7 @@ export default function AdminDropZonesPage() {
               Register a drop zone
             </h2>
             <p className="admin-section-copy">
-              Name, institution, and accepted categories are required. Location can be added later.
+              Name, institution, capacity, and accepted categories are required.
             </p>
           </div>
         </div>
@@ -157,6 +160,17 @@ export default function AdminDropZonesPage() {
             type="text"
             placeholder="e.g. BUET"
             required
+          />
+
+          <AdminInput
+            id="zone-capacity"
+            name="maxCapacityKg"
+            label="Max Capacity Limit (kg)"
+            type="number"
+            step="1"
+            min="5"
+            placeholder="50"
+            defaultValue="50"
           />
 
           {/* Category checkboxes the new zone will accept */}
@@ -190,14 +204,14 @@ export default function AdminDropZonesPage() {
             <h2 className="admin-section-heading" id="zone-list-title">
               Registered zones
             </h2>
-            <p className="admin-section-copy">Each zone has a unique signed QR for recognition.</p>
+            <p className="admin-section-copy">Each zone has a unique signed QR and telemetry telemetry tracking.</p>
           </div>
           {!isLoading && <span className="admin-panel-count">{zones.length} shown</span>}
         </div>
 
         {/* Branch on load / error / empty / data states for the zones panel */}
         {isLoading ? (
-          <AdminSkeleton rowCount={4} colCount={4} label="Loading drop zones" />
+          <AdminSkeleton rowCount={4} colCount={5} label="Loading drop zones" />
         ) : isError && zones.length === 0 ? (
           <div className="admin-state">
             <div className="admin-state-content">
@@ -222,38 +236,60 @@ export default function AdminDropZonesPage() {
                 <tr>
                   <th scope="col">Name</th>
                   <th scope="col">Institution</th>
+                  <th scope="col">Fill / Capacity</th>
                   <th scope="col">Accepted categories</th>
-                  <th scope="col">Poster</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {zones.map((zone) => (
-                  <tr key={zone.id}>
-                    <td data-label="Name">
-                      <span className="admin-cell-primary">{zone.name}</span>
-                    </td>
-                    <td data-label="Institution">{zone.institution_id}</td>
-                    <td data-label="Accepted categories">
-                      <div className="admin-capabilities">
-                        {zone.accepted_categories.map((category) => (
-                          <AdminBadge key={category}>{formatLabel(category)}</AdminBadge>
-                        ))}
-                      </div>
-                    </td>
-                    {/* Poster button opens the printable QR poster for the current zone */}
-                    <td data-label="Poster">
-                      <AdminButton
-                        variant="secondary"
-                        type="button"
-                        loading={printingId === zone.id}
-                        loadingText="Opening..."
-                        onClick={() => void openPoster(zone)}
-                      >
-                        Print poster
-                      </AdminButton>
-                    </td>
-                  </tr>
-                ))}
+                {zones.map((zone) => {
+                  const maxCap = Number(zone.max_capacity_kg) || 50;
+                  const currFill = Number(zone.current_fill_kg) || 0;
+                  const percentage = Math.round((currFill / maxCap) * 100);
+
+                  return (
+                    <tr key={zone.id}>
+                      <td data-label="Name">
+                        <span className="admin-cell-primary">{zone.name}</span>
+                      </td>
+                      <td data-label="Institution">{zone.institution_id}</td>
+                      <td data-label="Fill / Capacity">
+                        <div className="text-sm">
+                          <span className="font-semibold">{currFill} kg</span> / {maxCap} kg
+                          <span
+                            className={`ml-2 text-xs font-bold px-1.5 py-0.5 rounded ${
+                              percentage >= 85
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {percentage}%
+                          </span>
+                        </div>
+                      </td>
+                      <td data-label="Accepted categories">
+                        <div className="admin-capabilities">
+                          {zone.accepted_categories.map((category) => (
+                            <AdminBadge key={category}>{formatLabel(category)}</AdminBadge>
+                          ))}
+                        </div>
+                      </td>
+                      <td data-label="Actions">
+                        <div className="flex items-center gap-2">
+                          <AdminButton
+                            variant="secondary"
+                            type="button"
+                            loading={printingId === zone.id}
+                            loadingText="Opening..."
+                            onClick={() => void openPoster(zone)}
+                          >
+                            Print poster
+                          </AdminButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -18,6 +18,7 @@ const NAVIGATION_ITEMS = [
   { href: '/admin/leaderboard', label: 'Leaderboard' },
   { href: '/admin/campuses', label: 'Campuses' },
   { href: '/admin/drop-zones', label: 'Drop zones' },
+  { href: '/admin/zone-capacity', label: 'Zone capacity' },
 ] as const;
 
 export function AdminShell({ children }: { children: ReactNode }) {
