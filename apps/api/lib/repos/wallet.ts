@@ -1,14 +1,20 @@
 // wallet repo: persistence for wallet credit transactions (kind/status/amount/reason).
-//
-// Drizzle credit-transaction table, comparators, and the DB seam.
-import { db, creditTxns, eq, desc } from '@chokro/db';
+import { db, creditTxns, eq, desc, and } from '@chokro/db';
 import { withDb } from './seam';
 
-// Row-shaped payload for a manual adjustment entry.
 export interface CreateAdjustmentTransactionInput {
   userId: string;
   amount: number;
   reason?: string | null;
+}
+
+export interface CreateEarnTransactionInput {
+  userId: string;
+  amount: number | string;
+  custodyRef?: string | null;
+  rateCardEntryId?: string | null;
+  reason?: string | null;
+  status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
 }
 
 export const walletRepo = {
@@ -23,8 +29,7 @@ export const walletRepo = {
     });
   },
 
-  // Record an admin adjustment as an immediately-VERIFIED ADJUST entry so the
-  // balance math treats it as real funds from creation; amount is fixed 2-dp.
+  // Record an admin adjustment as an immediately-VERIFIED ADJUST entry
   async createAdjustmentTransaction(input: CreateAdjustmentTransactionInput) {
     return withDb(async () => {
       const [txn] = await db
@@ -38,6 +43,56 @@ export const walletRepo = {
         })
         .returning();
       return txn;
+    });
+  },
+
+  // Record an EARN credit transaction bound to a custody event
+  async createEarnTransaction(input: CreateEarnTransactionInput) {
+    return withDb(async () => {
+      const [txn] = await db
+        .insert(creditTxns)
+        .values({
+          user_id: input.userId,
+          amount: String(typeof input.amount === 'number' ? input.amount.toFixed(2) : input.amount),
+          kind: 'EARN',
+          status: input.status || 'PENDING',
+          custody_ref: input.custodyRef || null,
+          rate_card_entry_id: input.rateCardEntryId || null,
+          reason: input.reason || null,
+        })
+        .returning();
+      return txn;
+    });
+  },
+
+  // Update pending credit amount upon verified scale reading
+  async updatePendingCreditAmount(custodyRef: string, newAmount: number | string) {
+    return withDb(async () => {
+      const [updated] = await db
+        .update(creditTxns)
+        .set({
+          amount: String(typeof newAmount === 'number' ? newAmount.toFixed(2) : newAmount),
+        })
+        .where(
+          and(
+            eq(creditTxns.custody_ref, custodyRef),
+            eq(creditTxns.status, 'PENDING')
+          )
+        )
+        .returning();
+      return updated || null;
+    });
+  },
+
+  // Lookup credit by custody ref
+  async findByCustodyRef(custodyRef: string) {
+    return withDb(async () => {
+      const rows = await db
+        .select()
+        .from(creditTxns)
+        .where(eq(creditTxns.custody_ref, custodyRef))
+        .limit(1);
+      return rows[0] || null;
     });
   },
 };
