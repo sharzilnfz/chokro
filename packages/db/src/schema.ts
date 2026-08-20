@@ -278,3 +278,38 @@ export const campusLeaderboards = pgTable('campus_leaderboards', {
   snapshot_date: date('snapshot_date').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
+
+// KYC Document Extractions & OCR Audit Records (SPEC 15)
+export const kycExtractions = pgTable('kyc_extractions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  partner_id: uuid('partner_id').notNull().references(() => partners.id),
+  document_url: text('document_url').notNull(),
+  document_type: varchar('document_type', { length: 50 }).notNull(), // TRADE_LICENSE, DOE_EWASTE_PERMIT, TIN_CERTIFICATE
+  ocr_provider: varchar('ocr_provider', { length: 50 }).default('GOOGLE_VISION').notNull(), // GOOGLE_VISION, LOCAL_FALLBACK
+  raw_extracted_text: text('raw_extracted_text'),
+  extracted_org_name: varchar('extracted_org_name', { length: 255 }),
+  extracted_license_number: varchar('extracted_license_number', { length: 100 }),
+  extracted_expiry_date: timestamp('extracted_expiry_date'),
+  confidence_score: decimal('confidence_score', { precision: 4, scale: 2 }).notNull(), // 0.00 to 1.00
+  match_status: varchar('match_status', { length: 50 }).default('PENDING_MATCH').notNull(), // EXACT_MATCH, PARTIAL_MATCH, MISMATCH, EXPIRED
+  mismatched_fields: jsonb('mismatched_fields').default([]).notNull(), // string[]
+  is_expired: boolean('is_expired').default(false).notNull(),
+  adjudicated_by: uuid('adjudicated_by').references(() => users.id),
+  adjudicated_at: timestamp('adjudicated_at'),
+  adjudication_notes: text('adjudication_notes'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Partner Compliance Log: records state transitions & capability grants (SPEC 15)
+export const partnerComplianceAudits = pgTable('partner_compliance_audits', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  partner_id: uuid('partner_id').notNull().references(() => partners.id),
+  extraction_id: uuid('extraction_id').references(() => kycExtractions.id),
+  previous_status: varchar('previous_status', { length: 50 }).notNull(),
+  new_status: varchar('new_status', { length: 50 }).notNull(),
+  granted_capabilities: jsonb('granted_capabilities').default({}).notNull(),
+  actor_id: uuid('actor_id').notNull().references(() => users.id),
+  reason: text('reason').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+

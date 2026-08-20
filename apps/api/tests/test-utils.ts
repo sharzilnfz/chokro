@@ -226,6 +226,36 @@ const TABLE_DDLS = [
     snapshot_date date NOT NULL,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS kyc_extractions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id uuid NOT NULL REFERENCES partners(id),
+    document_url text NOT NULL,
+    document_type varchar(50) NOT NULL,
+    ocr_provider varchar(50) NOT NULL DEFAULT 'GOOGLE_VISION',
+    raw_extracted_text text,
+    extracted_org_name varchar(255),
+    extracted_license_number varchar(100),
+    extracted_expiry_date timestamp,
+    confidence_score decimal(4, 2) NOT NULL,
+    match_status varchar(50) NOT NULL DEFAULT 'PENDING_MATCH',
+    mismatched_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
+    is_expired boolean NOT NULL DEFAULT false,
+    adjudicated_by uuid REFERENCES users(id),
+    adjudicated_at timestamp,
+    adjudication_notes text,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS partner_compliance_audits (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id uuid NOT NULL REFERENCES partners(id),
+    extraction_id uuid REFERENCES kyc_extractions(id),
+    previous_status varchar(50) NOT NULL,
+    new_status varchar(50) NOT NULL,
+    granted_capabilities jsonb NOT NULL DEFAULT '{}'::jsonb,
+    actor_id uuid NOT NULL REFERENCES users(id),
+    reason text NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -242,7 +272,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE partner_compliance_audits, kyc_extractions, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 

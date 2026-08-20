@@ -189,3 +189,23 @@ export const CampusStatusEnum = z.enum(['VERIFIED', 'PENDING', 'BLACKLISTED']);
 export type CampusStatus = z.infer<typeof CampusStatusEnum>;
 export const CAMPUS_STATUSES = CampusStatusEnum.options;
 
+// KYC Document Types for Partner Intelligence (SPEC 15)
+export const KycDocumentTypeEnum = z.enum(['TRADE_LICENSE', 'DOE_EWASTE_PERMIT', 'TIN_CERTIFICATE']);
+export type KycDocumentType = z.infer<typeof KycDocumentTypeEnum>;
+export const KYC_DOCUMENT_TYPES = KycDocumentTypeEnum.options;
+
+// OCR Extraction Providers (SPEC 15)
+export const KycOcrProviderEnum = z.enum(['GOOGLE_VISION', 'LOCAL_FALLBACK']);
+export type KycOcrProvider = z.infer<typeof KycOcrProviderEnum>;
+export const KYC_OCR_PROVIDERS = KycOcrProviderEnum.options;
+
+// KYC Entity Match Outcomes (SPEC 15)
+export const KycMatchStatusEnum = z.enum(['EXACT_MATCH', 'PARTIAL_MATCH', 'MISMATCH', 'EXPIRED', 'PENDING_MATCH']);
+export type KycMatchStatus = z.infer<typeof KycMatchStatusEnum>;
+export const KYC_MATCH_STATUSES = KycMatchStatusEnum.options;
+
+// Admin KYC Adjudication Decisions (SPEC 15)
+export const KycAdjudicationDecisionEnum = z.enum(['APPROVE', 'REJECT', 'REQUEST_REUPLOAD']);
+export type KycAdjudicationDecision = z.infer<typeof KycAdjudicationDecisionEnum>;
+export const KYC_ADJUDICATION_DECISIONS = KycAdjudicationDecisionEnum.options;
+

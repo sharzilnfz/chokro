@@ -1,6 +1,6 @@
 // DTOs for partner onboarding, verification flow, and capability management.
 import { z } from 'zod';
-import { PartnerTypeEnum } from '../enums';
+import { PartnerTypeEnum, KycDocumentTypeEnum, KycAdjudicationDecisionEnum } from '../enums';
 
 // Validates granular capability flags for a partner organization
 export const PartnerCapabilityFlagsSchema = z.object({
@@ -35,3 +35,24 @@ export const UpdatePartnerCapabilitiesSchema = z.object({
   capabilityFlags: PartnerCapabilityFlagsSchema,
 });
 export type UpdatePartnerCapabilitiesInput = z.infer<typeof UpdatePartnerCapabilitiesSchema>;
+
+// Validates a KYC document OCR extraction request (SPEC 15)
+export const KycExtractRequestSchema = z.object({
+  partnerId: z.string().uuid(),
+  documentUrl: z.string().min(1),
+  documentType: KycDocumentTypeEnum.default('TRADE_LICENSE'),
+  submittedLicenseNumber: z.string().optional().nullable(),
+  submittedOrgName: z.string().optional().nullable(),
+  rawDocumentText: z.string().optional().nullable(),
+  imageBase64: z.string().optional().nullable(),
+});
+export type KycExtractRequestInput = z.infer<typeof KycExtractRequestSchema>;
+
+// Validates an admin KYC adjudication decision (SPEC 15)
+export const KycAdjudicateRequestSchema = z.object({
+  decision: KycAdjudicationDecisionEnum,
+  notes: z.string().optional().nullable(),
+  grantEwasteLicense: z.boolean().optional().default(false),
+});
+export type KycAdjudicateRequestInput = z.infer<typeof KycAdjudicateRequestSchema>;
+
