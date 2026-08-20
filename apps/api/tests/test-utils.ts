@@ -442,7 +442,6 @@ const TABLE_DDLS = [
     reviewed_at timestamp,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
-<<<<<<< HEAD
   `CREATE TABLE IF NOT EXISTS liability_caps (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     monthly_platform_cap_bdt decimal(12, 2) NOT NULL,
