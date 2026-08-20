@@ -153,16 +153,24 @@ export const savedListings = pgTable(
 );
 
 // Append-only wallet ledger; credit balance derives from EARN/REDEEM/ADJUST rows
-export const creditTxns = pgTable('credit_txns', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  user_id: uuid('user_id').notNull().references(() => users.id),
-  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
-  kind: varchar('kind', { length: 50 }).notNull(), // EARN, REDEEM, ADJUST
-  status: varchar('status', { length: 50 }).default('PENDING').notNull(), // PENDING, VERIFIED, REJECTED
-  source_id: varchar('source_id', { length: 255 }),
-  reason: text('reason'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-});
+export const creditTxns = pgTable(
+  'credit_txns',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    user_id: uuid('user_id').notNull().references(() => users.id),
+    amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+    kind: varchar('kind', { length: 50 }).notNull(), // EARN, REDEEM, ADJUST
+    status: varchar('status', { length: 50 }).default('PENDING').notNull(), // PENDING, VERIFIED, REJECTED
+    source_id: varchar('source_id', { length: 255 }),
+    custody_ref: varchar('custody_ref', { length: 255 }),
+    rate_card_entry_id: uuid('rate_card_entry_id').references(() => rateCardEntries.id),
+    reason: text('reason'),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('credit_txns_custody_ref_unique').on(table.custody_ref),
+  ],
+);
 
 export const rateBenchmarks = pgTable('rate_benchmarks', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -198,6 +206,8 @@ export const pickupOrders = pgTable('pickup_orders', {
   customer_id: uuid('customer_id').references(() => users.id),
   collector_partner_id: uuid('collector_partner_id').references(() => partners.id), // null until assigned
   status: varchar('status', { length: 50 }).default('REQUESTED').notNull(), // REQUESTED, ASSIGNED, EN_ROUTE, COLLECTED, CANCELLED
+  source_type: varchar('source_type', { length: 30 }).default('LISTING').notNull(), // LISTING, DROP_ZONE
+  zone_id: uuid('zone_id').references(() => dropZones.id),
   address: text('address').notNull(),
   lat: doublePrecision('lat').notNull(),
   lng: doublePrecision('lng').notNull(),
@@ -379,6 +389,49 @@ export const demandMatches = pgTable('demand_matches', {
   distance_km: decimal('distance_km', { precision: 10, scale: 2 }),
   notification_sent: boolean('notification_sent').default(false).notNull(),
   status: varchar('status', { length: 30 }).default('UNNOTICED').notNull(), // UNNOTICED, VIEWED, OFFERED, DECLINED
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Single-use Drop Zone Sessions (Ticket 07 / SPEC 11)
+export const dropSessions = pgTable('drop_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  zone_id: uuid('zone_id').notNull().references(() => dropZones.id),
+  user_id: uuid('user_id').notNull().references(() => users.id),
+  session_secret: varchar('session_secret', { length: 255 }).notNull(),
+  short_code: varchar('short_code', { length: 20 }).notNull(),
+  status: varchar('status', { length: 30 }).default('OPEN').notNull(), // OPEN, CONSUMED, EXPIRED
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Verified Deposit Records & Evidence Bundles (Ticket 07 / SPEC 11)
+export const depositRecords = pgTable('deposit_records', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  session_id: uuid('session_id').notNull().references(() => dropSessions.id),
+  zone_id: uuid('zone_id').notNull().references(() => dropZones.id),
+  user_id: uuid('user_id').notNull().references(() => users.id),
+  category: varchar('category', { length: 50 }).notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(), // kg, piece
+  declared_quantity: decimal('declared_quantity', { precision: 10, scale: 2 }).notNull(),
+  verified_quantity: decimal('verified_quantity', { precision: 10, scale: 2 }),
+  evidence_url: text('evidence_url').notNull(),
+  rate_card_entry_id: uuid('rate_card_entry_id').references(() => rateCardEntries.id),
+  estimated_bdt: decimal('estimated_bdt', { precision: 10, scale: 2 }).notNull(),
+  verified_bdt: decimal('verified_bdt', { precision: 10, scale: 2 }),
+  status: varchar('status', { length: 30 }).default('RECORDED').notNull(), // RECORDED, VERIFIED, ESCALATED, REJECTED
+  divergence_ratio: decimal('divergence_ratio', { precision: 6, scale: 3 }),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Drop Zone Emptying Records & Physical Scale Readings (Ticket 07 / SPEC 11)
+export const zoneEmptyingRecords = pgTable('zone_emptying_records', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  zone_id: uuid('zone_id').notNull().references(() => dropZones.id),
+  collector_partner_id: uuid('collector_partner_id').references(() => partners.id),
+  scale_readings_json: jsonb('scale_readings_json').notNull(), // Record<Category, number>
+  evidence_url: text('evidence_url'),
+  total_mass_kg: decimal('total_mass_kg', { precision: 10, scale: 2 }).notNull(),
+  emptied_at: timestamp('emptied_at').defaultNow().notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 

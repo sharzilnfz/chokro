@@ -103,6 +103,8 @@ const TABLE_DDLS = [
     kind varchar(50) NOT NULL,
     status varchar(50) NOT NULL DEFAULT 'PENDING',
     source_id varchar(255),
+    custody_ref varchar(255) UNIQUE,
+    rate_card_entry_id uuid REFERENCES rate_card_entries(id),
     reason text,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
@@ -138,6 +140,8 @@ const TABLE_DDLS = [
     customer_id uuid REFERENCES users(id),
     collector_partner_id uuid REFERENCES partners(id),
     status varchar(50) NOT NULL DEFAULT 'REQUESTED',
+    source_type varchar(30) NOT NULL DEFAULT 'LISTING',
+    zone_id uuid REFERENCES drop_zones(id),
     address text NOT NULL,
     lat double precision NOT NULL,
     lng double precision NOT NULL,
@@ -317,6 +321,43 @@ const TABLE_DDLS = [
     status varchar(30) NOT NULL DEFAULT 'UNNOTICED',
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS drop_sessions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    zone_id uuid NOT NULL REFERENCES drop_zones(id),
+    user_id uuid NOT NULL REFERENCES users(id),
+    session_secret varchar(255) NOT NULL,
+    short_code varchar(20) NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'OPEN',
+    expires_at timestamp NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS deposit_records (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id uuid NOT NULL REFERENCES drop_sessions(id),
+    zone_id uuid NOT NULL REFERENCES drop_zones(id),
+    user_id uuid NOT NULL REFERENCES users(id),
+    category varchar(50) NOT NULL,
+    unit varchar(20) NOT NULL,
+    declared_quantity decimal(10, 2) NOT NULL,
+    verified_quantity decimal(10, 2),
+    evidence_url text NOT NULL,
+    rate_card_entry_id uuid REFERENCES rate_card_entries(id),
+    estimated_bdt decimal(10, 2) NOT NULL,
+    verified_bdt decimal(10, 2),
+    status varchar(30) NOT NULL DEFAULT 'RECORDED',
+    divergence_ratio decimal(6, 3),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS zone_emptying_records (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    zone_id uuid NOT NULL REFERENCES drop_zones(id),
+    collector_partner_id uuid REFERENCES partners(id),
+    scale_readings_json jsonb NOT NULL,
+    evidence_url text,
+    total_mass_kg decimal(10, 2) NOT NULL,
+    emptied_at timestamp NOT NULL DEFAULT NOW(),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -333,7 +374,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 
