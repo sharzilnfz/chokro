@@ -20,8 +20,9 @@ import { PhotoUploader } from '@/components/PhotoUploader';
 import { EstimatorCard } from '@/components/EstimatorCard';
 import { useCreateListing } from '@/hooks/useCreateListing';
 import { useEstimate } from '@/hooks/useEstimate';
-import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
+import { pickAndCompressPhoto, takeAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
 import type { ListingPrefill } from '@/types';
+import { isPieceCategory } from '@chokro/shared';
 
 // onCreated fires after a successful publish so the shell returns to Browse.
 type CreateListingScreenProps = {
@@ -54,6 +55,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
 
   // Derived values: per-category unit, parsed/validated quantity, and BDT total.
   const unit = getCategoryUnit(category);
+  const maxPhotos = isPieceCategory(category) ? 5 : 3;
   const parsedQuantity = parseFloat(quantity);
   const hasValidQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0;
   const parsedPrice = parseFloat(price);
@@ -70,7 +72,7 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
     setError('');
   }, []);
 
-  // Picks and compresses a photo, reporting the resulting size in the notice.
+  // Picks and compresses a photo from gallery
   const pickPhoto = useCallback(async () => {
     setPreparingPhoto(true);
     setError('');
@@ -82,6 +84,23 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
       setNotice(`Photo ready: ${nextPhoto.width} x ${nextPhoto.height}, ${Math.ceil(nextPhoto.bytes / 1024)} KB.`);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not prepare this photo.'));
+    } finally {
+      setPreparingPhoto(false);
+    }
+  }, []);
+
+  // Takes and compresses a photo using camera
+  const takePhoto = useCallback(async () => {
+    setPreparingPhoto(true);
+    setError('');
+    setNotice('');
+    try {
+      const nextPhoto = await takeAndCompressPhoto();
+      if (!nextPhoto) return;
+      setPhoto(nextPhoto);
+      setNotice(`Photo captured: ${nextPhoto.width} x ${nextPhoto.height}, ${Math.ceil(nextPhoto.bytes / 1024)} KB.`);
+    } catch (nextError) {
+      setError(getErrorMessage(nextError, 'Could not capture photo.'));
     } finally {
       setPreparingPhoto(false);
     }
@@ -142,16 +161,19 @@ export function CreateListingScreen({ onCreated, prefill = null }: CreateListing
       <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">List an item</Text>
       <Text className="text-muted text-[14px] leading-[21px] mt-[7px] mb-[22px]">Choose only what you know. Final condition and value are confirmed by a partner later.</Text>
 
-      {/* Photo step: required before publishing; shows preview and remove control. */}
+      {/* Photo step: compound PhotoUploader with camera and gallery actions. */}
       <PhotoUploader
         photo={photo}
         preparingPhoto={preparingPhoto}
+        maxPhotos={maxPhotos}
         onPickPhoto={() => void pickPhoto()}
+        onTakePhoto={() => void takePhoto()}
         onRemovePhoto={() => {
           setPhoto(null);
           setNotice('');
         }}
       />
+
 
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
         {/* Step 02 — category selection as radio-style chips. */}

@@ -328,3 +328,23 @@ export const partnerComplianceAudits = pgTable('partner_compliance_audits', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Canonical Listing Media & Evidence Assets (Ticket 03 / Spec 16)
+export const listingMedia = pgTable('listing_media', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  listing_id: uuid('listing_id').references(() => listings.id),
+  uploader_id: uuid('uploader_id').notNull().references(() => users.id),
+  storage_provider: varchar('storage_provider', { length: 50 }).default('CLOUDINARY').notNull(), // CLOUDINARY, LOCAL_FS
+  public_url: text('public_url').notNull(),
+  thumbnail_url: text('thumbnail_url').notNull(),
+  original_filename: varchar('original_filename', { length: 255 }).notNull(),
+  mime_type: varchar('mime_type', { length: 50 }).notNull(),
+  byte_size: integer('byte_size').notNull(),
+  width: integer('width'),
+  height: integer('height'),
+  exif_gps_extracted: boolean('exif_gps_extracted').default(false).notNull(),
+  extracted_lat: doublePrecision('extracted_lat'),
+  extracted_lng: doublePrecision('extracted_lng'),
+  is_privacy_stripped: boolean('is_privacy_stripped').default(true).notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+

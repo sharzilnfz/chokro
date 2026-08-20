@@ -13,3 +13,5 @@ export * from './dto/messages';
 export * from './dto/leaderboard';
 export * from './dto/campuses';
 export * from './dto/profile';
+export * from './dto/media';
+
