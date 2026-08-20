@@ -20,3 +20,5 @@ export * from './dto/trustGate';
 export * from './dto/negotiations';
 export * from './dto/handovers';
 export * from './dto/redemptions';
+export * from './dto/escrow';
+export * from './dto/disputes';

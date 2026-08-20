@@ -12,6 +12,7 @@ import {
 import { trustGateRepo } from '../repos/trustGate';
 import { walletRepo } from '../repos/wallet';
 import { depositRepo } from '../repos/deposits';
+import { disputeRepo } from '../repos/disputes';
 import { WalletDomain } from './WalletDomain';
 
 export interface DecisionEvaluationResult {
@@ -467,6 +468,15 @@ export class TrustGateDomain {
 
     // Run pure evaluation
     const evaluation = this.evaluate(subject, combinedSignals, thresholds);
+
+    // Cross-cutting check: an open dispute on a pickup/deposit/lot pauses verification
+    const openDispute = await disputeRepo.findOpenBySource(input.subjectType, input.subjectId);
+    if (openDispute) {
+      evaluation.decision = 'ESCALATE';
+      if (!evaluation.failingSignals.includes('open_dispute_pause')) {
+        evaluation.failingSignals.push('open_dispute_pause');
+      }
+    }
 
     // Persist Decision
     const decisionRecord = await trustGateRepo.createDecision({

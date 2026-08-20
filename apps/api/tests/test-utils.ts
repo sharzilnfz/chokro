@@ -474,6 +474,31 @@ const TABLE_DDLS = [
     payload jsonb,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS escrow_holds (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    lot_id uuid NOT NULL REFERENCES auction_lots(id),
+    buyer_id uuid NOT NULL REFERENCES users(id),
+    seller_id uuid NOT NULL REFERENCES users(id),
+    amount_bdt decimal(10, 2) NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'HELD',
+    inspection_expires_at timestamp NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS disputes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_type varchar(50) NOT NULL,
+    source_id uuid NOT NULL,
+    opened_by uuid NOT NULL REFERENCES users(id),
+    against_user_id uuid NOT NULL REFERENCES users(id),
+    reason text NOT NULL,
+    evidence_urls jsonb NOT NULL DEFAULT '[]'::jsonb,
+    status varchar(30) NOT NULL DEFAULT 'OPEN',
+    resolution varchar(50),
+    resolution_notes text,
+    resolved_by uuid REFERENCES users(id),
+    resolved_at timestamp,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -490,7 +515,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE payout_records, redemption_requests, liability_caps, decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE disputes, escrow_holds, payout_records, redemption_requests, liability_caps, decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 
