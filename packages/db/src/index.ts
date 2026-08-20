@@ -38,7 +38,7 @@ function resolveConnectionString(): string {
 }
 
 // Pick the DB backend based on the runtime environment
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === 'test' || process.env.USE_PGLITE === 'true') {
   // In-memory real Postgres WASM engine for tests (Zero setup required!)
   pgliteClient = new PGlite();
   dbInstance = drizzlePglite(pgliteClient, { schema });
