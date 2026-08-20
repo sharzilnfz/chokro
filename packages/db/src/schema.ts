@@ -535,7 +535,6 @@ export const decisionContests = pgTable('decision_contests', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
-<<<<<<< HEAD
 // Liability Caps & Fee Configurations (Ticket 09a / SPEC 13)
 export const liabilityCaps = pgTable('liability_caps', {
   id: uuid('id').defaultRandom().primaryKey(),
