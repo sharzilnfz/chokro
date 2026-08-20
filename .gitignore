@@ -48,4 +48,4 @@ docs/demos/
 compose.override.yaml
 
 *.tsbuildinfo
-
+.worktrees/
