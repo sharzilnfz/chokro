@@ -19,6 +19,7 @@ const NAVIGATION_ITEMS = [
   { href: '/admin/campuses', label: 'Campuses' },
   { href: '/admin/drop-zones', label: 'Drop zones' },
   { href: '/admin/zone-capacity', label: 'Zone capacity' },
+  { href: '/admin/thresholds', label: 'Trust thresholds' },
 ] as const;
 
 export function AdminShell({ children }: { children: ReactNode }) {

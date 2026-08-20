@@ -95,4 +95,52 @@ export const walletRepo = {
       return rows[0] || null;
     });
   },
+
+  // Lookup credit by ID
+  async findById(id: string) {
+    return withDb(async () => {
+      const rows = await db
+        .select()
+        .from(creditTxns)
+        .where(eq(creditTxns.id, id))
+        .limit(1);
+      return rows[0] || null;
+    });
+  },
+
+  // Flips PENDING credit to VERIFIED, sets trust_decision_id, and optionally updates amount
+  async verifyCreditTransaction(input: {
+    id?: string;
+    custodyRef?: string;
+    trustDecisionId: string;
+    amount?: number | string;
+  }) {
+    return withDb(async () => {
+      const conditions = [eq(creditTxns.status, 'PENDING')];
+      if (input.id) {
+        conditions.push(eq(creditTxns.id, input.id));
+      } else if (input.custodyRef) {
+        conditions.push(eq(creditTxns.custody_ref, input.custodyRef));
+      } else {
+        return null;
+      }
+
+      const updateData: Record<string, any> = {
+        status: 'VERIFIED',
+        trust_decision_id: input.trustDecisionId,
+      };
+      if (input.amount !== undefined && input.amount !== null) {
+        updateData.amount = String(
+          typeof input.amount === 'number' ? input.amount.toFixed(2) : input.amount
+        );
+      }
+
+      const [updated] = await db
+        .update(creditTxns)
+        .set(updateData)
+        .where(and(...conditions))
+        .returning();
+      return updated || null;
+    });
+  },
 };

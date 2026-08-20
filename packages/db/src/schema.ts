@@ -164,6 +164,7 @@ export const creditTxns = pgTable(
     source_id: varchar('source_id', { length: 255 }),
     custody_ref: varchar('custody_ref', { length: 255 }),
     rate_card_entry_id: uuid('rate_card_entry_id').references(() => rateCardEntries.id),
+    trust_decision_id: uuid('trust_decision_id'),
     reason: text('reason'),
     created_at: timestamp('created_at').defaultNow().notNull(),
   },
@@ -432,6 +433,53 @@ export const zoneEmptyingRecords = pgTable('zone_emptying_records', {
   evidence_url: text('evidence_url'),
   total_mass_kg: decimal('total_mass_kg', { precision: 10, scale: 2 }).notNull(),
   emptied_at: timestamp('emptied_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Trust Gate Decisions (Ticket 08a / SPEC 12)
+export const trustDecisions = pgTable('trust_decisions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  subject_type: varchar('subject_type', { length: 50 }).notNull(), // DEPOSIT, PICKUP, MANUAL
+  subject_id: uuid('subject_id').notNull(),
+  decision: varchar('decision', { length: 30 }).notNull(), // AUTO_CLEAR, ESCALATE
+  failing_signals: jsonb('failing_signals').$type<string[]>().default([]).notNull(),
+  evaluated_signals: jsonb('evaluated_signals').$type<Record<string, any>>().notNull(),
+  threshold_config_id: uuid('threshold_config_id'),
+  decided_by: varchar('decided_by', { length: 50 }).default('SYSTEM').notNull(),
+  decided_at: timestamp('decided_at').defaultNow().notNull(),
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Fraud Flags & Suspicious Activity (Ticket 08a / SPEC 12)
+export const fraudFlags = pgTable('fraud_flags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  entity_type: varchar('entity_type', { length: 50 }).notNull(), // USER, PARTNER
+  entity_id: uuid('entity_id').notNull(),
+  flag_type: varchar('flag_type', { length: 50 }).notNull(),
+  reason: text('reason').notNull(),
+  severity: varchar('severity', { length: 20 }).default('MEDIUM').notNull(), // LOW, MEDIUM, HIGH, CRITICAL
+  is_cleared: boolean('is_cleared').default(false).notNull(),
+  cleared_by: uuid('cleared_by').references(() => users.id),
+  cleared_at: timestamp('cleared_at'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Dynamic Trust Threshold Configurations (Ticket 08a / SPEC 12)
+export const trustThresholdConfigs = pgTable('trust_threshold_configs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  config_json: jsonb('config_json').$type<Record<string, any>>().notNull(),
+  effective_from: timestamp('effective_from').defaultNow().notNull(),
+  updated_by: uuid('updated_by').references(() => users.id),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Perceptual Evidence Hashes (Ticket 08a / SPEC 12)
+export const evidenceHashes = pgTable('evidence_hashes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  evidence_url: text('evidence_url').notNull(),
+  phash_hex: varchar('phash_hex', { length: 64 }).notNull(),
+  uploader_id: uuid('uploader_id').notNull().references(() => users.id),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
