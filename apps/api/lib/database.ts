@@ -27,13 +27,24 @@ export class BadRequestError extends Error {
   }
 }
 
-// Map conflict to 409, bad request to 400, unavailability to 503, and everything else to 500.
+// Raised when a requested resource does not exist.
+export class NotFoundError extends Error {
+  constructor(message = 'Not found') {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
+// Map conflict to 409, bad request to 400, not found to 404, unavailability to 503, and everything else to 500.
 export function routeError(error: unknown) {
   if (error instanceof ConflictError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
   if (error instanceof BadRequestError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof NotFoundError) {
+    return NextResponse.json({ error: error.message }, { status: 404 });
   }
   if (error instanceof DatabaseUnavailableError) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });

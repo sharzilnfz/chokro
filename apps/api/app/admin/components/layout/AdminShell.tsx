@@ -24,6 +24,7 @@ const NAVIGATION_ITEMS = [
   { href: '/admin/thresholds', label: 'Trust thresholds' },
   { href: '/admin/trust-gate', label: 'Escalations (A07)' },
   { href: '/admin/disputes', label: 'Disputes (A09)' },
+  { href: '/admin/certificates', label: 'Certificates (A12)' },
 ] as const;
 
 

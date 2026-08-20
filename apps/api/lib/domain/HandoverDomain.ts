@@ -9,6 +9,7 @@ import { depositRepo } from '../repos/deposits';
 import { disputeRepo } from '../repos/disputes';
 import { TrustGateDomain } from './TrustGateDomain';
 import { WalletDomain } from './WalletDomain';
+import { ImpactDomain } from './ImpactDomain';
 import { NotificationSeam } from '../notify';
 import type { EscalationWorklistItem, AdjudicateDecisionInput, ContestDecisionInput } from '@chokro/shared';
 
@@ -303,6 +304,42 @@ export class HandoverDomain {
             'VERIFIED'
           );
           await WalletDomain.onCreditsVerified(deposit.user_id);
+          try {
+            await ImpactDomain.recordVerifiedImpact({
+              custodyType: 'DEPOSIT',
+              custodyId: deposit.id,
+              trustDecisionId: decisionId,
+              userId: deposit.user_id,
+              category: deposit.category,
+              declaredQuantity: Number(deposit.declared_quantity),
+              verifiedQuantity: Number(deposit.verified_quantity || deposit.declared_quantity),
+              unit: deposit.unit,
+            });
+          } catch (err) {
+            console.error('Failed to record verified impact on adjudication:', err);
+          }
+        }
+      } else if (decision.subject_type === 'PICKUP') {
+        const pickup = await pickupRepo.findByIdWithRefs(decision.subject_id);
+        if (pickup) {
+          try {
+            const qty =
+              pickup.listing.unit === 'piece'
+                ? pickup.listing.piece_count || 1
+                : Number(pickup.listing.declared_weight || 1);
+            await ImpactDomain.recordVerifiedImpact({
+              custodyType: 'PICKUP',
+              custodyId: decision.subject_id,
+              trustDecisionId: decisionId,
+              userId: pickup.order.customer_id!,
+              category: pickup.listing.category,
+              declaredQuantity: qty,
+              verifiedQuantity: qty,
+              unit: pickup.listing.unit,
+            });
+          } catch (err) {
+            console.error('Failed to record verified impact on adjudication:', err);
+          }
         }
       }
 
