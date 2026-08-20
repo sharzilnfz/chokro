@@ -19,5 +19,4 @@ export * from './dto/deposits';
 export * from './dto/trustGate';
 export * from './dto/negotiations';
 export * from './dto/handovers';
-
-
+export * from './dto/redemptions';

@@ -534,3 +534,42 @@ export const decisionContests = pgTable('decision_contests', {
   reviewed_at: timestamp('reviewed_at'),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Liability Caps & Fee Configurations (Ticket 09a / SPEC 13)
+export const liabilityCaps = pgTable('liability_caps', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  monthly_platform_cap_bdt: decimal('monthly_platform_cap_bdt', { precision: 12, scale: 2 }).notNull(),
+  monthly_user_cap_bdt: decimal('monthly_user_cap_bdt', { precision: 10, scale: 2 }).notNull(),
+  min_redemption_bdt: decimal('min_redemption_bdt', { precision: 10, scale: 2 }).notNull(),
+  fee_percentage: decimal('fee_percentage', { precision: 5, scale: 2 }).notNull(),
+  effective_from: timestamp('effective_from').defaultNow().notNull(),
+  updated_by: uuid('updated_by').references(() => users.id),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Green Wallet Redemption Requests (Ticket 09a / SPEC 13)
+export const redemptionRequests = pgTable('redemption_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  user_id: uuid('user_id').notNull().references(() => users.id),
+  amount_credits: decimal('amount_credits', { precision: 10, scale: 2 }).notNull(),
+  payout_channel: varchar('payout_channel', { length: 30 }).notNull(),
+  account_number: varchar('account_number', { length: 50 }).notNull(),
+  gross_amount_bdt: decimal('gross_amount_bdt', { precision: 10, scale: 2 }).notNull(),
+  fee_bdt: decimal('fee_bdt', { precision: 10, scale: 2 }).notNull(),
+  net_amount_bdt: decimal('net_amount_bdt', { precision: 10, scale: 2 }).notNull(),
+  status: varchar('status', { length: 30 }).default('REQUESTED').notNull(), // REQUESTED, AUTO_APPROVED, ESCALATED, APPROVED, PAID, REJECTED, CANCELLED, FAILED
+  trust_decision_id: uuid('trust_decision_id').references(() => trustDecisions.id),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+// MFS Payout Records & External Gateway Settlements (Ticket 09a / SPEC 13)
+export const payoutRecords = pgTable('payout_records', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  redemption_id: uuid('redemption_id').notNull().references(() => redemptionRequests.id),
+  gateway_ref: varchar('gateway_ref', { length: 100 }),
+  gateway_provider: varchar('gateway_provider', { length: 50 }).default('SSLCOMMERZ_MFS').notNull(),
+  status: varchar('status', { length: 30 }).notNull(), // SUCCESS, FAILED, PENDING, SIMULATED
+  payload: jsonb('payload'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+

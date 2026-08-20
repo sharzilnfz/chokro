@@ -442,6 +442,38 @@ const TABLE_DDLS = [
     reviewed_at timestamp,
     created_at timestamp NOT NULL DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS liability_caps (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    monthly_platform_cap_bdt decimal(12, 2) NOT NULL,
+    monthly_user_cap_bdt decimal(10, 2) NOT NULL,
+    min_redemption_bdt decimal(10, 2) NOT NULL,
+    fee_percentage decimal(5, 2) NOT NULL,
+    effective_from timestamp NOT NULL DEFAULT NOW(),
+    updated_by uuid REFERENCES users(id),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS redemption_requests (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES users(id),
+    amount_credits decimal(10, 2) NOT NULL,
+    payout_channel varchar(30) NOT NULL,
+    account_number varchar(50) NOT NULL,
+    gross_amount_bdt decimal(10, 2) NOT NULL,
+    fee_bdt decimal(10, 2) NOT NULL,
+    net_amount_bdt decimal(10, 2) NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'REQUESTED',
+    trust_decision_id uuid REFERENCES trust_decisions(id),
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE TABLE IF NOT EXISTS payout_records (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    redemption_id uuid NOT NULL REFERENCES redemption_requests(id),
+    gateway_ref varchar(100),
+    gateway_provider varchar(50) NOT NULL DEFAULT 'SSLCOMMERZ_MFS',
+    status varchar(30) NOT NULL,
+    payload jsonb,
+    created_at timestamp NOT NULL DEFAULT NOW()
+  );`,
 ];
 
 let schemaInitialized = false;
@@ -458,7 +490,7 @@ export async function ensureTestDbSchema() {
 export async function resetTestStore() {
   await ensureTestDbSchema();
   await db.execute(sql`
-    TRUNCATE TABLE decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
+    TRUNCATE TABLE payout_records, redemption_requests, liability_caps, decision_contests, custody_handovers, negotiation_offers, negotiation_threads, evidence_hashes, fraud_flags, trust_decisions, trust_threshold_configs, zone_emptying_records, deposit_records, drop_sessions, demand_matches, buyer_demands, listing_media, partner_compliance_audits, kyc_extractions, zone_capacity_logs, campus_leaderboards, badge_awards, user_streaks, saved_listings, messages, conversations, evidence_records, auction_bids, auction_lots, dispatch_assignments, pickup_orders, valuation_scans, rate_benchmarks, credit_txns, drop_zones, rate_card_entries, listings, partners, campuses, users CASCADE;
   `);
 }
 
