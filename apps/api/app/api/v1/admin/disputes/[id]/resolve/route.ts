@@ -1,8 +1,7 @@
 import { ResolveDisputeSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiError, apiSuccess, safeRoute } from '@/lib/http';
-import { DisputeDomain, DisputeRuleError } from '@/lib/domain/DisputeDomain';
-import { EscrowRuleError } from '@/lib/domain/EscrowDomain';
+import { DisputeDomain } from '@/lib/domain/DisputeDomain';
 
 export const POST = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
@@ -18,23 +17,16 @@ export const POST = safeRoute(async (req: Request, { params }: { params: Promise
     return apiError('Invalid resolution payload', 400, parsed.error.format());
   }
 
-  try {
-    const dispute = await DisputeDomain.resolveDispute({
-      disputeId: id,
-      adminUserId: auth.user.userId,
-      resolution: parsed.data.resolution,
-      resolutionNotes: parsed.data.resolutionNotes,
-      buyerAmountBdt: parsed.data.buyerAmountBdt,
-      sellerAmountBdt: parsed.data.sellerAmountBdt,
-    });
+  const dispute = await DisputeDomain.resolveDispute({
+    disputeId: id,
+    adminUserId: auth.user.userId,
+    resolution: parsed.data.resolution,
+    resolutionNotes: parsed.data.resolutionNotes,
+    buyerAmountBdt: parsed.data.buyerAmountBdt,
+    sellerAmountBdt: parsed.data.sellerAmountBdt,
+  });
 
-    return apiSuccess('Dispute resolved successfully', { dispute }, 200);
-  } catch (err) {
-    if (err instanceof DisputeRuleError || err instanceof EscrowRuleError) {
-      return apiError(err.message, err.status, err.details);
-    }
-    throw err;
-  }
+  return apiSuccess('Dispute resolved successfully', { dispute }, 200);
 });
 
 export { OPTIONS } from '@/lib/http';

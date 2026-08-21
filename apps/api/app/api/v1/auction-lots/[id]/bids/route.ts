@@ -1,7 +1,7 @@
 import { PlaceBidSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiError, apiSuccess, safeRoute } from '@/lib/http';
-import { AuctionDomain, AuctionRuleError } from '@/lib/domain/AuctionDomain';
+import { AuctionDomain } from '@/lib/domain/AuctionDomain';
 
 export const POST = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
@@ -17,19 +17,12 @@ export const POST = safeRoute(async (req: Request, { params }: { params: Promise
     return apiError('Invalid bid', 400, parsed.error.format());
   }
 
-  try {
-    const result = await AuctionDomain.placeBid({
-      lotId: id,
-      bidderUserId: auth.user.userId,
-      amount: parsed.data.amount,
-    });
-    return apiSuccess('Bid accepted', result, 201);
-  } catch (err) {
-    if (err instanceof AuctionRuleError) {
-      return apiError(err.message, err.status, err.details);
-    }
-    throw err;
-  }
+  const result = await AuctionDomain.placeBid({
+    lotId: id,
+    bidderUserId: auth.user.userId,
+    amount: parsed.data.amount,
+  });
+  return apiSuccess('Bid accepted', result, 201);
 });
 
 export { OPTIONS } from '@/lib/http';

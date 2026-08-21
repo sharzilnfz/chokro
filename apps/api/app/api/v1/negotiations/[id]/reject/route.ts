@@ -1,7 +1,7 @@
 // POST /api/negotiations/[id]/reject — auth required. Rejects active pending offer.
 import { requireAuth } from '@/lib/auth';
-import { apiError, apiSuccess, safeRoute, OPTIONS } from '@/lib/http';
-import { NegotiationDomain, NegotiationRuleError } from '@/lib/domain/NegotiationDomain';
+import { apiSuccess, safeRoute, OPTIONS } from '@/lib/http';
+import { NegotiationDomain } from '@/lib/domain/NegotiationDomain';
 import { RejectOfferSchema } from '@chokro/shared';
 
 export const POST = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
@@ -24,15 +24,8 @@ export const POST = safeRoute(async (req: Request, { params }: { params: Promise
     // optional body
   }
 
-  try {
-    const offer = await NegotiationDomain.rejectOffer(auth.user.userId, id, reason);
-    return apiSuccess('Offer rejected', { offer }, 200);
-  } catch (err) {
-    if (err instanceof NegotiationRuleError) {
-      return apiError(err.message, err.status, err.details);
-    }
-    throw err;
-  }
+  const offer = await NegotiationDomain.rejectOffer(auth.user.userId, id, reason);
+  return apiSuccess('Offer rejected', { offer }, 200);
 });
 
 export { OPTIONS };

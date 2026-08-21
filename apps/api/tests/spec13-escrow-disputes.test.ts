@@ -11,8 +11,8 @@ import {
   trustDecisions,
   eq,
 } from '@chokro/db';
-import { EscrowDomain, EscrowRuleError } from '../lib/domain/EscrowDomain';
-import { DisputeDomain, DisputeRuleError } from '../lib/domain/DisputeDomain';
+import { EscrowDomain } from '../lib/domain/EscrowDomain';
+import { DisputeDomain } from '../lib/domain/DisputeDomain';
 import { AuctionDomain } from '../lib/domain/AuctionDomain';
 import { TrustGateDomain } from '../lib/domain/TrustGateDomain';
 import { HandoverDomain } from '../lib/domain/HandoverDomain';

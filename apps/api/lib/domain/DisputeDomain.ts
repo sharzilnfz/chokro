@@ -3,18 +3,8 @@ import { disputeRepo, type Dispute } from '../repos/disputes';
 import { escrowRepo } from '../repos/escrow';
 import { EscrowDomain } from './EscrowDomain';
 import { NotificationSeam } from '../notify';
+import { DomainRuleError } from '../database';
 import type { DisputeSourceType, DisputeResolution } from '@chokro/shared';
-
-export class DisputeRuleError extends Error {
-  constructor(
-    message: string,
-    readonly status = 400,
-    readonly details?: unknown
-  ) {
-    super(message);
-    this.name = 'DisputeRuleError';
-  }
-}
 
 export interface CreateDisputeParams {
   sourceType: DisputeSourceType;
@@ -49,12 +39,12 @@ export class DisputeDomain {
    */
   static async createDispute(params: CreateDisputeParams): Promise<Dispute> {
     if (!params.reason || params.reason.trim().length < 5) {
-      throw new DisputeRuleError('Dispute reason must be at least 5 characters', 400);
+      throw new DomainRuleError('Dispute reason must be at least 5 characters', 400);
     }
 
     const openExisting = await disputeRepo.findOpenBySource(params.sourceType, params.sourceId);
     if (openExisting) {
-      throw new DisputeRuleError(
+      throw new DomainRuleError(
         `An open dispute already exists for this ${params.sourceType.toLowerCase()}`,
         409,
         { existingDisputeId: openExisting.id }
@@ -105,15 +95,15 @@ export class DisputeDomain {
   ): Promise<Dispute> {
     const dispute = await disputeRepo.findById(disputeId);
     if (!dispute) {
-      throw new DisputeRuleError('Dispute not found', 404);
+      throw new DomainRuleError('Dispute not found', 404);
     }
 
     if (dispute.status !== 'OPEN' && dispute.status !== 'UNDER_REVIEW') {
-      throw new DisputeRuleError(`Cannot add evidence to dispute in ${dispute.status} status`, 400);
+      throw new DomainRuleError(`Cannot add evidence to dispute in ${dispute.status} status`, 400);
     }
 
     if (actorUserId !== dispute.opened_by && actorUserId !== dispute.against_user_id) {
-      throw new DisputeRuleError('Only involved parties can submit evidence to this dispute', 403);
+      throw new DomainRuleError('Only involved parties can submit evidence to this dispute', 403);
     }
 
     const combined = Array.from(new Set([...(dispute.evidence_urls as string[]), ...evidenceUrls]));
@@ -127,15 +117,15 @@ export class DisputeDomain {
   static async resolveDispute(params: ResolveDisputeParams): Promise<Dispute> {
     const dispute = await disputeRepo.findById(params.disputeId);
     if (!dispute) {
-      throw new DisputeRuleError('Dispute not found', 404);
+      throw new DomainRuleError('Dispute not found', 404);
     }
 
     if (dispute.status === 'RESOLVED' || dispute.status === 'CLOSED') {
-      throw new DisputeRuleError('Dispute has already been resolved and resolution is immutable', 400);
+      throw new DomainRuleError('Dispute has already been resolved and resolution is immutable', 400);
     }
 
     if (!params.resolutionNotes || params.resolutionNotes.trim().length < 3) {
-      throw new DisputeRuleError('Resolution notes explaining the decision are mandatory', 400);
+      throw new DomainRuleError('Resolution notes explaining the decision are mandatory', 400);
     }
 
     // Settle auction escrow holds if applicable
@@ -175,7 +165,7 @@ export class DisputeDomain {
     });
 
     if (!updated) {
-      throw new DisputeRuleError('Failed to resolve dispute', 500);
+      throw new DomainRuleError('Failed to resolve dispute', 500);
     }
 
     // Notify both parties of resolution

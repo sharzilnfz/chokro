@@ -1,6 +1,7 @@
 import { auctionRepo, type AuctionBid, type AuctionLot, type CreateLotInput as CreateAuctionLotInput } from '@/lib/repos/auctions';
 import { partnerRepo } from '@/lib/repos/partners';
 import { AuctionRealtimeService } from '@/lib/services/AuctionRealtimeService';
+import { DomainRuleError } from '@/lib/database';
 import { EscrowDomain } from './EscrowDomain';
 
 const TRANSITIONS: Record<string, string[]> = {
@@ -14,18 +15,6 @@ const TRANSITIONS: Record<string, string[]> = {
 export const MIN_BID_INCREMENT_BDT = 50;
 /** A valid bid landing inside this final window extends the close time. */
 export const ANTI_SNIPE_WINDOW_MS = 2 * 60 * 1000;
-
-/** Domain rule violation that maps directly onto an HTTP error response. */
-export class AuctionRuleError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly details?: unknown,
-  ) {
-    super(message);
-    this.name = 'AuctionRuleError';
-  }
-}
 
 export type PublicAuctionLot = {
   id: string;
@@ -206,18 +195,18 @@ export const AuctionDomain = {
   }): Promise<{ bid: PublicAuctionBid; lot: PublicAuctionLot }> {
     const loaded = await this.getLotById(params.lotId);
     if (!loaded) {
-      throw new AuctionRuleError('Auction lot not found', 404);
+      throw new DomainRuleError('Auction lot not found', 404);
     }
     let lot = loaded;
 
     if (lot.status !== 'LIVE' || Date.now() >= lot.closes_at.getTime()) {
-      throw new AuctionRuleError('This auction has closed — bids are no longer accepted', 410);
+      throw new DomainRuleError('This auction has closed — bids are no longer accepted', 410);
     }
 
     const highest = await auctionRepo.findHighestBid(lot.id);
     const currentPrice = this.currentPriceBdt(lot, highest);
     if (params.amount < currentPrice + MIN_BID_INCREMENT_BDT) {
-      throw new AuctionRuleError(
+      throw new DomainRuleError(
         `Outbid — current price is now ৳${formatBdt(currentPrice)}. Minimum next bid is ৳${formatBdt(currentPrice + MIN_BID_INCREMENT_BDT)}.`,
         409,
         {

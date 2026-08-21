@@ -1,7 +1,7 @@
 import { CreateDisputeSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
-import { DisputeDomain, DisputeRuleError } from '@/lib/domain/DisputeDomain';
+import { DisputeDomain } from '@/lib/domain/DisputeDomain';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
@@ -24,23 +24,16 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Invalid dispute payload', 400, parsed.error.format());
   }
 
-  try {
-    const dispute = await DisputeDomain.createDispute({
-      sourceType: parsed.data.sourceType,
-      sourceId: parsed.data.sourceId,
-      openedBy: auth.user.userId,
-      againstUserId: parsed.data.againstUserId,
-      reason: parsed.data.reason,
-      evidenceUrls: parsed.data.evidenceUrls,
-    });
+  const dispute = await DisputeDomain.createDispute({
+    sourceType: parsed.data.sourceType,
+    sourceId: parsed.data.sourceId,
+    openedBy: auth.user.userId,
+    againstUserId: parsed.data.againstUserId,
+    reason: parsed.data.reason,
+    evidenceUrls: parsed.data.evidenceUrls,
+  });
 
-    return apiSuccess('Dispute opened successfully', { dispute }, 201);
-  } catch (err) {
-    if (err instanceof DisputeRuleError) {
-      return apiError(err.message, err.status, err.details);
-    }
-    throw err;
-  }
+  return apiSuccess('Dispute opened successfully', { dispute }, 201);
 });
 
 export { OPTIONS } from '@/lib/http';

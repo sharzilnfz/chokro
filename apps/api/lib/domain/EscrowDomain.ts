@@ -3,6 +3,7 @@ import { escrowRepo, type EscrowHold } from '../repos/escrow';
 import { auctionRepo, type AuctionLot, type AuctionBid } from '../repos/auctions';
 import { disputeRepo } from '../repos/disputes';
 import { NotificationSeam } from '../notify';
+import { DomainRuleError } from '../database';
 
 export const DEFAULT_INSPECTION_HOURS = 48;
 
@@ -14,17 +15,6 @@ const ESCROW_TRANSITIONS: Record<string, string[]> = {
   PARTIALLY_RELEASED: [],
 };
 
-export class EscrowRuleError extends Error {
-  constructor(
-    message: string,
-    readonly status = 400,
-    readonly details?: unknown
-  ) {
-    super(message);
-    this.name = 'EscrowRuleError';
-  }
-}
-
 export class EscrowDomain {
   static canTransition(currentStatus: string, targetStatus: string): boolean {
     return ESCROW_TRANSITIONS[currentStatus]?.includes(targetStatus) ?? false;
@@ -32,7 +22,7 @@ export class EscrowDomain {
 
   static assertTransition(currentStatus: string, targetStatus: string): void {
     if (!this.canTransition(currentStatus, targetStatus)) {
-      throw new EscrowRuleError(
+      throw new DomainRuleError(
         `Invalid escrow status transition from ${currentStatus} to ${targetStatus}`,
         400
       );
@@ -137,7 +127,7 @@ export class EscrowDomain {
   ): Promise<EscrowHold> {
     const hold = await escrowRepo.findById(escrowHoldId);
     if (!hold) {
-      throw new EscrowRuleError('Escrow hold not found', 404);
+      throw new DomainRuleError('Escrow hold not found', 404);
     }
 
     if (hold.status === 'RELEASED_TO_SELLER') {
@@ -145,7 +135,7 @@ export class EscrowDomain {
     }
 
     if (hold.status === 'FROZEN_IN_DISPUTE' && (!actorUserId || actorUserId === hold.buyer_id)) {
-      throw new EscrowRuleError('Cannot release funds while escrow is frozen in dispute', 400);
+      throw new DomainRuleError('Cannot release funds while escrow is frozen in dispute', 400);
     }
 
     this.assertTransition(hold.status, 'RELEASED_TO_SELLER');
@@ -157,7 +147,7 @@ export class EscrowDomain {
 
     const updated = await escrowRepo.updateStatus(hold.id, 'RELEASED_TO_SELLER');
     if (!updated) {
-      throw new EscrowRuleError('Failed to update escrow hold', 500);
+      throw new DomainRuleError('Failed to update escrow hold', 500);
     }
 
     await NotificationSeam.notify({
@@ -179,7 +169,7 @@ export class EscrowDomain {
   ): Promise<EscrowHold> {
     const hold = await escrowRepo.findById(escrowHoldId);
     if (!hold) {
-      throw new EscrowRuleError('Escrow hold not found', 404);
+      throw new DomainRuleError('Escrow hold not found', 404);
     }
 
     if (hold.status === 'RETURNED_TO_BUYER') {
@@ -190,7 +180,7 @@ export class EscrowDomain {
 
     const updated = await escrowRepo.updateStatus(hold.id, 'RETURNED_TO_BUYER');
     if (!updated) {
-      throw new EscrowRuleError('Failed to update escrow hold', 500);
+      throw new DomainRuleError('Failed to update escrow hold', 500);
     }
 
     await NotificationSeam.notify({
@@ -213,7 +203,7 @@ export class EscrowDomain {
   ): Promise<{ hold: EscrowHold; buyerAmountBdt: number; sellerAmountBdt: number }> {
     const hold = await escrowRepo.findById(escrowHoldId);
     if (!hold) {
-      throw new EscrowRuleError('Escrow hold not found', 404);
+      throw new DomainRuleError('Escrow hold not found', 404);
     }
 
     this.assertTransition(hold.status, 'PARTIALLY_RELEASED');
@@ -222,7 +212,7 @@ export class EscrowDomain {
     const sum = Math.round((buyerAmountBdt + sellerAmountBdt) * 100) / 100;
 
     if (Math.abs(sum - totalHeld) > 0.01) {
-      throw new EscrowRuleError(
+      throw new DomainRuleError(
         `Partial release amounts (৳${buyerAmountBdt} + ৳${sellerAmountBdt} = ৳${sum}) must equal total held amount ৳${totalHeld}`,
         400,
         { totalHeld, buyerAmountBdt, sellerAmountBdt }
@@ -231,7 +221,7 @@ export class EscrowDomain {
 
     const updated = await escrowRepo.updateStatus(hold.id, 'PARTIALLY_RELEASED');
     if (!updated) {
-      throw new EscrowRuleError('Failed to update escrow hold', 500);
+      throw new DomainRuleError('Failed to update escrow hold', 500);
     }
 
     await NotificationSeam.notify({
@@ -259,7 +249,7 @@ export class EscrowDomain {
   static async freezeForDispute(escrowHoldId: string): Promise<EscrowHold> {
     const hold = await escrowRepo.findById(escrowHoldId);
     if (!hold) {
-      throw new EscrowRuleError('Escrow hold not found', 404);
+      throw new DomainRuleError('Escrow hold not found', 404);
     }
 
     if (hold.status === 'FROZEN_IN_DISPUTE') {

@@ -1,7 +1,7 @@
 import { ReleaseEscrowSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiError, apiSuccess, safeRoute } from '@/lib/http';
-import { EscrowDomain, EscrowRuleError } from '@/lib/domain/EscrowDomain';
+import { EscrowDomain } from '@/lib/domain/EscrowDomain';
 
 export const POST = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
@@ -23,15 +23,8 @@ export const POST = safeRoute(async (req: Request, { params }: { params: Promise
     // If empty body or non-JSON, notes remains undefined
   }
 
-  try {
-    const hold = await EscrowDomain.releaseToSeller(id, auth.user.userId, notes);
-    return apiSuccess('Escrow funds released to seller', { escrowHold: hold }, 200);
-  } catch (err) {
-    if (err instanceof EscrowRuleError) {
-      return apiError(err.message, err.status, err.details);
-    }
-    throw err;
-  }
+  const hold = await EscrowDomain.releaseToSeller(id, auth.user.userId, notes);
+  return apiSuccess('Escrow funds released to seller', { escrowHold: hold }, 200);
 });
 
 export { OPTIONS } from '@/lib/http';

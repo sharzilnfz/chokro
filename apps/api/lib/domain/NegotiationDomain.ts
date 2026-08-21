@@ -1,3 +1,4 @@
+import { DomainRuleError } from '@/lib/database';
 import {
   negotiationRepo,
   type NegotiationOffer,
@@ -11,17 +12,6 @@ import type {
 } from '@chokro/shared';
 
 export const DEFAULT_OFFER_TTL_HOURS = 24;
-
-export class NegotiationRuleError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly details?: unknown,
-  ) {
-    super(message);
-    this.name = 'NegotiationRuleError';
-  }
-}
 
 export const NegotiationDomain = {
   /**
@@ -41,15 +31,15 @@ export const NegotiationDomain = {
   async createThread(buyerId: string, input: CreateNegotiationThreadInput) {
     const listing = await listingRepo.findById(input.listingId);
     if (!listing) {
-      throw new NegotiationRuleError('Listing not found', 404);
+      throw new DomainRuleError('Listing not found', 404);
     }
 
     if (listing.status !== 'ACTIVE') {
-      throw new NegotiationRuleError('Cannot negotiate on an inactive listing', 400);
+      throw new DomainRuleError('Cannot negotiate on an inactive listing', 400);
     }
 
     if (listing.owner_id === buyerId) {
-      throw new NegotiationRuleError('Listing owner cannot negotiate on their own listing', 400);
+      throw new DomainRuleError('Listing owner cannot negotiate on their own listing', 400);
     }
 
     const expiresAt = new Date(Date.now() + DEFAULT_OFFER_TTL_HOURS * 60 * 60 * 1000);
@@ -97,19 +87,19 @@ export const NegotiationDomain = {
   async submitCounterOffer(userId: string, threadId: string, input: CreateCounterOfferInput) {
     const threadWithDetails = await negotiationRepo.findThreadByIdWithDetails(threadId);
     if (!threadWithDetails) {
-      throw new NegotiationRuleError('Negotiation thread not found', 404);
+      throw new DomainRuleError('Negotiation thread not found', 404);
     }
 
     if (threadWithDetails.buyer_id !== userId && threadWithDetails.seller_id !== userId) {
-      throw new NegotiationRuleError('Only thread participants can submit offers', 403);
+      throw new DomainRuleError('Only thread participants can submit offers', 403);
     }
 
     if (threadWithDetails.status !== 'OPEN') {
-      throw new NegotiationRuleError(`Cannot submit offer on a ${threadWithDetails.status.toLowerCase()} thread`, 400);
+      throw new DomainRuleError(`Cannot submit offer on a ${threadWithDetails.status.toLowerCase()} thread`, 400);
     }
 
     if (threadWithDetails.listing.status !== 'ACTIVE') {
-      throw new NegotiationRuleError('Listing is no longer active', 400);
+      throw new DomainRuleError('Listing is no longer active', 400);
     }
 
     // Invariant: Mark previous pending offers in this thread as SUPERSEDED
@@ -154,34 +144,34 @@ export const NegotiationDomain = {
   async acceptOffer(userId: string, threadId: string) {
     const thread = await negotiationRepo.findThreadByIdWithDetails(threadId);
     if (!thread) {
-      throw new NegotiationRuleError('Negotiation thread not found', 404);
+      throw new DomainRuleError('Negotiation thread not found', 404);
     }
 
     if (thread.buyer_id !== userId && thread.seller_id !== userId) {
-      throw new NegotiationRuleError('Only thread participants can accept offers', 403);
+      throw new DomainRuleError('Only thread participants can accept offers', 403);
     }
 
     if (thread.status !== 'OPEN') {
-      throw new NegotiationRuleError(`Cannot accept offer on a ${thread.status.toLowerCase()} thread`, 400);
+      throw new DomainRuleError(`Cannot accept offer on a ${thread.status.toLowerCase()} thread`, 400);
     }
 
     const rawActiveOffer = await negotiationRepo.findActiveOfferByThread(threadId);
     if (!rawActiveOffer) {
-      throw new NegotiationRuleError('No active pending offer to accept', 404);
+      throw new DomainRuleError('No active pending offer to accept', 404);
     }
 
     const activeOffer = await this.checkAndExpireOffer(rawActiveOffer);
     if (activeOffer.status === 'EXPIRED') {
-      throw new NegotiationRuleError('Offer has expired and cannot be accepted', 410);
+      throw new DomainRuleError('Offer has expired and cannot be accepted', 410);
     }
 
     if (activeOffer.offered_by_user_id === userId) {
-      throw new NegotiationRuleError('Cannot accept your own offer — counterparty must accept', 400);
+      throw new DomainRuleError('Cannot accept your own offer — counterparty must accept', 400);
     }
 
     const listing = await listingRepo.findById(thread.listing_id);
     if (!listing || listing.status !== 'ACTIVE') {
-      throw new NegotiationRuleError('Listing is no longer active and cannot be matched', 409);
+      throw new DomainRuleError('Listing is no longer active and cannot be matched', 409);
     }
 
     // 1. Accept active offer
@@ -252,29 +242,29 @@ export const NegotiationDomain = {
   async rejectOffer(userId: string, threadId: string, reason?: string) {
     const thread = await negotiationRepo.findThreadByIdWithDetails(threadId);
     if (!thread) {
-      throw new NegotiationRuleError('Negotiation thread not found', 404);
+      throw new DomainRuleError('Negotiation thread not found', 404);
     }
 
     if (thread.buyer_id !== userId && thread.seller_id !== userId) {
-      throw new NegotiationRuleError('Only thread participants can reject offers', 403);
+      throw new DomainRuleError('Only thread participants can reject offers', 403);
     }
 
     if (thread.status !== 'OPEN') {
-      throw new NegotiationRuleError(`Cannot reject offer on a ${thread.status.toLowerCase()} thread`, 400);
+      throw new DomainRuleError(`Cannot reject offer on a ${thread.status.toLowerCase()} thread`, 400);
     }
 
     const rawActiveOffer = await negotiationRepo.findActiveOfferByThread(threadId);
     if (!rawActiveOffer) {
-      throw new NegotiationRuleError('No active pending offer to reject', 404);
+      throw new DomainRuleError('No active pending offer to reject', 404);
     }
 
     const activeOffer = await this.checkAndExpireOffer(rawActiveOffer);
     if (activeOffer.status === 'EXPIRED') {
-      throw new NegotiationRuleError('Offer has already expired', 410);
+      throw new DomainRuleError('Offer has already expired', 410);
     }
 
     if (activeOffer.offered_by_user_id === userId) {
-      throw new NegotiationRuleError('Cannot reject your own offer — counterparty must reject', 400);
+      throw new DomainRuleError('Cannot reject your own offer — counterparty must reject', 400);
     }
 
     const rejectedOffer = await negotiationRepo.updateOfferStatus(activeOffer.id, 'REJECTED');
@@ -298,11 +288,11 @@ export const NegotiationDomain = {
   async getThreadById(userId: string, threadId: string, userRole?: string) {
     const thread = await negotiationRepo.findThreadByIdWithDetails(threadId);
     if (!thread) {
-      throw new NegotiationRuleError('Negotiation thread not found', 404);
+      throw new DomainRuleError('Negotiation thread not found', 404);
     }
 
     if (thread.buyer_id !== userId && thread.seller_id !== userId && userRole !== 'ADMIN') {
-      throw new NegotiationRuleError('Forbidden: you are not a participant in this negotiation', 403);
+      throw new DomainRuleError('Forbidden: you are not a participant in this negotiation', 403);
     }
 
     // Lazily evaluate expiration of any pending offer

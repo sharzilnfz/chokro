@@ -35,8 +35,29 @@ export class NotFoundError extends Error {
   }
 }
 
-// Map conflict to 409, bad request to 400, not found to 404, unavailability to 503, and everything else to 500.
+// Raised by domain modules when a business rule is violated. Carries the HTTP
+// status and optional structured details the response should include.
+export class DomainRuleError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'DomainRuleError';
+  }
+}
+
+// Map a domain rule violation to its own status, conflict to 409, bad request to
+// 400, not found to 404, unavailability to 503, and everything else to 500.
 export function routeError(error: unknown) {
+  if (error instanceof DomainRuleError) {
+    const body =
+      error.details === undefined
+        ? { error: error.message }
+        : { error: error.message, details: error.details };
+    return NextResponse.json(body, { status: error.status });
+  }
   if (error instanceof ConflictError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
