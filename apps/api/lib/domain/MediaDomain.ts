@@ -29,6 +29,17 @@ export interface ProcessMediaInput {
   purpose?: 'LISTING' | 'DEPOSIT_EVIDENCE' | 'DISPUTE_PROOF';
 }
 
+// Transport-level upload payload parsed out of an HTTP request: multipart
+// form-data, JSON with a data-URI/base64 image, or a raw binary body.
+export interface ParsedUpload {
+  buffer: Buffer;
+  originalFilename: string;
+  mimeType: string;
+  purpose?: 'LISTING' | 'DEPOSIT_EVIDENCE' | 'DISPUTE_PROOF';
+  listingId?: string;
+  category?: string;
+}
+
 export interface ProcessMediaResult {
   mediaId: string;
   publicUrl: string;
@@ -69,6 +80,69 @@ function isCloudinaryConfigured(): boolean {
 }
 
 export class MediaDomain {
+  /**
+   * Parses an upload Request into a ParsedUpload, accepting multipart/form-data,
+   * JSON (file/dataUri/base64 data-URI or raw base64), or a raw binary body.
+   * Throws BadRequestError for missing or empty payloads.
+   */
+  static async parseUploadRequest(req: Request): Promise<ParsedUpload> {
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const file = formData.get('file') as File | null;
+      if (!file) {
+        throw new BadRequestError('No file provided in form data');
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      return {
+        buffer: Buffer.from(arrayBuffer),
+        originalFilename: file.name || 'image.jpg',
+        mimeType: file.type || 'image/jpeg',
+        purpose: (formData.get('purpose') as any) || undefined,
+        listingId: (formData.get('listingId') as string) || (formData.get('listing_id') as string) || undefined,
+        category: (formData.get('category') as string) || undefined,
+      };
+    }
+
+    if (contentType.includes('application/json')) {
+      const json = await req.json();
+      if (!json.file && !json.dataUri && !json.base64) {
+        throw new BadRequestError('No image payload provided');
+      }
+      const raw = json.file || json.dataUri || json.base64;
+      let mimeType = 'image/jpeg';
+      let buffer: Buffer;
+      if (typeof raw === 'string' && raw.startsWith('data:')) {
+        const parts = raw.split(',');
+        const match = parts[0].match(/:(.*?);/);
+        mimeType = match ? match[1] : 'image/jpeg';
+        buffer = Buffer.from(parts[1], 'base64');
+      } else {
+        buffer = Buffer.from(raw, 'base64');
+      }
+      return {
+        buffer,
+        originalFilename: json.filename || 'image.jpg',
+        mimeType,
+        purpose: json.purpose,
+        listingId: json.listingId || json.listing_id,
+        category: json.category,
+      };
+    }
+
+    // Raw binary stream
+    const arrayBuffer = await req.arrayBuffer();
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      throw new BadRequestError('Empty media payload');
+    }
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      originalFilename: 'image.jpg',
+      mimeType: contentType || 'image/jpeg',
+    };
+  }
+
   /**
    * Returns max allowable photos for a material category.
    * Recyclable materials: 3, Appliances / E-Waste: 5.

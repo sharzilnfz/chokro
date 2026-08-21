@@ -1,11 +1,37 @@
 // FeedDomain: Hyperlocal Geo-Discovery, Haversine spatial math, and reverse geocoding (SPEC 17)
 import { listingRepo, ListingFilter } from '../repos/listings';
+import { savedListingRepo } from '../repos/savedListings';
+import { verifyAuthHeader } from '../auth';
+import { CategoryEnum, ConditionEnum } from '@chokro/shared';
+import { z } from 'zod';
+import { KeysetPagination } from './KeysetPagination';
+import type { KeysetCursor } from './KeysetPagination';
+import { BadRequestError } from '../database';
 
 export interface ReverseGeoResult {
   thana: string;
   zilla: string;
   division?: string;
   source: 'NOMINATIM' | 'OFFLINE_FALLBACK';
+}
+
+// Typed feed filters parsed from URL search params.
+export interface FeedQuery {
+  category?: string;
+  condition?: string;
+  cursor: KeysetCursor | null;
+  limit: number;
+  saved?: boolean;
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  thana?: string;
+  sort?: string;
+}
+
+export interface FeedPage {
+  items: Array<Record<string, unknown> & { id: string; saved: boolean }>;
+  nextCursor: string | null;
 }
 
 // Known Dhaka Thana coordinate centroids for offline / degraded fallback
@@ -25,6 +51,85 @@ const DHAKA_THANAS: Array<{ thana: string; zilla: string; lat: number; lng: numb
 ];
 
 export const FeedDomain = {
+  // Coerce URL search params into typed feed filters; throws BadRequestError
+  // when any filter or the cursor fails to parse.
+  parseFeedQuery(searchParams: URLSearchParams): FeedQuery {
+    const categoryResult = searchParams.get('category') ? CategoryEnum.safeParse(searchParams.get('category')) : null;
+    const conditionResult = searchParams.get('condition') ? ConditionEnum.safeParse(searchParams.get('condition')) : null;
+    const limitResult = z.coerce.number().int().min(1).max(50).safeParse(searchParams.get('limit') ?? 20);
+    const cursor = KeysetPagination.parseCursor(searchParams.get('cursor'));
+
+    const latParam = searchParams.get('lat');
+    const lngParam = searchParams.get('lng');
+    const radiusKmParam = searchParams.get('radiusKm') || searchParams.get('radius');
+    const lat = latParam ? Number(latParam) : undefined;
+    const lng = lngParam ? Number(lngParam) : undefined;
+    const radiusKm = radiusKmParam ? Number(radiusKmParam) : undefined;
+
+    if (
+      categoryResult?.success === false ||
+      conditionResult?.success === false ||
+      !limitResult.success ||
+      cursor === undefined ||
+      (lat != null && isNaN(lat)) ||
+      (lng != null && isNaN(lng)) ||
+      (radiusKm != null && isNaN(radiusKm))
+    ) {
+      throw new BadRequestError('Invalid feed query');
+    }
+
+    return {
+      category: categoryResult?.data,
+      condition: conditionResult?.data,
+      cursor,
+      limit: limitResult.data,
+      saved: searchParams.get('saved') === 'true',
+      lat,
+      lng,
+      radiusKm,
+      thana: searchParams.get('thana') || undefined,
+      sort: searchParams.get('sort') || undefined,
+    };
+  },
+
+  // One page of published listings for a viewer: fetches one row beyond the page
+  // size to detect more, decorates items with the viewer's saved flags, and
+  // encodes the next-page cursor.
+  async getFeedPage(query: FeedQuery, req: Request): Promise<FeedPage> {
+    const user = verifyAuthHeader(req);
+    const savedFilter = query.saved === true;
+    if (savedFilter && !user) {
+      return { items: [], nextCursor: null };
+    }
+
+    // Fetch one row beyond the page size so we can tell whether another page exists.
+    const allItems = await listingRepo.findPublished({
+      category: query.category,
+      condition: query.condition,
+      cursor: query.cursor,
+      limit: query.limit,
+      savedFor: savedFilter && user ? user.userId : null,
+      lat: query.lat,
+      lng: query.lng,
+      radiusKm: query.radiusKm,
+      thana: query.thana,
+      sort: query.sort,
+    });
+    const hasMore = allItems.length > query.limit;
+    const items = allItems.slice(0, query.limit);
+
+    let savedIds = new Set<string>();
+    if (user) {
+      savedIds = new Set(await savedListingRepo.findSavedListingIds(user.userId));
+    }
+    const itemsWithSaved = items.map((item) => ({ ...item, saved: savedIds.has(item.id) }));
+
+    return {
+      items: itemsWithSaved,
+      nextCursor: hasMore ? KeysetPagination.encodeCursor(items[items.length - 1]) : null,
+    };
+  },
+
   // Pure Haversine distance in kilometers
   calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; // Earth's radius in km

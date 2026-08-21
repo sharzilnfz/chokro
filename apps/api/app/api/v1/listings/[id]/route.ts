@@ -3,20 +3,20 @@
 import { UpdateListingSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
-import { listingService } from '@/lib/services/listingService';
+import { ListingDomain } from '@/lib/domain/ListingDomain';
 
 // Returns a single listing, but only to its owner or an admin.
 export const GET = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
   if (auth.response) return auth.response;
   const { id } = await params;
-  const listing = await listingService.getListingById(id);
+  const listing = await ListingDomain.getListingById(id);
 
   if (!listing) {
     return apiError('Listing not found', 404);
   }
 
-  if (!listingService.isOwnerOrAdmin(listing, auth.user.userId, auth.user.role)) {
+  if (!ListingDomain.isOwnerOrAdmin(listing, auth.user.userId, auth.user.role)) {
     return apiError('Forbidden', 403);
   }
 
@@ -34,18 +34,18 @@ export const PATCH = safeRoute(async (req: Request, { params }: { params: Promis
   }
 
   // Validate existence, ownership, and a legal transition before mutating state.
-  const existing = await listingService.getListingById(id);
+  const existing = await ListingDomain.getListingById(id);
   if (!existing) {
     return apiError('Listing not found', 404);
   }
-  if (!listingService.isOwnerOrAdmin(existing, auth.user.userId, auth.user.role)) {
+  if (!ListingDomain.isOwnerOrAdmin(existing, auth.user.userId, auth.user.role)) {
     return apiError('Forbidden', 403);
   }
-  if (!listingService.isValidTransition(existing.status, parsed.data.status)) {
+  if (!ListingDomain.isValidTransition(existing.status, parsed.data.status)) {
     return apiError('Invalid listing status transition', 400);
   }
 
-  const updatedListing = await listingService.updateListingStatus(id, parsed.data.status, existing.status);
+  const updatedListing = await ListingDomain.updateListingStatus(id, parsed.data.status, existing.status);
 
   return apiSuccess('Listing updated', { listing: updatedListing });
 });

@@ -2,7 +2,7 @@
 // GET /api/listings — auth required. Lists the caller's own listings.
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
-import { listingService } from '@/lib/services/listingService';
+import { ListingDomain } from '@/lib/domain/ListingDomain';
 import { CreateListingSchema } from '@chokro/shared';
 
 // Creates a new listing, bound to the caller as its owner.
@@ -16,7 +16,7 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Invalid listing data', 400, parsed.error.format());
   }
 
-  const newListing = await listingService.createListing(auth.user.userId, parsed.data);
+  const newListing = await ListingDomain.createListing(auth.user.userId, parsed.data);
 
   return apiSuccess('Listing created', { listing: newListing }, 201);
 });
@@ -26,7 +26,7 @@ export const GET = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
   if (auth.response) return auth.response;
 
-  const myListings = await listingService.getListingsByOwner(auth.user.userId);
+  const myListings = await ListingDomain.getListingsByOwner(auth.user.userId);
   return apiData({ listings: myListings });
 });
 export { OPTIONS } from '@/lib/http';

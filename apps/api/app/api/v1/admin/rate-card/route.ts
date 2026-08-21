@@ -16,13 +16,13 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Invalid rate card data', 400, parsed.error.format());
   }
 
-  // Map shared-schema fields onto the repo shape, attributing the change to this admin.
+  // Publish the parsed rate, attributing the change to this admin.
   const { category, conditionBand, priceBdt } = parsed.data;
   const entry = await rateCardRepo.createEntry({
     category,
-    condition_band: conditionBand,
-    price_bdt: priceBdt,
-    updated_by: auth.user.userId,
+    conditionBand,
+    priceBdt,
+    updatedBy: auth.user.userId,
   });
 
   return apiSuccess('Rate card updated', { entry }, 201);

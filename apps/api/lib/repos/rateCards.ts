@@ -9,14 +9,14 @@ import { withDb } from './seam';
 // Inferred row type for a single rate-card entry.
 export type RateCardEntry = typeof rateCardEntries.$inferSelect;
 
-// Values accepted when publishing a new rate-card entry.
+// Values accepted when publishing a new rate-card entry. Shared-schema
+// (camelCase) field names are accepted directly so routes need no case-mapping.
 export interface CreateRateCardEntryInput {
   category: string;
-  condition_band?: string;
-  unit?: string;
-  price_bdt?: number | string;
-  effective_from?: Date;
-  updated_by?: string | null;
+  conditionBand?: string;
+  priceBdt?: number | string;
+  effectiveFrom?: Date;
+  updatedBy?: string | null;
 }
 
 export const rateCardRepo = {
@@ -28,11 +28,11 @@ export const rateCardRepo = {
         .insert(rateCardEntries)
         .values({
           category: input.category,
-          condition_band: input.condition_band || 'GOOD',
-          unit: input.unit || getCategoryUnit(input.category),
-          price_bdt: String(input.price_bdt ?? 0),
-          effective_from: input.effective_from || new Date(Date.now() - 1000),
-          updated_by: input.updated_by || null,
+          condition_band: input.conditionBand || 'GOOD',
+          unit: getCategoryUnit(input.category),
+          price_bdt: String(input.priceBdt ?? 0),
+          effective_from: input.effectiveFrom || new Date(Date.now() - 1000),
+          updated_by: input.updatedBy || null,
         })
         .returning();
       return entry;
