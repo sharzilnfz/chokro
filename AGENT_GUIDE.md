@@ -17,12 +17,14 @@
 ├── apps/
 │   ├── api/                              # Next.js 16 App Router (REST API + Web Admin at /admin)
 │   │   ├── app/api/                      # Route handlers (auth, feed, listings, partners, rate-card, drop-zones, wallet, admin)
-│   │   ├── app/admin/                    # Web Admin Console pages & components
+│   │   ├── app/admin/                    # Web Admin Console pages & components (data via useAdminResource factory; states via AdminNotice / AdminResourceState)
 │   │   ├── lib/
-│   │   │   ├── domain/                   # Pure business logic (ListingDomain, PartnerDomain, WalletDomain, AuthDomain)
-│   │   │   ├── repos/                    # Drizzle ORM queries wrapped in withDb() boundary (seam.ts)
+│   │   │   ├── domain/                   # Pure business logic. route→domain is the corridor; domains NEVER import @chokro/db (eslint-enforced)
+│   │   │   ├── repos/                    # Drizzle ORM queries wrapped in withDb() boundary (seam.ts). All persistence lives here
+│   │   │   ├── LedgerMath.ts             # Single ledger balance row-classifier (Verified/Pending sums)
 │   │   │   ├── auth.ts                   # JWT sign/verify, bcrypt hashing, requireAuth, requireAdmin
 │   │   │   ├── http.ts                   # safeRoute wrapper, CORS, standard JSON responses (apiSuccess, apiError)
+│   │   │   ├── notify.ts                 # Notification dispatch; recipient resolved via injectable ContactResolver adapter
 │   │   │   └── qr.ts                     # HMAC-SHA256 drop-zone token generator & timing-safe validator
 │   │   └── tests/                        # Jest test suites using in-memory PGlite engine
 │   └── mobile/                           # React Native 0.86 + Expo SDK 57 Mobile App
@@ -36,11 +38,13 @@
 ├── packages/
 │   ├── db/                               # Database package
 │   │   ├── src/schema.ts                 # Drizzle PostgreSQL schemas, relationships, and enums
+│   │   ├── src/ddl.ts                    # PGlite DDL GENERATED from the Drizzle schema (never hand-edited)
+│   │   ├── src/seed/                     # Seed data split into numbered scenario modules (01-campuses … 19-gamification)
 │   │   └── src/index.ts                  # DB client initialization (postgres driver / PGlite switch)
 │   └── shared/                           # Universal TypeScript types & validation
 │       ├── src/enums/                    # MaterialCategory, NextLifePath, ItemCondition, Unit, UserRole, etc.
 │       ├── src/rules/                    # Domain invariants (weight vs. piece category maps)
-│       └── src/dto/                      # Zod DTO schemas for API request/response validation
+│       └── src/dto/                      # Zod DTO schemas: request shapes here; server→client response shapes in src/dto/response/
 └── docs/                                 # Product specs (00-product-capability.md wins), architecture & ADRs
 ```
 
@@ -63,7 +67,7 @@ pnpm install                 # Install dependencies
 pnpm dev                     # Start API (localhost:3000) and Mobile bundler concurrently
 pnpm --filter @chokro/api dev     # Start API server only
 pnpm --filter @chokro/mobile start# Start Expo mobile app
-pnpm test                    # Run all tests (cached by Nx when inputs unchanged)
+pnpm test                    # Run all tests — 40 suites / 324 tests (cached by Nx when inputs unchanged)
 pnpm test:changed            # Run tests only for modified files (fastest for agent loops)
 pnpm run affected:test       # Run tests only for git-affected packages
 pnpm db:setup                # Run Drizzle migrations & seed data
@@ -89,12 +93,14 @@ pnpm typecheck               # Typecheck entire monorepo
 
 ### 4. Immutable Append-Only Ledger (`credit_txns`)
 - **NEVER mutate or update user balances directly.**
-- Verified balance = `SUM(amount)` where `status = 'VERIFIED'`.
-- Pending balance = `SUM(amount)` where `status = 'PENDING'`.
+- Verified Balance = `SUM(amount)` where `status = 'VERIFIED'`; Pending Balance = `SUM(amount)` where `status = 'PENDING'`.
+- `lib/LedgerMath.ts` is the **single** balance row-classifier; wallet and settlement repos both consume it (no re-implementations).
+- Ledger status flips (`mintPending` / `verify` / `reject` / `compensate`) have a **single owner**: `CreditVerificationDomain`, which also owns the typed custody-ref codec (`encodeCustodyRef`: `CUSTODY-DEP-*`, `CUSTODY-PICKUP-*`, `REDEMPTION-*`). Compensating entries use `REVERSAL-*` refs via `SettlementDomain.reverseRedemption()`.
 - Transaction kinds: `EARN` (deposits/sales), `REDEEM` (cashout/coupons), `ADJUST` (admin manual adjustment).
 
 ### 5. Trust Gate & E-Waste Licensing
-- Earnings stay in `PENDING` status until verified by a physical collection scan or QR drop zone confirmation.
+- Earnings stay in `PENDING` status until verified by a physical collection scan or QR Drop Zone confirmation.
+- `TrustGateDomain.evaluate(subject, signals, thresholds)` is the **pure decision core**; it lives inside `CreditVerificationDomain`, which applies the ledger flip. The evaluate route accepts only a subject reference (`subjectType` + `subjectId`) — signals/flags are always server-derived, never caller-supplied.
 - Partners requesting `E_WASTE` handling **must** submit a Department of Environment license (`doe_license_doc`). Admin must inspect and approve before `e_waste_licensed` flag is activated.
 
 ### 6. Drop Zone QR Token Security
@@ -213,13 +219,21 @@ export const findListingById = (id: string) => withDb(async (db) => {
 });
 ```
 
-### 4. Domain Logic Isolation
-Route handlers (`app/api/*`) are **thin HTTP controllers**. All validation, state transitions, calculations, and permission checks live in `apps/api/lib/domain/`:
+### 4. One Error Type, Mapped at the Route Seam (`lib/database.ts`)
+*Domains and repos throw a single `DomainRuleError(message, status, details?)` for every rule violation. `safeRoute` catches it and `routeError()` maps it to the HTTP response — no per-domain error classes, no manual try/catch or instanceof blocks in route handlers.*
+
+### 5. Domain Logic Isolation
+Route handlers (`app/api/*`) are **thin HTTP controllers**. All validation, state transitions, calculations, and permission checks live in `apps/api/lib/domain/`. Route→domain is the corridor convention — the wallet/listing/feed/media service facades were deleted; transport parsing lives in thin domain seams (`MediaDomain.parseUploadRequest`, `FeedDomain.parseFeedQuery`). Key modules:
 - `AuthDomain.ts`: Registration, bcrypt verification, JWT signing.
 - `ListingDomain.ts`: Listing creation & status transition guards.
 - `PartnerDomain.ts`: Partner applications & DoE license validation.
-- `WalletDomain.ts`: Ledger aggregation, derived balances, manual adjustments.
+- `WalletDomain.ts`: Ledger aggregation via LedgerMath, derived balances, manual adjustments.
+- `CreditVerificationDomain.ts`: **Single owner** of ledger status flips (`mintPending` / `verify` / `reject` / `compensate`) plus the custody-ref codec; hosts the pure `TrustGateDomain.evaluate` decision core.
+- `SettlementDomain.ts`: Payout saga — DB writes run inside real `db.transaction` calls (`settlePayoutAtomic` / `markRedemptionFailedAtomic` repos) with the MFS gateway call outside; `reverseRedemption()` is the single owner of `REVERSAL-*` compensating refs.
+- `EscrowDomain.ts`: Explicit `sweepExpiredHolds()` entry point (pure reads never mutate); `releaseToSeller` / `returnToBuyer` take actor id + role and enforce authorization inside the module.
 - `KeysetPagination.ts`: Composite cursor encoding (`created_at` + `id`) for stable feed pagination.
+
+**Hard rule**: domain modules must NOT import `@chokro/db` (eslint `no-restricted-imports` enforces this). All persistence goes through `lib/repos/` and the `withDb` seam.
 
 ---
 
@@ -265,6 +279,7 @@ Route handlers (`app/api/*`) are **thin HTTP controllers**. All validation, stat
 - **Auth & Storage**:
   - `AuthContext.tsx` holds user session and registers `setOnUnauthorized(logout)`.
   - `apps/mobile/src/services/api.ts` attaches `setAuthTokenProvider(() => session?.token)`.
+  - Hooks type their React Query results from the shared response DTOs (`FeedPage`, `BalanceSummary`, `CreditTransactionDto`, … exported from `@chokro/shared` `src/dto/response/`) — no hand-duplicated response types.
   - Image upload compresses to max 1600px, quality 0.7, <500 KB payload before submitting.
 
 ---
@@ -275,6 +290,6 @@ Route handlers (`app/api/*`) are **thin HTTP controllers**. All validation, stat
 ```text
 You are working on Chokro, a circular economy & smart recycling platform (Next.js 16 API + React Native Expo mobile app + Drizzle ORM + PostgreSQL/PGlite).
 - Read AGENT_GUIDE.md for complete architecture, domain invariants, schema, and API catalog.
-- Rules: Unit invariants (APPLIANCES/E_WASTE = piece; all others = kg), Wallet balance is derived from immutable credit_txns (never mutated), API route handlers are thin and wrapped in safeRoute, Next.js 16 params are async Promise, DB queries run via withDb seam.
+- Rules: Unit invariants (APPLIANCES/E_WASTE = piece; all others = kg), Wallet balance is derived from immutable credit_txns (never mutated), API route handlers are thin and wrapped in safeRoute, Next.js 16 params are async Promise, DB queries run via withDb seam, domains never import @chokro/db, rule violations throw DomainRuleError (mapped by routeError).
 - Write surgical diffs, no unnecessary abstractions. Test with 'pnpm test'.
 ```
