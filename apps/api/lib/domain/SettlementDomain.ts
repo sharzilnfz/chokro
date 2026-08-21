@@ -220,7 +220,7 @@ export class SettlementDomain {
     const userRedemptionCount = pastRedemptions.length;
 
     const gateEvaluation = await TrustGateDomain.evaluateAndApply({
-      subjectType: 'REDEMPTION' as any,
+      subjectType: 'REDEMPTION',
       subjectId: redemption.id,
       userId,
       estimatedBdt: quote.grossAmountBdt,

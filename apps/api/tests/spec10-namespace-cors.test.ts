@@ -157,8 +157,8 @@ describe('SPEC 10 — API Namespace Consolidation & CORS Allowlist (Ticket 01b)'
       const user = await createTestUser();
       const token = tokenFor(user);
 
-      const v1Rates = await getPublishedRatesV1(new Request('http://localhost/api/v1/rate-card/published'));
-      const unversionedRates = await getPublishedRatesUnversioned(new Request('http://localhost/api/rate-card/published'));
+      const v1Rates = await getPublishedRatesV1();
+      const unversionedRates = await getPublishedRatesUnversioned();
       expect(v1Rates.status).toBe(200);
       expect(unversionedRates.status).toBe(200);
       expect(await v1Rates.json()).toEqual(await unversionedRates.json());

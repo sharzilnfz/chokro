@@ -202,7 +202,6 @@ export default function AdminDisputesPage() {
                         <td data-label="Action">
                           <AdminButton
                             variant={isSelected ? 'primary' : 'secondary'}
-                            size="sm"
                             type="button"
                             onClick={() => setSelectedDispute(item)}
                           >

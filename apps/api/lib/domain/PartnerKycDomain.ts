@@ -255,7 +255,7 @@ export const PartnerKycDomain = {
     if (confidenceScore > 1.0) confidenceScore = 1.0;
     if (confidenceScore < 0.0) confidenceScore = 0.0;
 
-    let matchStatus: DiscrepancyResult['matchStatus'] = 'PENDING_MATCH';
+    let matchStatus: DiscrepancyResult['matchStatus'] = 'MISMATCH';
     if (isExpired) {
       matchStatus = 'EXPIRED';
     } else if (mismatchedFields.length === 0 && confidenceScore >= 0.85) {

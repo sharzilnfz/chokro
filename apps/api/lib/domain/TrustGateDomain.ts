@@ -458,6 +458,10 @@ export class TrustGateDomain {
 
     const subject: TrustSubject = {
       ...input,
+      subjectType: input.subjectType ?? 'DEPOSIT',
+      category: input.category ?? 'PLASTICS',
+      declaredQuantity: input.declaredQuantity ?? 0,
+      unit: input.unit ?? 'kg',
       evidencePhash: computedPhash || undefined,
       activeFraudFlagCount: activeFraudCount,
     };
@@ -471,7 +475,7 @@ export class TrustGateDomain {
     const evaluation = this.evaluate(subject, combinedSignals, thresholds);
 
     // Cross-cutting check: an open dispute on a pickup/deposit/lot pauses verification
-    const openDispute = await disputeRepo.findOpenBySource(input.subjectType, input.subjectId);
+    const openDispute = await disputeRepo.findOpenBySource(input.subjectType ?? 'DEPOSIT', input.subjectId);
     if (openDispute) {
       evaluation.decision = 'ESCALATE';
       if (!evaluation.failingSignals.includes('open_dispute_pause')) {
@@ -481,7 +485,7 @@ export class TrustGateDomain {
 
     // Persist Decision
     const decisionRecord = await trustGateRepo.createDecision({
-      subject_type: input.subjectType,
+      subject_type: input.subjectType ?? 'DEPOSIT',
       subject_id: input.subjectId,
       decision: evaluation.decision,
       failing_signals: evaluation.failingSignals,
@@ -527,14 +531,14 @@ export class TrustGateDomain {
       // Record verified impact
       try {
         await ImpactDomain.recordVerifiedImpact({
-          custodyType: input.subjectType,
+          custodyType: input.subjectType ?? 'DEPOSIT',
           custodyId: input.subjectId,
           trustDecisionId: decisionRecord.id,
           userId: input.userId,
-          category: input.category,
-          declaredQuantity: input.declaredQuantity,
+          category: input.category ?? 'PLASTICS',
+          declaredQuantity: input.declaredQuantity ?? 0,
           verifiedQuantity: input.verifiedQuantity,
-          unit: input.unit,
+          unit: input.unit ?? 'kg',
         });
       } catch (err) {
         console.error('Failed to record verified impact on auto-clear:', err);

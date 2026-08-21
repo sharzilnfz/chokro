@@ -95,14 +95,14 @@ export const DEFAULT_TRUST_THRESHOLDS: TrustThresholdConfig = {
 
 // API Schema: Evaluate Trust Gate
 export const EvaluateTrustGateSchema = z.object({
-  subjectType: z.enum(['DEPOSIT', 'PICKUP', 'MANUAL']).default('DEPOSIT'),
+  subjectType: z.enum(['DEPOSIT', 'PICKUP', 'MANUAL', 'REDEMPTION']).default('DEPOSIT'),
   subjectId: z.string().uuid(),
   userId: z.string().uuid(),
   partnerId: z.string().uuid().optional().nullable(),
-  category: CategoryEnum,
-  declaredQuantity: z.number().positive(),
+  category: CategoryEnum.optional(),
+  declaredQuantity: z.number().positive().optional(),
   verifiedQuantity: z.number().positive().optional().nullable(),
-  unit: z.enum(['kg', 'piece']),
+  unit: z.enum(['kg', 'piece']).optional(),
   evidenceUrl: z.string().optional().nullable(),
   evidencePhash: z.string().optional().nullable(),
   inAppCaptured: z.boolean().optional().default(true),
@@ -135,7 +135,7 @@ export const EvaluateTrustGateSchema = z.object({
   thresholds: z.record(z.string(), z.any()).optional(),
 });
 
-export type EvaluateTrustGateInput = z.infer<typeof EvaluateTrustGateSchema>;
+export type EvaluateTrustGateInput = z.input<typeof EvaluateTrustGateSchema>;
 
 // API Schema: Update Dynamic Thresholds
 export const UpdateThresholdsSchema = z.object({

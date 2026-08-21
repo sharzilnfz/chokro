@@ -216,7 +216,6 @@ export default function AdminKycQueuePage() {
                         <div className="flex items-center gap-1.5">
                           <AdminButton
                             variant={isSelected ? 'primary' : 'secondary'}
-                            size="sm"
                             type="button"
                             onClick={() => setSelectedExtraction(isSelected ? null : item)}
                           >

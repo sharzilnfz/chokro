@@ -12,7 +12,7 @@ import {
   useAdminLiability,
   useUpdateLiabilityCaps,
 } from '../hooks/useAdminLiability';
-import { formatDate, formatCurrency, getErrorMessage } from '../lib/formatters';
+import { formatDate, getErrorMessage } from '../lib/formatters';
 import { DEFAULT_LIABILITY_CAPS, type UpdateLiabilityCapInput } from '@chokro/shared';
 
 type Notice = { tone: NoticeTone; text: string } | null;

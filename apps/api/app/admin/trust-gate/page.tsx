@@ -204,14 +204,12 @@ export default function AdminTrustGateEscalationsPage() {
                           <div className="flex items-center gap-2">
                             <AdminButton
                               variant="primary"
-                              size="sm"
                               onClick={() => setPendingAction({ item, action: 'VERIFY' })}
                             >
                               Verify
                             </AdminButton>
                             <AdminButton
                               variant="secondary"
-                              size="sm"
                               onClick={() => setPendingAction({ item, action: 'REJECT' })}
                             >
                               Reject
@@ -367,10 +365,30 @@ export default function AdminTrustGateEscalationsPage() {
         <AdminConfirmModal
           isOpen={true}
           title={pendingAction.action === 'VERIFY' ? 'Confirm Verification' : 'Reject Trust Decision'}
-          message={
-            pendingAction.action === 'VERIFY'
-              ? `Are you sure you want to verify decision ${pendingAction.item.id.slice(0, 8)}...? This will flip pending credits to VERIFIED and update the subject.`
-              : 'Provide an explanation reason for the rejection. This reason will be visible to the user and recorded in the audit log.'
+          description={
+            pendingAction.action === 'VERIFY' ? (
+              `Are you sure you want to verify decision ${pendingAction.item.id.slice(0, 8)}...? This will flip pending credits to VERIFIED and update the subject.`
+            ) : (
+              <>
+                <p>
+                  Provide an explanation reason for the rejection. This reason will be visible to the user and recorded in the audit log.
+                </p>
+                <div className="mt-4">
+                  <label htmlFor="rejection-reason-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mandatory Rejection Reason *
+                  </label>
+                  <textarea
+                    id="rejection-reason-input"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    rows={3}
+                    placeholder="Explain why this deposit or pickup was rejected (e.g. invalid photo, wrong category)..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )
           }
           confirmLabel={pendingAction.action === 'VERIFY' ? 'Verify Decision' : 'Reject Decision'}
           confirmVariant={pendingAction.action === 'VERIFY' ? 'primary' : 'danger'}
@@ -379,27 +397,7 @@ export default function AdminTrustGateEscalationsPage() {
             setRejectionReason('');
           }}
           onConfirm={handleExecuteAdjudication}
-          isConfirmDisabled={
-            pendingAction.action === 'REJECT' && !rejectionReason.trim()
-          }
-        >
-          {pendingAction.action === 'REJECT' && (
-            <div className="mt-4">
-              <label htmlFor="rejection-reason-input" className="block text-xs font-semibold text-slate-700 mb-1">
-                Mandatory Rejection Reason *
-              </label>
-              <textarea
-                id="rejection-reason-input"
-                className="w-full text-xs p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                rows={3}
-                placeholder="Explain why this deposit or pickup was rejected (e.g. invalid photo, wrong category)..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                required
-              />
-            </div>
-          )}
-        </AdminConfirmModal>
+        />
       )}
     </>
   );

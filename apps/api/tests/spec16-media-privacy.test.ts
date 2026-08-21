@@ -303,7 +303,7 @@ describe('SPEC 16: Circular Marketplace Media & Privacy-Safe Ingest Pipeline (Ti
       const sampleJpeg = createJpegWithGpsExif(23.7942, 90.4043);
 
       const formData = new FormData();
-      const blob = new Blob([sampleJpeg], { type: 'image/jpeg' });
+      const blob = new Blob([new Uint8Array(sampleJpeg)], { type: 'image/jpeg' });
       formData.append('file', blob, 'sample-item.jpg');
       formData.append('purpose', 'LISTING');
 

@@ -13,7 +13,7 @@ import {
   useAdminRedemptions,
   useSettleRedemption,
 } from '../hooks/useAdminRedemptions';
-import { formatDate, formatCurrency, getErrorMessage } from '../lib/formatters';
+import { formatDate, getErrorMessage } from '../lib/formatters';
 import type { RedemptionRequestRecord, RedemptionStatus } from '@chokro/shared';
 
 type Notice = { tone: NoticeTone; text: string } | null;
@@ -229,7 +229,6 @@ export default function AdminRedemptionsPage() {
                             <>
                               <AdminButton
                                 variant="primary"
-                                size="sm"
                                 type="button"
                                 onClick={() => setActiveAction({ redemption: item, action: 'APPROVE' })}
                               >
@@ -237,7 +236,6 @@ export default function AdminRedemptionsPage() {
                               </AdminButton>
                               <AdminButton
                                 variant="danger"
-                                size="sm"
                                 type="button"
                                 onClick={() => setActiveAction({ redemption: item, action: 'REJECT' })}
                               >
@@ -249,7 +247,6 @@ export default function AdminRedemptionsPage() {
                           {item.status === 'FAILED' && (
                             <AdminButton
                               variant="secondary"
-                              size="sm"
                               type="button"
                               onClick={() => setActiveAction({ redemption: item, action: 'RETRY' })}
                             >
@@ -284,7 +281,7 @@ export default function AdminRedemptionsPage() {
         <AdminConfirmModal
           isOpen={Boolean(activeAction)}
           title={`${activeAction.action === 'APPROVE' ? 'Approve & Disburse' : activeAction.action === 'REJECT' ? 'Reject Cash-Out' : 'Retry'} Redemption`}
-          message={
+          description={
             activeAction.action === 'APPROVE'
               ? `Are you sure you want to approve redemption ${activeAction.redemption.id.slice(0, 8)}... and disburse ৳${Number(activeAction.redemption.net_amount_bdt).toFixed(2)} to ${activeAction.redemption.payout_channel} (${activeAction.redemption.account_number})?`
               : activeAction.action === 'REJECT'
