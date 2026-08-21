@@ -8,7 +8,8 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import {
   useAdminDropZones,
@@ -19,24 +20,21 @@ import { formatLabel, getErrorMessage } from '../lib/formatters';
 import { parseApiError } from '../services/adminApi';
 import { CATEGORY_OPTIONS } from './categories';
 
-// Success/error feedback banner state.
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminDropZonesPage() {
   // Authenticated request helper for the poster endpoint, plus list/create data hooks.
   const { request } = useAdminAuth();
   const { data: zones = [], isLoading, isError, refetch } = useAdminDropZones();
   const createZoneMutation = useCreateDropZone();
   const formRef = useRef<HTMLFormElement>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
-  // UI state: feedback banner and which zone (if any) is generating its poster.
-  const [notice, setNotice] = useState<Notice>(null);
+  // UI state: which zone (if any) is generating its poster.
   const [printingId, setPrintingId] = useState<string | null>(null);
 
   // Collects the checked categories and the zone's identifying fields, then creates the zone.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(null);
+    clearNotice();
 
     const formData = new FormData(event.currentTarget);
     const selected = CATEGORY_OPTIONS.filter((category) =>
@@ -44,7 +42,7 @@ export default function AdminDropZonesPage() {
     ).map((category) => category.value);
 
     if (selected.length === 0) {
-      setNotice({ tone: 'error', text: 'Choose at least one accepted category.' });
+      showNotice('error', 'Choose at least one accepted category.');
       return;
     }
 
@@ -61,38 +59,29 @@ export default function AdminDropZonesPage() {
         maxCapacityKg: isNaN(maxCapacityKg) ? 50 : maxCapacityKg,
       });
 
-      setNotice({
-        tone: 'success',
-        text: 'Drop zone created successfully. Print its poster and display it on-site.',
-      });
+      showNotice('success', 'Drop zone created successfully. Print its poster and display it on-site.');
       formRef.current?.reset();
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, 'Drop zone could not be created.'),
-      });
+      showNotice('error', getErrorMessage(error, 'Drop zone could not be created.'));
     }
   }
 
   // Fetches the signed QR poster for a zone and opens it in a new window primed for printing.
   async function openPoster(zone: DropZone) {
     setPrintingId(zone.id);
-    setNotice(null);
+    clearNotice();
 
     try {
       const response = await request(`/api/drop-zones/${zone.id}/poster`);
       if (!response.ok) {
-        setNotice({
-          tone: 'error',
-          text: await parseApiError(response, 'The poster could not be generated.'),
-        });
+        showNotice('error', await parseApiError(response, 'The poster could not be generated.'));
         return;
       }
 
       const html = await response.text();
       const posterWindow = window.open('', '_blank', 'noopener,noreferrer');
       if (!posterWindow) {
-        setNotice({ tone: 'error', text: 'Allow pop-ups for this site to open the poster.' });
+        showNotice('error', 'Allow pop-ups for this site to open the poster.');
         return;
       }
 
@@ -102,10 +91,7 @@ export default function AdminDropZonesPage() {
       posterWindow.focus();
       posterWindow.print();
     } catch {
-      setNotice({
-        tone: 'error',
-        text: 'The poster could not be generated. Check the service and try again.',
-      });
+      showNotice('error', 'The poster could not be generated. Check the service and try again.');
     } finally {
       setPrintingId(null);
     }
@@ -120,11 +106,7 @@ export default function AdminDropZonesPage() {
       />
 
       {/* Dismissible toast for create/poster results */}
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {/* Registration form for a new collection point */}
       <section className="admin-panel" aria-labelledby="create-zone-title">
@@ -210,26 +192,17 @@ export default function AdminDropZonesPage() {
         </div>
 
         {/* Branch on load / error / empty / data states for the zones panel */}
-        {isLoading ? (
-          <AdminSkeleton rowCount={4} colCount={5} label="Loading drop zones" />
-        ) : isError && zones.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">Drop zones unavailable</h3>
-              <p className="admin-state-copy">Retry the request when the admin API is available.</p>
-              <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                Retry
-              </AdminButton>
-            </div>
-          </div>
-        ) : zones.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">No drop zones yet</h3>
-              <p className="admin-state-copy">Register the first collection point above.</p>
-            </div>
-          </div>
-        ) : (
+        <AdminResourceState
+          isLoading={isLoading}
+          isError={isError && zones.length === 0}
+          isEmpty={zones.length === 0}
+          onRetry={() => void refetch()}
+          skeleton={<AdminSkeleton rowCount={4} colCount={5} label="Loading drop zones" />}
+          errorTitle="Drop zones unavailable"
+          errorCopy="Retry the request when the admin API is available."
+          emptyTitle="No drop zones yet"
+          emptyCopy="Register the first collection point above."
+        >
           <div className="admin-table-wrap admin-table-responsive">
             <table className="admin-table">
               <thead>
@@ -293,7 +266,7 @@ export default function AdminDropZonesPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </AdminResourceState>
       </section>
     </>
   );

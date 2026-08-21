@@ -6,7 +6,7 @@ import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import {
@@ -19,11 +19,10 @@ import { useAdminCampuses } from '../hooks/useAdminCampuses';
 import { getErrorMessage } from '../lib/formatters';
 
 type Tab = 'CERTIFICATES' | 'EWASTE_COMPLIANCE';
-type Notice = { tone: NoticeTone; text: string } | null;
 
 export default function AdminCertificatesPage() {
   const [tab, setTab] = useState<Tab>('CERTIFICATES');
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
   const [selectedCampusId, setSelectedCampusId] = useState<string>('');
   const [periodStart, setPeriodStart] = useState<string>('');
   const [periodEnd, setPeriodEnd] = useState<string>('');
@@ -37,11 +36,11 @@ export default function AdminCertificatesPage() {
   async function handleGenerate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedCampusId || !periodStart || !periodEnd) {
-      setNotice({ tone: 'error', text: 'Please select an institution and reporting date range.' });
+      showNotice('error', 'Please select an institution and reporting date range.');
       return;
     }
 
-    setNotice(null);
+    clearNotice();
     setIsGenerating(true);
 
     try {
@@ -51,19 +50,16 @@ export default function AdminCertificatesPage() {
         periodEnd,
       });
 
-      setNotice({
-        tone: 'success',
-        text: `ESG Sustainability Certificate "${cert?.certificate_ref || 'Created'}" generated and signed successfully.`,
-      });
+      showNotice(
+        'success',
+        `ESG Sustainability Certificate "${cert?.certificate_ref || 'Created'}" generated and signed successfully.`,
+      );
       setSelectedCampusId('');
       setPeriodStart('');
       setPeriodEnd('');
       void refetchCerts();
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, 'Could not generate certificate.'),
-      });
+      showNotice('error', getErrorMessage(error, 'Could not generate certificate.'));
     } finally {
       setIsGenerating(false);
     }
@@ -97,11 +93,7 @@ export default function AdminCertificatesPage() {
         }
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {tab === 'CERTIFICATES' ? (
         <>

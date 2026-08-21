@@ -16,7 +16,8 @@ import { AdminConfirmModal } from '../components/ui/AdminConfirmModal';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminStatusMessage } from '../components/ui/AdminStatusMessage';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import {
   useAdminCampuses,
   useCreateCampus,
@@ -27,8 +28,6 @@ import { formatLabel, getErrorMessage } from '../lib/formatters';
 
 const FILTERS = ['ALL', ...CAMPUS_STATUSES] as const;
 type Filter = (typeof FILTERS)[number];
-
-type Notice = { tone: NoticeTone; text: string } | null;
 
 type ModalAction =
   | { type: 'VERIFY'; campus: Campus }
@@ -44,7 +43,7 @@ export default function AdminCampusesPage() {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [filter, setFilter] = useState<Filter>('ALL');
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
   const [division, setDivision] = useState<Division>('DHAKA');
   const [modalAction, setModalAction] = useState<ModalAction>(null);
   const [blacklistReason, setBlacklistReason] = useState('');
@@ -61,7 +60,7 @@ export default function AdminCampusesPage() {
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setNotice(null);
+    clearNotice();
 
     const formData = new FormData(e.currentTarget);
     const name = String(formData.get('name') || '').trim();
@@ -70,7 +69,7 @@ export default function AdminCampusesPage() {
     const slug = String(formData.get('slug') || '').trim();
 
     if (!name || !zilla || !upazilla) {
-      setNotice({ tone: 'error', text: 'Name, zilla, and upazilla are required.' });
+      showNotice('error', 'Name, zilla, and upazilla are required.');
       return;
     }
 
@@ -84,23 +83,20 @@ export default function AdminCampusesPage() {
         status: 'VERIFIED',
       });
 
-      setNotice({
-        tone: 'success',
-        text: `Campus "${created?.name ?? name}" registered successfully as Verified with code ${created?.slug ?? slug}.`,
-      });
+      showNotice(
+        'success',
+        `Campus "${created?.name ?? name}" registered successfully as Verified with code ${created?.slug ?? slug}.`,
+      );
       formRef.current?.reset();
       setDivision('DHAKA');
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, 'Could not register campus.'),
-      });
+      showNotice('error', getErrorMessage(error, 'Could not register campus.'));
     }
   }
 
   async function handleExecuteModalAction() {
     if (!modalAction) return;
-    setNotice(null);
+    clearNotice();
 
     try {
       if (modalAction.type === 'VERIFY') {
@@ -108,32 +104,29 @@ export default function AdminCampusesPage() {
           id: modalAction.campus.id,
           status: 'VERIFIED',
         });
-        setNotice({
-          tone: 'success',
-          text: `Campus "${modalAction.campus.name}" is now verified. Students can now join and earn leaderboard points.`,
-        });
+        showNotice(
+          'success',
+          `Campus "${modalAction.campus.name}" is now verified. Students can now join and earn leaderboard points.`,
+        );
       } else if (modalAction.type === 'BLACKLIST') {
         await updateStatusMutation.mutateAsync({
           id: modalAction.campus.id,
           status: 'BLACKLISTED',
           reason: blacklistReason.trim() || undefined,
         });
-        setNotice({
-          tone: 'success',
-          text: `Campus "${modalAction.campus.name}" has been blacklisted.`,
-        });
+        showNotice(
+          'success',
+          `Campus "${modalAction.campus.name}" has been blacklisted.`,
+        );
       } else if (modalAction.type === 'REMOVE') {
         await removeCampusMutation.mutateAsync(modalAction.campus.id);
-        setNotice({
-          tone: 'success',
-          text: `Campus "${modalAction.campus.name}" removed successfully.`,
-        });
+        showNotice(
+          'success',
+          `Campus "${modalAction.campus.name}" removed successfully.`,
+        );
       }
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, 'Could not complete campus action.'),
-      });
+      showNotice('error', getErrorMessage(error, 'Could not complete campus action.'));
     } finally {
       setModalAction(null);
       setBlacklistReason('');
@@ -148,11 +141,7 @@ export default function AdminCampusesPage() {
         description="Register universities/colleges, verify pending student submissions, and manage blacklisted institutions."
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {/* Manual campus creation panel */}
       <section className="admin-panel mb-8" aria-labelledby="add-campus-heading">

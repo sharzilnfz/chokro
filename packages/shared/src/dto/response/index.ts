@@ -2,3 +2,4 @@
 export * from './listing';
 export * from './wallet';
 export * from './admin';
+export * from './trustGate';

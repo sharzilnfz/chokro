@@ -7,33 +7,29 @@ import { AdminPageHeader } from '../components/layout/AdminPageHeader';
 import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { useAdminLeaderboard, useRefreshLeaderboard } from '../hooks/useAdminLeaderboard';
 import { formatLabel, getErrorMessage } from '../lib/formatters';
 
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminLeaderboardPage() {
   const [period, setPeriod] = useState<LeaderboardPeriod>('WEEKLY');
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
   const { data: rankings = [], isLoading, isError, refetch } = useAdminLeaderboard(period);
   const refreshMutation = useRefreshLeaderboard();
 
   async function handleMaterialize() {
-    setNotice(null);
+    clearNotice();
     try {
       await refreshMutation.mutateAsync();
-      setNotice({
-        tone: 'success',
-        text: 'Campus leaderboards materialized successfully across Weekly, Monthly, and All-Time windows.',
-      });
+      showNotice(
+        'success',
+        'Campus leaderboards materialized successfully across Weekly, Monthly, and All-Time windows.',
+      );
       void refetch();
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, 'Failed to materialize campus leaderboards.'),
-      });
+      showNotice('error', getErrorMessage(err, 'Failed to materialize campus leaderboards.'));
     }
   }
 
@@ -71,11 +67,7 @@ export default function AdminLeaderboardPage() {
         }
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       <section className="admin-panel" aria-labelledby="leaderboard-table-title">
         <div className="admin-panel-header">
@@ -90,31 +82,26 @@ export default function AdminLeaderboardPage() {
           {!isLoading && <span className="admin-panel-count">{rankings.length} campuses ranked</span>}
         </div>
 
-        {isLoading ? (
-          <AdminSkeleton rowCount={4} colCount={5} label="Loading campus rankings" />
-        ) : isError && rankings.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">Leaderboards unavailable</h3>
-              <p className="admin-state-copy">Failed to load campus rankings. Try refreshing or rebuilding snapshots.</p>
-              <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                Retry
-              </AdminButton>
-            </div>
-          </div>
-        ) : rankings.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">No snapshot materialized yet</h3>
-              <p className="admin-state-copy">
-                Click &ldquo;Rebuild Leaderboards&rdquo; above to calculate scores from verified transactions.
-              </p>
-              <AdminButton variant="primary" type="button" onClick={handleMaterialize}>
-                Rebuild Leaderboards Now
-              </AdminButton>
-            </div>
-          </div>
-        ) : (
+        <AdminResourceState
+          isLoading={isLoading}
+          isError={isError && rankings.length === 0}
+          isEmpty={rankings.length === 0}
+          onRetry={() => void refetch()}
+          skeleton={<AdminSkeleton rowCount={4} colCount={5} label="Loading campus rankings" />}
+          errorTitle="Leaderboards unavailable"
+          errorCopy="Failed to load campus rankings. Try refreshing or rebuilding snapshots."
+          emptyTitle="No snapshot materialized yet"
+          emptyCopy={
+            <>
+              Click &ldquo;Rebuild Leaderboards&rdquo; above to calculate scores from verified transactions.
+            </>
+          }
+          emptyAction={
+            <AdminButton variant="primary" type="button" onClick={handleMaterialize}>
+              Rebuild Leaderboards Now
+            </AdminButton>
+          }
+        >
           <div className="admin-table-wrap admin-table-responsive">
             <table className="admin-table">
               <thead>
@@ -166,7 +153,7 @@ export default function AdminLeaderboardPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </AdminResourceState>
       </section>
     </>
   );

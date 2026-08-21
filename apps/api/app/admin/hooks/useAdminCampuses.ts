@@ -1,9 +1,8 @@
+// Data hooks for campuses: list institutions by status and record create/status/remove decisions.
 'use client';
 import type { Campus, CampusStatus } from '@chokro/shared';
 import { CampusListResponseSchema, CampusMutationResponseSchema } from '@chokro/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminApiRequest } from '../services/adminApi';
+import { useAdminList, useAdminAction } from './useAdminResource';
 
 export type CampusInput = {
   name: string;
@@ -23,70 +22,41 @@ export type UpdateStatusInput = {
 export const ADMIN_CAMPUSES_QUERY_KEY = ['admin', 'campuses'] as const;
 
 export function useAdminCampuses(statusFilter?: CampusStatus) {
-  const { status } = useAdminAuth();
-  return useQuery<Campus[]>({
-    queryKey: [...ADMIN_CAMPUSES_QUERY_KEY, statusFilter ?? 'all'],
-    queryFn: async () => {
-      const url = statusFilter
-        ? `/api/admin/campuses?status=${statusFilter}`
-        : '/api/admin/campuses';
-      const data = await adminApiRequest<{ campuses?: Campus[] }>(url, {
-        schema: CampusListResponseSchema,
-      });
-      return Array.isArray(data.campuses) ? data.campuses : [];
-    },
-    enabled: status === 'signed-in',
-  });
+  return useAdminList<{ campuses?: Campus[] }, Campus>(
+    [...ADMIN_CAMPUSES_QUERY_KEY, statusFilter ?? 'all'],
+    statusFilter ? `/api/admin/campuses?status=${statusFilter}` : '/api/admin/campuses',
+    (data) => data.campuses,
+    { schema: CampusListResponseSchema },
+  );
 }
 
 export function useCreateCampus() {
-  const queryClient = useQueryClient();
-  return useMutation<Campus | undefined, Error, CampusInput>({
-    mutationFn: async (payload) => {
-      const data = await adminApiRequest<{ campus?: Campus }>('/api/admin/campuses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        schema: CampusMutationResponseSchema,
-      });
-      return data.campus;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_CAMPUSES_QUERY_KEY });
-    },
+  return useAdminAction<Campus | undefined, CampusInput>({
+    path: '/api/admin/campuses',
+    payload: (payload) => payload,
+    schema: CampusMutationResponseSchema,
+    select: (data) => data.campus,
+    invalidate: [ADMIN_CAMPUSES_QUERY_KEY],
   });
 }
 
 export function useUpdateCampusStatus() {
-  const queryClient = useQueryClient();
-  return useMutation<Campus | undefined, Error, UpdateStatusInput>({
-    mutationFn: async ({ id, status, reason }) => {
-      const data = await adminApiRequest<{ campus?: Campus }>(`/api/admin/campuses/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, reason }),
-        schema: CampusMutationResponseSchema,
-      });
-      return data.campus;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_CAMPUSES_QUERY_KEY });
-    },
+  return useAdminAction<Campus | undefined, UpdateStatusInput>({
+    path: ({ id }) => `/api/admin/campuses/${id}`,
+    method: 'PATCH',
+    payload: ({ status, reason }) => ({ status, reason }),
+    schema: CampusMutationResponseSchema,
+    select: (data) => data.campus,
+    invalidate: [ADMIN_CAMPUSES_QUERY_KEY],
   });
 }
 
 export function useRemoveCampus() {
-  const queryClient = useQueryClient();
-  return useMutation<Campus | undefined, Error, string>({
-    mutationFn: async (id) => {
-      const data = await adminApiRequest<{ campus?: Campus }>(`/api/admin/campuses/${id}`, {
-        method: 'DELETE',
-        schema: CampusMutationResponseSchema,
-      });
-      return data.campus;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_CAMPUSES_QUERY_KEY });
-    },
+  return useAdminAction<Campus | undefined, string>({
+    path: (id) => `/api/admin/campuses/${id}`,
+    method: 'DELETE',
+    schema: CampusMutationResponseSchema,
+    select: (data) => data.campus,
+    invalidate: [ADMIN_CAMPUSES_QUERY_KEY],
   });
 }

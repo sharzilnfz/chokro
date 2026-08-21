@@ -8,7 +8,8 @@ import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { useAdminDisputes, useResolveDispute } from '../hooks/useAdminDisputes';
 import { formatDate, formatLabel, getErrorMessage } from '../lib/formatters';
 import type { DisputeDto, DisputeResolution } from '@chokro/shared';
@@ -24,13 +25,11 @@ const RESOLUTION_OPTIONS = [
   { value: 'DISMISSED', label: 'Dismiss Dispute' },
 ];
 
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminDisputesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [sourceTypeFilter, setSourceTypeFilter] = useState<string>('ALL');
   const [selectedDispute, setSelectedDispute] = useState<DisputeDto | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
   // Resolution form state
   const [resolution, setResolution] = useState<DisputeResolution>('BUYER_FAVORED');
@@ -55,10 +54,10 @@ export default function AdminDisputesPage() {
   async function handleResolve(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedDispute) return;
-    setNotice(null);
+    clearNotice();
 
     if (!resolutionNotes || resolutionNotes.trim().length < 3) {
-      setNotice({ tone: 'error', text: 'Resolution reasoning notes are mandatory.' });
+      showNotice('error', 'Resolution reasoning notes are mandatory.');
       return;
     }
 
@@ -73,20 +72,17 @@ export default function AdminDisputesPage() {
         },
       });
 
-      setNotice({
-        tone: 'success',
-        text: `Dispute #${selectedDispute.id.slice(0, 8)} resolved successfully as ${resolution}.`,
-      });
+      showNotice(
+        'success',
+        `Dispute #${selectedDispute.id.slice(0, 8)} resolved successfully as ${resolution}.`,
+      );
       setSelectedDispute(null);
       setResolutionNotes('');
       setBuyerAmountBdt('');
       setSellerAmountBdt('');
       void refetch();
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, 'Failed to resolve dispute.'),
-      });
+      showNotice('error', getErrorMessage(err, 'Failed to resolve dispute.'));
     }
   }
 
@@ -115,11 +111,7 @@ export default function AdminDisputesPage() {
         }
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       <div className="admin-workspace-grid">
         {/* Dispute List Panel */}
@@ -140,26 +132,17 @@ export default function AdminDisputesPage() {
             )}
           </div>
 
-          {isLoading ? (
-            <AdminSkeleton rowCount={5} colCount={4} label="Loading disputes" />
-          ) : isError ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">Failed to load disputes</h3>
-                <p className="admin-state-copy">Please retry when API is reachable.</p>
-                <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                  Retry
-                </AdminButton>
-              </div>
-            </div>
-          ) : disputes.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">No disputes found</h3>
-                <p className="admin-state-copy">There are currently no active disputes matching the filter.</p>
-              </div>
-            </div>
-          ) : (
+          <AdminResourceState
+            isLoading={isLoading}
+            isError={isError}
+            isEmpty={disputes.length === 0}
+            onRetry={() => void refetch()}
+            skeleton={<AdminSkeleton rowCount={5} colCount={4} label="Loading disputes" />}
+            errorTitle="Failed to load disputes"
+            errorCopy="Please retry when API is reachable."
+            emptyTitle="No disputes found"
+            emptyCopy="There are currently no active disputes matching the filter."
+          >
             <div className="admin-table-wrap admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -214,7 +197,7 @@ export default function AdminDisputesPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AdminResourceState>
         </section>
 
         {/* Detail / Arbitration Panel */}

@@ -7,7 +7,8 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import {
   useAdminLiability,
   useUpdateLiabilityCaps,
@@ -15,13 +16,10 @@ import {
 import { formatDate, getErrorMessage } from '../lib/formatters';
 import { DEFAULT_LIABILITY_CAPS, type UpdateLiabilityCapInput } from '@chokro/shared';
 
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminLiabilityPage() {
   const { data, isLoading, isError, refetch } = useAdminLiability();
   const updateCapsMutation = useUpdateLiabilityCaps();
-
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
   const [formState, setFormState] = useState<UpdateLiabilityCapInput>({
     monthlyPlatformCapBdt: DEFAULT_LIABILITY_CAPS.monthly_platform_cap_bdt,
@@ -46,19 +44,16 @@ export default function AdminLiabilityPage() {
 
   async function handleSaveCaps(e: FormEvent) {
     e.preventDefault();
-    setNotice(null);
+    clearNotice();
 
     try {
       await updateCapsMutation.mutateAsync(formState);
-      setNotice({
-        tone: 'success',
-        text: 'Liability caps updated successfully. New limits and fee percentage are immediately effective.',
-      });
+      showNotice(
+        'success',
+        'Liability caps updated successfully. New limits and fee percentage are immediately effective.',
+      );
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, 'Failed to update liability caps.'),
-      });
+      showNotice('error', getErrorMessage(err, 'Failed to update liability caps.'));
     }
   }
 
@@ -72,11 +67,7 @@ export default function AdminLiabilityPage() {
         description="Monitor outstanding verified credit exposure, monthly redemption run-rates, and configure platform liability caps."
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {/* Solvency Alert Banner if run rate >= 80% */}
       {summary?.capAlertTriggered && (
@@ -292,16 +283,18 @@ export default function AdminLiabilityPage() {
             )}
           </div>
 
-          {isLoading ? (
-            <AdminSkeleton rowCount={4} colCount={5} label="Loading cap history" />
-          ) : history.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">Operating on default caps</h3>
-                <p className="admin-state-copy">No custom cap revisions have been committed yet.</p>
-              </div>
-            </div>
-          ) : (
+          <AdminResourceState
+            isLoading={isLoading}
+            // This panel intentionally has no error branch: a failed read falls back to defaults.
+            isError={false}
+            isEmpty={history.length === 0}
+            onRetry={() => void refetch()}
+            skeleton={<AdminSkeleton rowCount={4} colCount={5} label="Loading cap history" />}
+            errorTitle="Audit history unavailable"
+            errorCopy="Retry when the admin API is available."
+            emptyTitle="Operating on default caps"
+            emptyCopy="No custom cap revisions have been committed yet."
+          >
             <div className="admin-table-wrap admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -343,7 +336,7 @@ export default function AdminLiabilityPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AdminResourceState>
         </section>
       </div>
     </>

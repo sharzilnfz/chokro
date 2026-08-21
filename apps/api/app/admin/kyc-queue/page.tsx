@@ -7,14 +7,13 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminConfirmModal } from '../components/ui/AdminConfirmModal';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { useAdminKycQueue, useAdjudicateKyc, type KycQueueItem } from '../hooks/useAdminKycQueue';
 import { formatLabel, getErrorMessage } from '../lib/formatters';
 
 const KYC_FILTERS = ['ALL', 'PENDING_MATCH', 'EXACT_MATCH', 'PARTIAL_MATCH', 'MISMATCH', 'EXPIRED'] as const;
 type KycFilter = (typeof KYC_FILTERS)[number];
-
-type Notice = { tone: NoticeTone; text: string } | null;
 
 interface PendingAdjudication {
   item: KycQueueItem;
@@ -23,7 +22,7 @@ interface PendingAdjudication {
 
 export default function AdminKycQueuePage() {
   const [filter, setFilter] = useState<KycFilter>('ALL');
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
   const [selectedExtraction, setSelectedExtraction] = useState<KycQueueItem | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAdjudication | null>(null);
   const [adjudicationNotes, setAdjudicationNotes] = useState<string>('');
@@ -37,7 +36,7 @@ export default function AdminKycQueuePage() {
     if (!pendingAction) return;
 
     const { item, decision } = pendingAction;
-    setNotice(null);
+    clearNotice();
 
     try {
       await adjudicateMutation.mutateAsync({
@@ -47,19 +46,19 @@ export default function AdminKycQueuePage() {
         grantEwasteLicense: decision === 'APPROVE' ? grantEwaste : false,
       });
 
-      setNotice({
-        tone: 'success',
-        text: `Adjudication recorded: ${item.partnerOrgName} moved to ${decision === 'APPROVE' ? 'Verified' : decision === 'REJECT' ? 'Rejected' : 'Applied (Re-upload requested)'}.`,
-      });
+      showNotice(
+        'success',
+        `Adjudication recorded: ${item.partnerOrgName} moved to ${decision === 'APPROVE' ? 'Verified' : decision === 'REJECT' ? 'Rejected' : 'Applied (Re-upload requested)'}.`,
+      );
 
       if (selectedExtraction?.id === item.id) {
         setSelectedExtraction(null);
       }
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, `Failed to adjudicate KYC document for ${item.partnerOrgName}.`),
-      });
+      showNotice(
+        'error',
+        getErrorMessage(error, `Failed to adjudicate KYC document for ${item.partnerOrgName}.`),
+      );
     } finally {
       setPendingAction(null);
       setAdjudicationNotes('');
@@ -94,11 +93,7 @@ export default function AdminKycQueuePage() {
         }
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {/* Main Queue Table */}
       <section className="admin-panel mb-6" aria-labelledby="kyc-queue-title">
@@ -114,30 +109,21 @@ export default function AdminKycQueuePage() {
           {!isLoading && <span className="admin-panel-count">{filteredQueue.length} items</span>}
         </div>
 
-        {isLoading ? (
-          <AdminSkeleton rowCount={4} colCount={7} label="Loading KYC queue" />
-        ) : isError && queue.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">KYC queue unavailable</h3>
-              <p className="admin-state-copy">Could not reach the compliance API. Please retry.</p>
-              <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                Retry
-              </AdminButton>
-            </div>
-          </div>
-        ) : filteredQueue.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">No pending documents</h3>
-              <p className="admin-state-copy">
-                {queue.length === 0
-                  ? 'No KYC documents have been submitted for OCR verification.'
-                  : `No documents currently match the ${formatLabel(filter).toLowerCase()} filter.`}
-              </p>
-            </div>
-          </div>
-        ) : (
+        <AdminResourceState
+          isLoading={isLoading}
+          isError={isError && queue.length === 0}
+          isEmpty={filteredQueue.length === 0}
+          onRetry={() => void refetch()}
+          skeleton={<AdminSkeleton rowCount={4} colCount={7} label="Loading KYC queue" />}
+          errorTitle="KYC queue unavailable"
+          errorCopy="Could not reach the compliance API. Please retry."
+          emptyTitle="No pending documents"
+          emptyCopy={
+            queue.length === 0
+              ? 'No KYC documents have been submitted for OCR verification.'
+              : `No documents currently match the ${formatLabel(filter).toLowerCase()} filter.`
+          }
+        >
           <div className="admin-table-wrap admin-table-responsive">
             <table className="admin-table">
               <thead>
@@ -229,7 +215,7 @@ export default function AdminKycQueuePage() {
               </tbody>
             </table>
           </div>
-        )}
+        </AdminResourceState>
       </section>
 
       {/* Side-By-Side Document Inspector (A06) */}

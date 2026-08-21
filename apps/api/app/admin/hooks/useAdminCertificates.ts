@@ -1,8 +1,8 @@
+// Data hooks for Admin ESG Certificates & DoE E-Waste Compliance (A12).
 'use client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminApiRequest } from '../services/adminApi';
+
 import type { GenerateCertificateInput, EwasteComplianceReport } from '@chokro/shared';
+import { useAdminList, useAdminResource, useAdminAction } from './useAdminResource';
 
 export interface AdminCertificateListItem {
   id: string;
@@ -23,47 +23,29 @@ export const ADMIN_CERTIFICATES_QUERY_KEY = ['admin', 'certificates'] as const;
 export const ADMIN_EWASTE_COMPLIANCE_QUERY_KEY = ['admin', 'ewaste-compliance'] as const;
 
 export function useAdminCertificates() {
-  const { status } = useAdminAuth();
-  return useQuery<AdminCertificateListItem[]>({
-    queryKey: ADMIN_CERTIFICATES_QUERY_KEY,
-    queryFn: async () => {
-      const data = await adminApiRequest<{ certificates?: AdminCertificateListItem[] }>(
-        '/api/admin/impact/certificates'
-      );
-      return Array.isArray(data.certificates) ? data.certificates : [];
-    },
-    enabled: status === 'signed-in',
-  });
+  return useAdminList<{ certificates?: AdminCertificateListItem[] }, AdminCertificateListItem>(
+    ADMIN_CERTIFICATES_QUERY_KEY,
+    '/api/admin/impact/certificates',
+    (data) => data.certificates,
+  );
 }
 
 export function useAdminEwasteCompliance(institutionId?: string) {
-  const { status } = useAdminAuth();
-  return useQuery<EwasteComplianceReport>({
-    queryKey: [...ADMIN_EWASTE_COMPLIANCE_QUERY_KEY, institutionId || 'all'],
-    queryFn: async () => {
-      const url = institutionId
-        ? `/api/admin/impact/ewaste-compliance?institutionId=${encodeURIComponent(institutionId)}`
-        : '/api/admin/impact/ewaste-compliance';
-      const data = await adminApiRequest<{ complianceReport?: EwasteComplianceReport } & EwasteComplianceReport>(url);
-      return data.complianceReport || data;
-    },
-    enabled: status === 'signed-in',
-  });
+  const url = institutionId
+    ? `/api/admin/impact/ewaste-compliance?institutionId=${encodeURIComponent(institutionId)}`
+    : '/api/admin/impact/ewaste-compliance';
+
+  return useAdminResource<{ complianceReport?: EwasteComplianceReport } & EwasteComplianceReport>(
+    [...ADMIN_EWASTE_COMPLIANCE_QUERY_KEY, institutionId || 'all'],
+    url,
+  );
 }
 
 export function useGenerateCertificate() {
-  const queryClient = useQueryClient();
-  return useMutation<any, Error, GenerateCertificateInput>({
-    mutationFn: async (payload) => {
-      const data = await adminApiRequest<{ certificate?: any }>('/api/certificates/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      return data.certificate;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_CERTIFICATES_QUERY_KEY });
-    },
+  return useAdminAction<any, GenerateCertificateInput>({
+    path: '/api/certificates/generate',
+    payload: (payload) => payload,
+    select: (data) => data.certificate,
+    invalidate: [ADMIN_CERTIFICATES_QUERY_KEY],
   });
 }

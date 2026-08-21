@@ -10,7 +10,8 @@ import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { useAdminRateCards, usePublishRate } from '../hooks/useAdminRateCards';
 import { formatDate, formatLabel, formatPrice, getErrorMessage, unitForCategory } from '../lib/formatters';
 import { CATEGORY_OPTIONS } from '../drop-zones/categories';
@@ -21,20 +22,17 @@ const CONDITION_OPTIONS = CONDITIONS.map((value) => ({
   label: formatLabel(value),
 }));
 
-// Success/error feedback surfaced to the admin, keyed by visual tone.
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminRateCardPage() {
   // Fetch existing rate history and prepare the publish mutation against the admin API.
   const { data: rates = [], isLoading, isError, refetch } = useAdminRateCards();
   const publishRateMutation = usePublishRate();
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
   // Form state for the rate being published and any validation/feedback text.
   const [category, setCategory] = useState<Category>('PLASTICS');
   const [conditionBand, setConditionBand] = useState<Condition>('GOOD');
   const [priceBdt, setPriceBdt] = useState('');
   const [priceError, setPriceError] = useState('');
-  const [notice, setNotice] = useState<Notice>(null);
 
   // Unit is derived from the chosen category (kg for materials, pieces for appliances/e-waste).
   const unit = unitForCategory(category);
@@ -55,7 +53,7 @@ export default function AdminRateCardPage() {
   // Validate price, call the publish mutation, and surface success or error feedback.
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(null);
+    clearNotice();
     setPriceError('');
 
     const numericPrice = Number(priceBdt);
@@ -72,16 +70,13 @@ export default function AdminRateCardPage() {
         priceBdt: numericPrice,
       });
 
-      setNotice({
-        tone: 'success',
-        text: `${formatLabel(category)} ${formatLabel(conditionBand)} rate published at ${formatPrice(numericPrice)} per ${unit}.`,
-      });
+      showNotice(
+        'success',
+        `${formatLabel(category)} ${formatLabel(conditionBand)} rate published at ${formatPrice(numericPrice)} per ${unit}.`,
+      );
       setPriceBdt('');
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, 'The rate entry could not be published.'),
-      });
+      showNotice('error', getErrorMessage(error, 'The rate entry could not be published.'));
     }
   }
 
@@ -95,11 +90,7 @@ export default function AdminRateCardPage() {
       />
 
       {/* Dismissible toast for publish results */}
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       <div className="admin-workspace-grid">
         {/* Form to publish a new rate for a category/condition */}
@@ -185,26 +176,17 @@ export default function AdminRateCardPage() {
           </div>
 
           {/* Branch on load / error / empty / data states for the history panel */}
-          {isLoading ? (
-            <AdminSkeleton rowCount={4} colCount={5} label="Loading rate history" />
-          ) : isError && rates.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">Rate history unavailable</h3>
-                <p className="admin-state-copy">Retry the request when the admin API is available.</p>
-                <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                  Retry
-                </AdminButton>
-              </div>
-            </div>
-          ) : sortedRatesWithVersion.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">No rate entries yet</h3>
-                <p className="admin-state-copy">Publish the first rate to start the version history.</p>
-              </div>
-            </div>
-          ) : (
+          <AdminResourceState
+            isLoading={isLoading}
+            isError={isError && rates.length === 0}
+            isEmpty={sortedRatesWithVersion.length === 0}
+            onRetry={() => void refetch()}
+            skeleton={<AdminSkeleton rowCount={4} colCount={5} label="Loading rate history" />}
+            errorTitle="Rate history unavailable"
+            errorCopy="Retry the request when the admin API is available."
+            emptyTitle="No rate entries yet"
+            emptyCopy="Publish the first rate to start the version history."
+          >
             <div className="admin-table-wrap admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -239,7 +221,7 @@ export default function AdminRateCardPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AdminResourceState>
         </section>
       </div>
     </>

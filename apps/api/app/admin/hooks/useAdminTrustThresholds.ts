@@ -1,61 +1,34 @@
 // Data hooks for Trust Gate dynamic thresholds (SPEC 12 / Ticket 08a)
 'use client';
 
+import {
+  ThresholdUpdateResponseSchema,
+  ThresholdsResponseSchema,
+  type ThresholdUpdateResponse,
+  type ThresholdsResponse,
+} from '@chokro/shared';
 import type { TrustThresholdConfig } from '@chokro/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminApiRequest } from '../services/adminApi';
+import { useAdminResource, useAdminAction } from './useAdminResource';
 
-export type ThresholdHistoryEntry = {
-  id: string;
-  config_json: TrustThresholdConfig;
-  effective_from: string;
-  updated_by?: string | null;
-  created_at: string;
-};
-
-export type ThresholdsResponse = {
-  thresholds: TrustThresholdConfig;
-  configId?: string;
-  history: ThresholdHistoryEntry[];
-};
+// History row shape is inferred from the Trust Gate response schema, not hand-mirrored.
+export type ThresholdHistoryEntry = ThresholdsResponse['history'][number];
 
 export const ADMIN_THRESHOLDS_QUERY_KEY = ['admin', 'trust-gate', 'thresholds'] as const;
 
 export function useAdminTrustThresholds() {
-  const { status } = useAdminAuth();
-
-  return useQuery<ThresholdsResponse>({
-    queryKey: ADMIN_THRESHOLDS_QUERY_KEY,
-    queryFn: async () => {
-      const data = await adminApiRequest<ThresholdsResponse>('/api/admin/trust-gate/thresholds');
-      return data;
-    },
-    enabled: status === 'signed-in',
-  });
+  return useAdminResource<ThresholdsResponse>(
+    ADMIN_THRESHOLDS_QUERY_KEY,
+    '/api/admin/trust-gate/thresholds',
+    { schema: ThresholdsResponseSchema },
+  );
 }
 
 export function useUpdateTrustThresholds() {
-  const queryClient = useQueryClient();
-
-  return useMutation<
-    { thresholds: TrustThresholdConfig; record: any },
-    Error,
-    Partial<TrustThresholdConfig>
-  >({
-    mutationFn: async (payload) => {
-      const data = await adminApiRequest<{ thresholds: TrustThresholdConfig; record: any }>(
-        '/api/admin/trust-gate/thresholds',
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }
-      );
-      return data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_THRESHOLDS_QUERY_KEY });
-    },
+  return useAdminAction<ThresholdUpdateResponse, Partial<TrustThresholdConfig>>({
+    path: '/api/admin/trust-gate/thresholds',
+    method: 'PUT',
+    payload: (payload) => payload,
+    schema: ThresholdUpdateResponseSchema,
+    invalidate: [ADMIN_THRESHOLDS_QUERY_KEY],
   });
 }

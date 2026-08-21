@@ -7,7 +7,8 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import {
   useAdminTrustThresholds,
   useUpdateTrustThresholds,
@@ -15,13 +16,10 @@ import {
 import { formatDate, getErrorMessage } from '../lib/formatters';
 import { DEFAULT_TRUST_THRESHOLDS, type TrustThresholdConfig } from '@chokro/shared';
 
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminThresholdsPage() {
   const { data, isLoading, isError, refetch } = useAdminTrustThresholds();
   const updateThresholdsMutation = useUpdateTrustThresholds();
-
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
   // Form state
   const [formState, setFormState] = useState<TrustThresholdConfig>(DEFAULT_TRUST_THRESHOLDS);
@@ -40,28 +38,22 @@ export default function AdminThresholdsPage() {
 
   async function handleSaveThresholds(e: FormEvent) {
     e.preventDefault();
-    setNotice(null);
+    clearNotice();
 
     try {
       await updateThresholdsMutation.mutateAsync(formState);
-      setNotice({
-        tone: 'success',
-        text: 'Trust Gate thresholds updated successfully. New rules are immediately effective.',
-      });
+      showNotice(
+        'success',
+        'Trust Gate thresholds updated successfully. New rules are immediately effective.',
+      );
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, 'Failed to update trust thresholds.'),
-      });
+      showNotice('error', getErrorMessage(err, 'Failed to update trust thresholds.'));
     }
   }
 
   function handleResetToDefaults() {
     setFormState(DEFAULT_TRUST_THRESHOLDS);
-    setNotice({
-      tone: 'info',
-      text: 'Form reset to system default thresholds. Click "Save changes" to apply.',
-    });
+    showNotice('info', 'Form reset to system default thresholds. Click "Save changes" to apply.');
   }
 
   return (
@@ -72,11 +64,7 @@ export default function AdminThresholdsPage() {
         description="Configure verification sensitivity, fraud heuristics, velocity caps, and deterministic audit sampling without deploying code."
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       <div className="admin-workspace-grid">
         {/* Form Panel */}
@@ -343,28 +331,17 @@ export default function AdminThresholdsPage() {
             )}
           </div>
 
-          {isLoading ? (
-            <AdminSkeleton rowCount={4} colCount={4} label="Loading threshold history" />
-          ) : isError && history.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">Audit history unavailable</h3>
-                <p className="admin-state-copy">Retry when the admin API is available.</p>
-                <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                  Retry
-                </AdminButton>
-              </div>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">No historical threshold changes</h3>
-                <p className="admin-state-copy">
-                  System is currently operating on baseline default thresholds.
-                </p>
-              </div>
-            </div>
-          ) : (
+          <AdminResourceState
+            isLoading={isLoading}
+            isError={isError && history.length === 0}
+            isEmpty={history.length === 0}
+            onRetry={() => void refetch()}
+            skeleton={<AdminSkeleton rowCount={4} colCount={4} label="Loading threshold history" />}
+            errorTitle="Audit history unavailable"
+            errorCopy="Retry when the admin API is available."
+            emptyTitle="No historical threshold changes"
+            emptyCopy="System is currently operating on baseline default thresholds."
+          >
             <div className="admin-table-wrap admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -413,7 +390,7 @@ export default function AdminThresholdsPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AdminResourceState>
         </section>
       </div>
     </>

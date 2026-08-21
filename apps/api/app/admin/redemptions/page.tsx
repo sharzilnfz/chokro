@@ -7,7 +7,8 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { AdminConfirmModal } from '../components/ui/AdminConfirmModal';
 import {
   useAdminRedemptions,
@@ -15,8 +16,6 @@ import {
 } from '../hooks/useAdminRedemptions';
 import { formatDate, getErrorMessage } from '../lib/formatters';
 import type { RedemptionRequestRecord, RedemptionStatus } from '@chokro/shared';
-
-type Notice = { tone: NoticeTone; text: string } | null;
 
 const STATUS_FILTERS = [
   { value: 'ALL', label: 'All Statuses' },
@@ -31,7 +30,7 @@ const STATUS_FILTERS = [
 
 export default function AdminRedemptionsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [notice, setNotice] = useState<Notice>(null);
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
   const { data, isLoading, isError, refetch } = useAdminRedemptions(statusFilter);
   const settleMutation = useSettleRedemption();
@@ -56,24 +55,24 @@ export default function AdminRedemptionsPage() {
         },
       });
 
-      setNotice({
-        tone: 'success',
-        text: `Redemption ${activeAction.redemption.id.slice(0, 8)}... ${
+      showNotice(
+        'success',
+        `Redemption ${activeAction.redemption.id.slice(0, 8)}... ${
           activeAction.action === 'APPROVE'
             ? 'approved and payout disbursed'
             : activeAction.action === 'REJECT'
               ? 'rejected and credits restored'
               : 'retry attempted'
         } successfully.`,
-      });
+      );
 
       setActiveAction(null);
       setActionReason('');
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, `Failed to ${activeAction.action.toLowerCase()} redemption`),
-      });
+      showNotice(
+        'error',
+        getErrorMessage(err, `Failed to ${activeAction.action.toLowerCase()} redemption`),
+      );
     }
   }
 
@@ -85,11 +84,7 @@ export default function AdminRedemptionsPage() {
         description="Monitor user cash-out requests, audit Trust Gate verification decisions, and manage MFS payout disbursements."
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       <div className="admin-panel mb-6">
         <div className="admin-panel-header">
@@ -113,30 +108,21 @@ export default function AdminRedemptionsPage() {
           )}
         </div>
 
-        {isLoading ? (
-          <AdminSkeleton rowCount={6} colCount={7} label="Loading redemptions queue" />
-        ) : isError ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">Redemptions queue unavailable</h3>
-              <p className="admin-state-copy">Check server logs or retry when the API is online.</p>
-              <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                Retry
-              </AdminButton>
-            </div>
-          </div>
-        ) : redemptions.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">No redemptions found</h3>
-              <p className="admin-state-copy">
-                {statusFilter !== 'ALL'
-                  ? `No redemption requests match status "${statusFilter}".`
-                  : 'No user cash-out requests have been recorded yet.'}
-              </p>
-            </div>
-          </div>
-        ) : (
+        <AdminResourceState
+          isLoading={isLoading}
+          isError={isError}
+          isEmpty={redemptions.length === 0}
+          onRetry={() => void refetch()}
+          skeleton={<AdminSkeleton rowCount={6} colCount={7} label="Loading redemptions queue" />}
+          errorTitle="Redemptions queue unavailable"
+          errorCopy="Check server logs or retry when the API is online."
+          emptyTitle="No redemptions found"
+          emptyCopy={
+            statusFilter !== 'ALL'
+              ? `No redemption requests match status "${statusFilter}".`
+              : 'No user cash-out requests have been recorded yet.'
+          }
+        >
           <div className="admin-table-wrap admin-table-responsive">
             <table className="admin-table">
               <thead>
@@ -273,7 +259,7 @@ export default function AdminRedemptionsPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </AdminResourceState>
       </div>
 
       {/* Confirmation Modal */}

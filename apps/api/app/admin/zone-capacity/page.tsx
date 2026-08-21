@@ -8,7 +8,8 @@ import { AdminButton } from '../components/ui/AdminButton';
 import { AdminInput } from '../components/ui/AdminInput';
 import { AdminSelect } from '../components/ui/AdminSelect';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminStatusMessage } from '../components/ui/AdminStatusMessage';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import {
   useAdminZoneTelemetry,
   useRecordZoneTelemetry,
@@ -16,13 +17,11 @@ import {
 } from '../hooks/useAdminDropZones';
 import { formatLabel, getErrorMessage } from '../lib/formatters';
 
-type Notice = { tone: NoticeTone; text: string } | null;
-
 export default function AdminZoneCapacityPage() {
   const { data, isLoading, isError, refetch } = useAdminZoneTelemetry();
   const recordTelemetryMutation = useRecordZoneTelemetry();
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
-  const [notice, setNotice] = useState<Notice>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [fillKgInput, setFillKgInput] = useState<string>('');
   const [triggerReason, setTriggerReason] = useState<string>('DEPOSIT_ACCUMULATION');
@@ -40,12 +39,12 @@ export default function AdminZoneCapacityPage() {
   async function handleSimulateTelemetry(e: FormEvent) {
     e.preventDefault();
     if (!selectedZoneId) {
-      setNotice({ tone: 'error', text: 'Select a drop zone to update telemetry.' });
+      showNotice('error', 'Select a drop zone to update telemetry.');
       return;
     }
     const fillKg = parseFloat(fillKgInput);
     if (isNaN(fillKg) || fillKg < 0) {
-      setNotice({ tone: 'error', text: 'Enter a valid fill amount in kg (non-negative).' });
+      showNotice('error', 'Enter a valid fill amount in kg (non-negative).');
       return;
     }
 
@@ -60,16 +59,10 @@ export default function AdminZoneCapacityPage() {
         ? ' 🚨 High-capacity threshold (≥85%) reached! Automated pickup dispatch task spawned.'
         : '';
 
-      setNotice({
-        tone: 'success',
-        text: `Telemetry recorded successfully.${dispatchText}`,
-      });
+      showNotice('success', `Telemetry recorded successfully.${dispatchText}`);
       setFillKgInput('');
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, 'Failed to submit telemetry.'),
-      });
+      showNotice('error', getErrorMessage(err, 'Failed to submit telemetry.'));
     }
   }
 
@@ -101,11 +94,7 @@ export default function AdminZoneCapacityPage() {
         description="Monitor real-time drop bin fill levels, track capacity velocity, and inspect automated emptying collection dispatches (≥85% threshold)."
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {/* Metrics Banner */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" aria-label="Telemetry KPI summary">

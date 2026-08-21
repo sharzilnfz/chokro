@@ -1,11 +1,9 @@
-// Data hooks for drop zones: list registered collection points and create new ones.
+// Data hooks for drop zones: list registered collection points, telemetry overview, and mutations.
 'use client';
 
-// Shared category type, React Query primitives, auth session, and the admin fetch wrapper.
+// Shared category type and the admin resource factory.
 import type { Category } from '@chokro/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminApiRequest } from '../services/adminApi';
+import { useAdminList, useAdminResource, useAdminAction } from './useAdminResource';
 
 // A registered drop zone as returned by the API, including its signed QR token and capacity fields.
 export type DropZone = {
@@ -72,68 +70,37 @@ export const ADMIN_ZONE_TELEMETRY_QUERY_KEY = ['admin', 'zone-telemetry'] as con
 
 // Loads the registered drop zones once the admin session is active.
 export function useAdminDropZones() {
-  const { status } = useAdminAuth();
-
-  return useQuery<DropZone[]>({
-    queryKey: ADMIN_DROP_ZONES_QUERY_KEY,
-    queryFn: async () => {
-      const data = await adminApiRequest<{ zones?: DropZone[] }>('/api/drop-zones');
-      return Array.isArray(data.zones) ? data.zones : [];
-    },
-    enabled: status === 'signed-in',
-  });
+  return useAdminList<{ zones?: DropZone[] }, DropZone>(
+    ADMIN_DROP_ZONES_QUERY_KEY,
+    '/api/drop-zones',
+    (data) => data.zones,
+  );
 }
 
 // Loads drop zone capacity telemetry overview (A03)
 export function useAdminZoneTelemetry() {
-  const { status } = useAdminAuth();
-
-  return useQuery<AdminTelemetryOverview>({
-    queryKey: ADMIN_ZONE_TELEMETRY_QUERY_KEY,
-    queryFn: async () => {
-      return adminApiRequest<AdminTelemetryOverview>('/api/admin/drop-zones/telemetry');
-    },
-    enabled: status === 'signed-in',
-    refetchInterval: 15000,
-  });
+  return useAdminResource<AdminTelemetryOverview>(
+    ADMIN_ZONE_TELEMETRY_QUERY_KEY,
+    '/api/admin/drop-zones/telemetry',
+    { refetchInterval: 15000 },
+  );
 }
 
 // Submits a telemetry update for a drop zone
 export function useRecordZoneTelemetry() {
-  const queryClient = useQueryClient();
-
-  return useMutation<any, Error, RecordTelemetryInput>({
-    mutationFn: async ({ zoneId, currentFillKg, triggerReason }) => {
-      return adminApiRequest(`/api/drop-zones/${zoneId}/telemetry`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentFillKg, triggerReason }),
-      });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_DROP_ZONES_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: ADMIN_ZONE_TELEMETRY_QUERY_KEY });
-    },
+  return useAdminAction<{ dispatchTriggered: boolean } & Record<string, unknown>, RecordTelemetryInput>({
+    path: ({ zoneId }) => `/api/drop-zones/${zoneId}/telemetry`,
+    payload: ({ currentFillKg, triggerReason }) => ({ currentFillKg, triggerReason }),
+    invalidate: [ADMIN_DROP_ZONES_QUERY_KEY, ADMIN_ZONE_TELEMETRY_QUERY_KEY],
   });
 }
 
 // Creates a new drop zone and refreshes the list on success.
 export function useCreateDropZone() {
-  const queryClient = useQueryClient();
-
-  return useMutation<DropZone | undefined, Error, CreateDropZoneInput>({
-    mutationFn: async (payload) => {
-      const data = await adminApiRequest<{ zone?: DropZone }>('/api/drop-zones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      return data.zone;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_DROP_ZONES_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: ADMIN_ZONE_TELEMETRY_QUERY_KEY });
-    },
+  return useAdminAction<DropZone | undefined, CreateDropZoneInput>({
+    path: '/api/drop-zones',
+    payload: (payload) => payload,
+    select: (data) => data.zone,
+    invalidate: [ADMIN_DROP_ZONES_QUERY_KEY, ADMIN_ZONE_TELEMETRY_QUERY_KEY],
   });
 }
-

@@ -7,15 +7,14 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminConfirmModal } from '../components/ui/AdminConfirmModal';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import {
   useAdminEscalations,
   useAdjudicateDecision,
 } from '../hooks/useAdminEscalations';
 import { formatDate, getErrorMessage } from '../lib/formatters';
-import type { EscalationWorklistItem } from '@chokro/shared';
-
-type Notice = { tone: NoticeTone; text: string } | null;
+import type { EscalationWorklistItemDto as EscalationWorklistItem } from '@chokro/shared';
 
 interface PendingAdjudication {
   item: EscalationWorklistItem;
@@ -25,8 +24,8 @@ interface PendingAdjudication {
 export default function AdminTrustGateEscalationsPage() {
   const { data, isLoading, isError, refetch } = useAdminEscalations();
   const adjudicateMutation = useAdjudicateDecision();
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
-  const [notice, setNotice] = useState<Notice>(null);
   const [selectedItem, setSelectedItem] = useState<EscalationWorklistItem | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAdjudication | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
@@ -38,14 +37,11 @@ export default function AdminTrustGateEscalationsPage() {
 
     const { item, action } = pendingAction;
     if (action === 'REJECT' && !rejectionReason.trim()) {
-      setNotice({
-        tone: 'error',
-        text: 'A rejection reason is required to explain the decision to the user.',
-      });
+      showNotice('error', 'A rejection reason is required to explain the decision to the user.');
       return;
     }
 
-    setNotice(null);
+    clearNotice();
 
     try {
       await adjudicateMutation.mutateAsync({
@@ -56,19 +52,16 @@ export default function AdminTrustGateEscalationsPage() {
         },
       });
 
-      setNotice({
-        tone: 'success',
-        text: `Decision ${item.id.slice(0, 8)}... successfully adjudicated as ${action}.`,
-      });
+      showNotice(
+        'success',
+        `Decision ${item.id.slice(0, 8)}... successfully adjudicated as ${action}.`,
+      );
 
       if (selectedItem?.id === item.id) {
         setSelectedItem(null);
       }
     } catch (err) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(err, 'Failed to adjudicate decision.'),
-      });
+      showNotice('error', getErrorMessage(err, 'Failed to adjudicate decision.'));
     } finally {
       setPendingAction(null);
       setRejectionReason('');
@@ -83,11 +76,7 @@ export default function AdminTrustGateEscalationsPage() {
         description="Review escalated verification bundles, inspect failing trust signals and fraud flag histories, and adjudicate decisions (oldest first)."
       />
 
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       <div className="admin-workspace-grid">
         {/* Escalations Queue List */}
@@ -108,28 +97,17 @@ export default function AdminTrustGateEscalationsPage() {
             )}
           </div>
 
-          {isLoading ? (
-            <AdminSkeleton rowCount={5} colCount={4} label="Loading escalation worklist" />
-          ) : isError ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">Escalation queue unavailable</h3>
-                <p className="admin-state-copy">Failed to load escalated decisions from the trust gate.</p>
-                <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                  Retry
-                </AdminButton>
-              </div>
-            </div>
-          ) : escalations.length === 0 ? (
-            <div className="admin-state">
-              <div className="admin-state-content">
-                <h3 className="admin-state-title">Queue is clear</h3>
-                <p className="admin-state-copy">
-                  All trust decisions are auto-cleared or have been adjudicated.
-                </p>
-              </div>
-            </div>
-          ) : (
+          <AdminResourceState
+            isLoading={isLoading}
+            isError={isError}
+            isEmpty={escalations.length === 0}
+            onRetry={() => void refetch()}
+            skeleton={<AdminSkeleton rowCount={5} colCount={4} label="Loading escalation worklist" />}
+            errorTitle="Escalation queue unavailable"
+            errorCopy="Failed to load escalated decisions from the trust gate."
+            emptyTitle="Queue is clear"
+            emptyCopy="All trust decisions are auto-cleared or have been adjudicated."
+          >
             <div className="admin-table-wrap admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -222,7 +200,7 @@ export default function AdminTrustGateEscalationsPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AdminResourceState>
         </section>
 
         {/* Selected Item Detail Inspector */}
