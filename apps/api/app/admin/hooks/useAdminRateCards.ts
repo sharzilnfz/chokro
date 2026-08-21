@@ -1,21 +1,15 @@
 // Data hooks for the rate card: load the versioned rate history and publish new rates.
 'use client';
 
-// Shared domain types, React Query primitives, auth session, and the admin fetch wrapper.
+// Shared domain types + response DTOs, React Query primitives, auth session, admin fetch wrapper.
 import type { Category, Condition, Unit } from '@chokro/shared';
+import { RateCardEntryResponseSchema, RateCardListResponseSchema, type RateCardRow } from '@chokro/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminApiRequest } from '../services/adminApi';
 
 // A single row of the rate-card history as returned by the admin API.
-export type RateEntry = {
-  id: string;
-  category: string;
-  condition_band: string;
-  unit: Unit;
-  price_bdt: string | number;
-  effective_from: string;
-};
+export type RateEntry = RateCardRow;
 
 // Payload describing a new rate entry to publish.
 export type PublishRateInput = {
@@ -35,7 +29,9 @@ export function useAdminRateCards() {
   return useQuery<RateEntry[]>({
     queryKey: ADMIN_RATE_CARDS_QUERY_KEY,
     queryFn: async () => {
-      const data = await adminApiRequest<{ entries?: RateEntry[] }>('/api/admin/rate-card');
+      const data = await adminApiRequest<{ entries?: RateEntry[] }>('/api/admin/rate-card', {
+        schema: RateCardListResponseSchema,
+      });
       return Array.isArray(data.entries) ? data.entries : [];
     },
     enabled: status === 'signed-in',
@@ -52,6 +48,7 @@ export function usePublishRate() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        schema: RateCardEntryResponseSchema,
       });
       return data.entry;
     },

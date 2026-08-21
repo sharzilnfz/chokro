@@ -1,5 +1,6 @@
 'use client';
 import type { Campus, CampusStatus } from '@chokro/shared';
+import { CampusListResponseSchema, CampusMutationResponseSchema } from '@chokro/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminApiRequest } from '../services/adminApi';
@@ -29,7 +30,9 @@ export function useAdminCampuses(statusFilter?: CampusStatus) {
       const url = statusFilter
         ? `/api/admin/campuses?status=${statusFilter}`
         : '/api/admin/campuses';
-      const data = await adminApiRequest<{ campuses?: Campus[] }>(url);
+      const data = await adminApiRequest<{ campuses?: Campus[] }>(url, {
+        schema: CampusListResponseSchema,
+      });
       return Array.isArray(data.campuses) ? data.campuses : [];
     },
     enabled: status === 'signed-in',
@@ -44,6 +47,7 @@ export function useCreateCampus() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        schema: CampusMutationResponseSchema,
       });
       return data.campus;
     },
@@ -61,6 +65,7 @@ export function useUpdateCampusStatus() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, reason }),
+        schema: CampusMutationResponseSchema,
       });
       return data.campus;
     },
@@ -76,6 +81,7 @@ export function useRemoveCampus() {
     mutationFn: async (id) => {
       const data = await adminApiRequest<{ campus?: Campus }>(`/api/admin/campuses/${id}`, {
         method: 'DELETE',
+        schema: CampusMutationResponseSchema,
       });
       return data.campus;
     },

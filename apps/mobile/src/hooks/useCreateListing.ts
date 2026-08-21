@@ -1,18 +1,14 @@
 // Posts a new listing and refreshes the feed cache on success.
-// Mutation infra, query cache, and the API client.
+// Mutation infra, query cache, the API client, and the shared request schema.
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
+import { CreateListingSchema } from '@chokro/shared';
 
-// Fields required to create a listing via the API.
-type CreateListingPayload = {
-  category: string;
-  unit: 'kg' | 'piece';
-  declaredWeight?: number;
-  pieceCount?: number;
-  declaredCondition: string;
-  price: number;
-  photos: string[];
-};
+// Submit payload validated by the same Zod schema the API enforces server-side.
+export type CreateListingPayload = Pick<
+  ReturnType<typeof CreateListingSchema.parse>,
+  'category' | 'unit' | 'declaredWeight' | 'pieceCount' | 'declaredCondition' | 'price' | 'photos'
+>;
 
 // Mutation that POSTs the listing then invalidates the feed.
 export function useCreateListing() {

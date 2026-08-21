@@ -1,41 +1,20 @@
 // Paginated, filterable feed data source backed by React Query's infinite queries.
-// Query infra and the API client.
+// Query infra, the API client, and the shared response DTOs.
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/services/api';
+import type { FeedPage } from '@chokro/shared';
 import type { Category, Condition } from '@/types';
 
-// Possible lifecycle states a listing can be in.
-type ListingStatus = 'DRAFT' | 'ACTIVE' | 'CANCELLED' | 'MATCHED' | 'EXPIRED';
-
-// Shape of a single listing returned by the feed API.
-type Listing = {
-  id: string;
-  category: Category;
-  unit: 'kg' | 'piece';
-  declared_weight?: string | number | null;
-  piece_count?: string | number | null;
-  declared_condition: Condition;
-  price_bdt?: string | number | null;
-  photos?: string[];
-  status: ListingStatus;
-  created_at?: string;
-  seller_email?: string | null;
-  saved?: boolean;
-};
-
-// One feed page: entries plus the cursor for the next page.
-type FeedResponse = {
-  items: Listing[];
-  nextCursor?: string | null;
-};
-
-export type { Listing };
+export type { FeedPage };
 
 // Filter selectors; 'ALL' means no filter.
 type FeedFilter = 'ALL' | Category;
 type ConditionFilter = 'ALL' | Condition;
 
 export type { FeedFilter, ConditionFilter };
+
+// Re-export the feed listing row type for screens and cards.
+export type { FeedListing as Listing } from '@chokro/shared';
 
 export function useFeed(category: FeedFilter, condition: ConditionFilter, savedOnly = false) {
   return useInfiniteQuery({
@@ -46,7 +25,7 @@ export function useFeed(category: FeedFilter, condition: ConditionFilter, savedO
       if (condition !== 'ALL') params.set('condition', condition);
       if (savedOnly) params.set('saved', 'true');
       if (pageParam) params.set('cursor', pageParam);
-      return apiRequest<FeedResponse>(`/api/feed?${params.toString()}`);
+      return apiRequest<FeedPage>(`/api/feed?${params.toString()}`);
     },
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
