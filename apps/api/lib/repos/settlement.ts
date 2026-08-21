@@ -17,7 +17,7 @@ import {
 } from '@chokro/db';
 import { withDb } from './seam';
 import { ConflictError, BadRequestError } from '../database';
-import { WalletDomain } from '../domain/WalletDomain';
+import { LedgerMath } from '../LedgerMath';
 import { DEFAULT_LIABILITY_CAPS, type RedemptionStatus, type PayoutStatus } from '@chokro/shared';
 import crypto from 'crypto';
 
@@ -293,88 +293,53 @@ export const settlementRepo = {
     });
   },
 
-  // 11. Sum user's gross redeemed BDT in calendar month
-  async getUserMonthlyRedeemedBdt(userId: string, date: Date = new Date(), dbOrTx: any = db) {
+  // 11/12. Sum gross redeemed BDT in calendar month — across all users or one user (the twins, parameterized).
+  async getMonthlyRedeemedBdt(userId: string | null, date: Date = new Date(), dbOrTx: any = db) {
     return withDb(async () => {
       const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
       const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 
-      const rows = await dbOrTx
-        .select()
-        .from(redemptionRequests)
-        .where(
-          and(
-            eq(redemptionRequests.user_id, userId),
-            gte(redemptionRequests.created_at, startOfMonth),
-            lte(redemptionRequests.created_at, endOfMonth),
-            inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID'])
-          )
-        );
+      const filters = [
+        gte(redemptionRequests.created_at, startOfMonth),
+        lte(redemptionRequests.created_at, endOfMonth),
+        inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID']),
+      ];
+      if (userId !== null) filters.push(eq(redemptionRequests.user_id, userId));
 
-      let total = 0;
-      for (const row of rows) {
-        const val = Number(row.gross_amount_bdt);
-        if (Number.isFinite(val)) total += val;
-      }
-      return Number(total.toFixed(2));
+      const [row] = await dbOrTx
+        .select({ total: sql<string>`COALESCE(SUM(${redemptionRequests.gross_amount_bdt}), 0)` })
+        .from(redemptionRequests)
+        .where(and(...filters));
+
+      const total = Number(row?.total);
+      return Number.isFinite(total) ? Number(total.toFixed(2)) : 0;
     });
+  },
+
+  // 11. Sum user's gross redeemed BDT in calendar month
+  async getUserMonthlyRedeemedBdt(userId: string, date: Date = new Date(), dbOrTx: any = db) {
+    return this.getMonthlyRedeemedBdt(userId, date, dbOrTx);
   },
 
   // 12. Sum platform's gross redeemed BDT in calendar month
   async getPlatformMonthlyRedeemedBdt(date: Date = new Date(), dbOrTx: any = db) {
-    return withDb(async () => {
-      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-
-      const rows = await dbOrTx
-        .select()
-        .from(redemptionRequests)
-        .where(
-          and(
-            gte(redemptionRequests.created_at, startOfMonth),
-            lte(redemptionRequests.created_at, endOfMonth),
-            inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID'])
-          )
-        );
-
-      let total = 0;
-      for (const row of rows) {
-        const val = Number(row.gross_amount_bdt);
-        if (Number.isFinite(val)) total += val;
-      }
-      return Number(total.toFixed(2));
-    });
+    return this.getMonthlyRedeemedBdt(null, date, dbOrTx);
   },
 
-  // 13. Derive platform outstanding liability from append-only credit ledger
+  // 13. Derive platform outstanding liability from append-only credit ledger.
+  // Aggregation is pushed into SQL (GROUP BY kind, status) — the whole ledger is never loaded.
   async getPlatformLiabilityMetrics(dbOrTx: any = db) {
     return withDb(async () => {
-      const allTxns = await dbOrTx.select().from(creditTxns);
+      const grouped = await dbOrTx
+        .select({
+          kind: creditTxns.kind,
+          status: creditTxns.status,
+          amount: sql<string>`COALESCE(SUM(${creditTxns.amount}), 0)`,
+        })
+        .from(creditTxns)
+        .groupBy(creditTxns.kind, creditTxns.status);
 
-      let totalEarnedVerified = 0;
-      let totalRedeemed = 0;
-
-      for (const txn of allTxns) {
-        const amt = Number(txn.amount);
-        if (!Number.isFinite(amt)) continue;
-
-        const kind = txn.kind || 'EARN';
-        if (kind === 'EARN' && txn.status === 'VERIFIED') {
-          totalEarnedVerified += amt;
-        } else if (kind === 'ADJUST' && txn.status === 'VERIFIED') {
-          totalEarnedVerified += amt;
-        } else if (kind === 'REDEEM' && (txn.status === 'VERIFIED' || txn.status === 'PENDING')) {
-          totalRedeemed += Math.abs(amt);
-        }
-      }
-
-      const outstanding = Math.max(0, totalEarnedVerified - totalRedeemed);
-
-      return {
-        totalEarnedVerifiedCredits: Number(totalEarnedVerified.toFixed(2)),
-        totalRedeemedCredits: Number(totalRedeemed.toFixed(2)),
-        outstandingLiabilityBdt: Number(outstanding.toFixed(2)),
-      };
+      return LedgerMath.sumPlatform(grouped);
     });
   },
 
@@ -414,7 +379,7 @@ export const settlementRepo = {
           .from(creditTxns)
           .where(eq(creditTxns.user_id, params.userId));
 
-        const balance = WalletDomain.calculateBalance(userTxns);
+        const balance = LedgerMath.sumUser(userTxns);
 
         if (balance.verified < params.amountCredits) {
           throw new ConflictError(
