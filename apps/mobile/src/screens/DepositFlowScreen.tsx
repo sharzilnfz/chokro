@@ -1,5 +1,5 @@
 // DepositFlowScreen (M06): Verified drop-zone deposit evidence submission with privacy-safe photo pipeline (Ticket 03 / Spec 16)
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -26,14 +26,43 @@ interface DepositFlowScreenProps {
   zoneId?: string;
   zoneName?: string;
   acceptedCategories?: string[];
+  qrToken?: string;
   onComplete?: () => void;
   onCancel?: () => void;
+}
+
+interface ProcessMediaResult {
+  mediaId: string;
+  publicUrl: string;
+  thumbnailUrl: string;
+  isPrivacyStripped: boolean;
+  byteSize: number;
+  degradedMode: boolean;
+  width?: number | null;
+  height?: number | null;
+  exifGpsExtracted: boolean;
+  extractedLat?: number | null;
+  extractedLng?: number | null;
+}
+
+interface DropSessionResult {
+  sessionId: string;
+  shortCode: string;
+  expiresAt: string;
+  zone: {
+    id: string;
+    name: string;
+    acceptedCategories: string[];
+    maxCapacityKg: number;
+    currentFillKg: number;
+  };
 }
 
 export function DepositFlowScreen({
   zoneId = 'zone-default',
   zoneName = 'Campus Drop Zone A',
   acceptedCategories = CATEGORIES,
+  qrToken = '',
   onComplete,
   onCancel,
 }: DepositFlowScreenProps) {
@@ -47,6 +76,9 @@ export function DepositFlowScreen({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [shortCode, setShortCode] = useState<string>('');
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   const unit = getCategoryUnit(category);
   const parsedQuantity = parseFloat(quantity);
@@ -54,6 +86,33 @@ export function DepositFlowScreen({
   const { data: estimate } = useEstimate(category, 'GOOD');
   const ratePerUnit = estimate ? Number(estimate.price_bdt) : 0;
   const totalEstimatedBdt = hasValidQuantity && ratePerUnit > 0 ? parsedQuantity * ratePerUnit : null;
+
+  // Create drop session on mount
+  useEffect(() => {
+    const createSession = async () => {
+      setSessionLoading(true);
+      setError('');
+      try {
+        const result = await apiRequest<DropSessionResult>('/api/drop-sessions', {
+          method: 'POST',
+          body: JSON.stringify({
+            qrToken: qrToken,
+            zoneId: zoneId,
+          }),
+        });
+        setSessionId(result.sessionId);
+        setShortCode(result.shortCode);
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to create drop session.'));
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+
+    if (qrToken) {
+      void createSession();
+    }
+  }, [qrToken, zoneId]);
 
   const handlePickPhoto = useCallback(async () => {
     setPreparingPhoto(true);
@@ -94,19 +153,37 @@ export function DepositFlowScreen({
       setError(unit === 'kg' ? 'Enter a valid weight in kg.' : 'Enter number of pieces.');
       return;
     }
+    if (!sessionId) {
+      setError('Session not initialized. Please try again.');
+      return;
+    }
 
     setSubmitting(true);
     setError('');
     setNotice('');
 
     try {
-      // Ingest evidence through canonical privacy-safe pipeline
-      await apiRequest('/api/v1/media/upload', {
+      // Step 1: Upload evidence through canonical privacy-safe pipeline
+      const mediaResult = await apiRequest<ProcessMediaResult>('/api/v1/media/upload', {
         method: 'POST',
         body: JSON.stringify({
           dataUri: photo.dataUri,
           purpose: 'DEPOSIT_EVIDENCE',
           category,
+        }),
+      });
+
+      const evidenceUrl = mediaResult.publicUrl;
+
+      // Step 2: Record deposit with session and evidence URL
+      await apiRequest('/api/deposits', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          category,
+          declaredQuantity: parsedQuantity,
+          unit,
+          evidenceUrl,
         }),
       });
 
@@ -120,7 +197,7 @@ export function DepositFlowScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [category, hasValidQuantity, onComplete, photo, unit]);
+  }, [category, hasValidQuantity, onComplete, photo, sessionId, unit]);
 
   if (isSuccess) {
     return (
@@ -134,6 +211,17 @@ export function DepositFlowScreen({
         <Text className="text-muted text-[14px] text-center mb-[24px] leading-[20px]">
           {notice}
         </Text>
+        {shortCode ? (
+          <View className="bg-surface border border-border rounded-md p-[16px] w-full mb-[24px] items-center">
+            <Text className="text-muted text-[12px] font-bold">Collector pickup code</Text>
+            <Text className="text-leaf-dark text-[32px] font-extrabold mt-[8px] tracking-[2px]">
+              {shortCode}
+            </Text>
+            <Text className="text-muted text-[11px] mt-[8px] text-center leading-[16px]">
+              Share this code with the collector to confirm pickup
+            </Text>
+          </View>
+        ) : null}
         {totalEstimatedBdt !== null ? (
           <View className="bg-surface border border-border rounded-md p-[16px] w-full mb-[24px] items-center">
             <Text className="text-muted text-[12px] font-bold">Estimated Green Credits</Text>
@@ -150,6 +238,17 @@ export function DepositFlowScreen({
             <Text className="text-surface text-[15px] font-extrabold">Done</Text>
           </Pressable>
         ) : null}
+      </View>
+    );
+  }
+
+  if (sessionLoading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center p-[24px]">
+        <ActivityIndicator color={colors.leaf} size="large" />
+        <Text className="text-muted text-[14px] mt-[16px] text-center">
+          Initializing deposit session for {zoneName}...
+        </Text>
       </View>
     );
   }

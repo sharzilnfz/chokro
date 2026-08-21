@@ -67,35 +67,113 @@ export default function AdminDropZonesPage() {
   }
 
   // Fetches the signed QR poster for a zone and opens it in a new window primed for printing.
-  async function openPoster(zone: DropZone) {
-    setPrintingId(zone.id);
-    clearNotice();
+  // async function openPoster(zone: DropZone) {
+  //   setPrintingId(zone.id);
+  //   clearNotice();
 
-    try {
-      const response = await request(`/api/drop-zones/${zone.id}/poster`);
-      if (!response.ok) {
-        showNotice('error', await parseApiError(response, 'The poster could not be generated.'));
-        return;
-      }
+  //   try {
+  //     const response = await request(`/api/drop-zones/${zone.id}/poster`);
+  //     if (!response.ok) {
+  //       showNotice('error', await parseApiError(response, 'The poster could not be generated.'));
+  //       return;
+  //     }
 
-      const html = await response.text();
-      const posterWindow = window.open('', '_blank', 'noopener,noreferrer');
-      if (!posterWindow) {
-        showNotice('error', 'Allow pop-ups for this site to open the poster.');
-        return;
-      }
+  //     const html = await response.text();
+  //     const posterWindow = window.open('', '_blank', 'noopener,noreferrer');
+  //     if (!posterWindow) {
+  //       showNotice('error', 'Allow pop-ups for this site to open the poster.');
+  //       return;
+  //     }
 
-      posterWindow.document.open();
-      posterWindow.document.write(html);
-      posterWindow.document.close();
-      posterWindow.focus();
-      posterWindow.print();
-    } catch {
-      showNotice('error', 'The poster could not be generated. Check the service and try again.');
-    } finally {
-      setPrintingId(null);
-    }
+  //     posterWindow.document.open();
+  //     posterWindow.document.write(html);
+  //     posterWindow.document.close();
+  //     posterWindow.focus();
+  //     posterWindow.print();
+  //   } catch {
+  //     showNotice('error', 'The poster could not be generated. Check the service and try again.');
+  //   } finally {
+  //     setPrintingId(null);
+  //   }
+  // }
+
+    // Fetches the signed QR poster for a zone and opens it in a new window primed for printing.
+  // async function openPoster(zone: DropZone) {
+  //   setPrintingId(zone.id);
+  //   setNotice(null);
+
+  //   // Open synchronously, in direct response to the click — no 'noopener' (that forces a null reference)
+  //   const posterWindow = window.open('', '_blank');
+  //   if (!posterWindow) {
+  //     setNotice({ tone: 'error', text: 'Allow pop-ups for this site to open the poster.' });
+  //     setPrintingId(null);
+  //     return;
+  //   }
+  //   posterWindow.document.write('<p style="font-family:sans-serif;padding:24px">Generating poster…</p>');
+
+  //   try {
+  //     const response = await request(`/api/drop-zones/${zone.id}/poster`);
+  //     if (!response.ok) {
+  //       posterWindow.close();
+  //       setNotice({
+  //         tone: 'error',
+  //         text: await parseApiError(response, 'The poster could not be generated.'),
+  //       });
+  //       return;
+  //     }
+
+  //     const html = await response.text();
+  //     posterWindow.document.open();
+  //     posterWindow.document.write(html);
+  //     posterWindow.document.close();
+  //     posterWindow.focus();
+  //     posterWindow.print();
+  //   } catch {
+  //     posterWindow.close();
+  //     setNotice({
+  //       tone: 'error',
+  //       text: 'The poster could not be generated. Check the service and try again.',
+  //     });
+  //   } finally {
+  //     setPrintingId(null);
+  //   }
+  // }
+
+  // Fetches the signed QR poster for a zone and opens it in a new window primed for printing.
+async function openPoster(zone: DropZone) {
+  setPrintingId(zone.id);
+  clearNotice();
+
+  // Open synchronously, in direct response to the click — no 'noopener' (that forces a null reference)
+  const posterWindow = window.open('', '_blank');
+  if (!posterWindow) {
+    showNotice('error', 'Allow pop-ups for this site to open the poster.');
+    setPrintingId(null);
+    return;
   }
+  posterWindow.document.write('<p style="font-family:sans-serif;padding:24px">Generating poster…</p>');
+
+  try {
+    const response = await request(`/api/drop-zones/${zone.id}/poster`);
+    if (!response.ok) {
+      posterWindow.close();
+      showNotice('error', await parseApiError(response, 'The poster could not be generated.'));
+      return;
+    }
+
+    const html = await response.text();
+    posterWindow.document.open();
+    posterWindow.document.write(html);
+    posterWindow.document.close();
+    posterWindow.focus();
+    posterWindow.print();
+  } catch {
+    posterWindow.close();
+    showNotice('error', 'The poster could not be generated. Check the service and try again.');
+  } finally {
+    setPrintingId(null);
+  }
+}
 
   return (
     <>

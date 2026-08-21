@@ -36,8 +36,10 @@ import { PartnerStatusScreen } from '@/screens/PartnerStatusScreen';
 import { PartnerConsoleScreen } from '@/screens/PartnerConsoleScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { RedemptionRequestScreen } from '@/screens/RedemptionRequestScreen';
+import { DepositFlowScreen } from '@/screens/DepositFlowScreen';
 import { CATEGORIES } from '@chokro/shared';
 import type { FeedFilter } from '@/hooks/useFeed';
+import type { DropZone } from '@/components/DropZoneResultCard';
 
 const TAB_META: Record<
   Tab,
@@ -75,6 +77,7 @@ type SubView =
   | 'partner_console'
   | 'profile'
   | 'redemption'
+  | 'deposit_flow'
   | null;
 
 export function AppShell() {
@@ -84,6 +87,8 @@ export function AppShell() {
   const [listingPrefill, setListingPrefill] = useState<ListingPrefill | null>(null);
   const [messagesTarget, setMessagesTarget] = useState<MessagesTarget | null>(null);
   const [browseCategory, setBrowseCategory] = useState<FeedFilter | null>(null);
+  const [depositZone, setDepositZone] = useState<DropZone | null>(null);
+  const [depositQrToken, setDepositQrToken] = useState<string>('');
 
   const partnerQuery = usePartnerMe();
   const { data: profileData } = useProfile(Boolean(session));
@@ -285,7 +290,24 @@ export function AppShell() {
             onBack={() => setSubView(null)}
             onSuccess={() => setSubView(null)}
           />
-        ) : (
+        ) : subView === 'deposit_flow' ? depositZone ? (
+          <DepositFlowScreen
+            zoneId={depositZone.id}
+            zoneName={depositZone.name}
+            acceptedCategories={depositZone.acceptedCategories}
+            qrToken={depositQrToken}
+            onComplete={() => {
+              setSubView(null);
+              setDepositZone(null);
+              setDepositQrToken('');
+            }}
+            onCancel={() => {
+              setSubView(null);
+              setDepositZone(null);
+              setDepositQrToken('');
+            }}
+          />
+        ) : null : (
           <>
             {activeTab === 'browse' && (
               <FeedScreen
@@ -330,7 +352,15 @@ export function AppShell() {
                 }}
               />
             )}
-            {activeTab === 'scan' && <QRScannerScreen />}
+            {activeTab === 'scan' && (
+              <QRScannerScreen
+                onZoneConfirmed={(zone, qrToken) => {
+                  setDepositZone(zone);
+                  setDepositQrToken(qrToken);
+                  setSubView('deposit_flow');
+                }}
+              />
+            )}
             {activeTab === 'console' && (
               <PartnerConsoleScreen
                 onOpenScanner={() => {

@@ -25,7 +25,8 @@
         {
           "photosPermission": "Allow Chokro to attach an item photo to your listing."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "apiUrl": "http://localhost:3000"
