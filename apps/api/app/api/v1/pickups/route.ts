@@ -4,7 +4,7 @@ import { apiData, apiError, apiSuccess, safeRoute } from '@/lib/http';
 import { listingRepo } from '@/lib/repos/listings';
 import { partnerRepo } from '@/lib/repos/partners';
 import { pickupRepo } from '@/lib/repos/pickups';
-import { DispatchService } from '@/lib/services/DispatchService';
+import { PickupDomain } from '@/lib/domain/PickupDomain';
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
@@ -26,7 +26,7 @@ export const POST = safeRoute(async (req: Request) => {
     return apiError('Only ACTIVE listings can be booked for pickup', 400);
   }
 
-  const result = await DispatchService.assignBestCollector({
+  const result = await PickupDomain.assignBestCollector({
     listing,
     customerId: auth.user.userId,
     address: parsed.data.address,

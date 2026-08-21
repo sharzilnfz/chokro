@@ -2,7 +2,7 @@
 import { apiData, safeRoute } from '@/lib/http';
 import { rateCardRepo } from '@/lib/repos/rateCards';
 import { benchmarksRepo } from '@/lib/repos/benchmarks';
-import { CommodityBenchmarkService } from '@/lib/services/CommodityBenchmarkService';
+import { ValuationDomain } from '@/lib/domain/ValuationDomain';
 
 // Returns the currently published pricing entries for consumers to quote against.
 export const GET = safeRoute(async () => {
@@ -15,7 +15,7 @@ export const GET = safeRoute(async () => {
     if (!bm) return rate;
 
     const benchBdt = Number(bm.benchmark_bdt);
-    const drift = CommodityBenchmarkService.calculateDrift(Number(rate.price_bdt), benchBdt);
+    const drift = ValuationDomain.calculateDrift(Number(rate.price_bdt), benchBdt);
 
     return {
       ...rate,

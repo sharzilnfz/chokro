@@ -1,6 +1,6 @@
 import { apiData, apiSuccess, safeRoute, OPTIONS } from '@/lib/http';
 import { requireAdmin } from '@/lib/auth';
-import { CommodityBenchmarkService } from '@/lib/services/CommodityBenchmarkService';
+import { ValuationDomain } from '@/lib/domain/ValuationDomain';
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAdmin(req);
@@ -16,7 +16,7 @@ export const POST = safeRoute(async (req: Request) => {
     // Body is optional
   }
 
-  const synced = await CommodityBenchmarkService.syncBenchmarks(fxRate);
+  const synced = await ValuationDomain.syncBenchmarks(fxRate);
   return apiSuccess('Commodity benchmarks synced successfully', { count: synced.length, benchmarks: synced }, 200);
 });
 

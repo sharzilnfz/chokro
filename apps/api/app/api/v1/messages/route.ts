@@ -1,7 +1,7 @@
 import { SendMessageSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, safeRoute } from '@/lib/http';
-import { messagesService } from '@/lib/services/messagesService';
+import { MessagingDomain } from '@/lib/domain/MessagingDomain';
 
 export const POST = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
@@ -13,7 +13,7 @@ export const POST = safeRoute(async (req: Request) => {
   }
 
   try {
-    const message = await messagesService.sendMessage(auth.user.userId, parsed.data);
+    const message = await MessagingDomain.sendMessage(auth.user.userId, parsed.data);
     return apiData({ message }, 201);
   } catch (error) {
     const messageText = error instanceof Error ? error.message : 'Could not send message';

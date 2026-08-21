@@ -1,7 +1,7 @@
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, safeRoute } from '@/lib/http';
 import { partnerRepo } from '@/lib/repos/partners';
-import { DispatchService } from '@/lib/services/DispatchService';
+import { PickupDomain } from '@/lib/domain/PickupDomain';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
@@ -12,7 +12,7 @@ export const GET = safeRoute(async (req: Request) => {
     return apiError('Forbidden', 403);
   }
 
-  const route = await DispatchService.optimizeRoute(partner.id);
+  const route = await PickupDomain.optimizeRoute(partner.id);
   return apiData({
     partner,
     routing_source: route.routing_source,

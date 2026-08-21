@@ -1,6 +1,6 @@
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, safeRoute } from '@/lib/http';
-import { messagesService } from '@/lib/services/messagesService';
+import { MessagingDomain } from '@/lib/domain/MessagingDomain';
 
 export const GET = safeRoute(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const auth = requireAuth(req);
@@ -8,7 +8,7 @@ export const GET = safeRoute(async (req: Request, { params }: { params: Promise<
   const { id } = await params;
 
   try {
-    const messages = await messagesService.getConversationMessages(auth.user.userId, id);
+    const messages = await MessagingDomain.getConversationMessages(auth.user.userId, id);
     return apiData({ messages });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load messages';

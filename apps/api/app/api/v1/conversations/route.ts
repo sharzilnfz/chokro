@@ -1,13 +1,13 @@
 import { CreateConversationSchema } from '@chokro/shared';
 import { requireAuth } from '@/lib/auth';
 import { apiData, apiError, safeRoute } from '@/lib/http';
-import { messagesService } from '@/lib/services/messagesService';
+import { MessagingDomain } from '@/lib/domain/MessagingDomain';
 
 export const GET = safeRoute(async (req: Request) => {
   const auth = requireAuth(req);
   if (auth.response) return auth.response;
 
-  const conversations = await messagesService.listConversations(auth.user.userId);
+  const conversations = await MessagingDomain.listConversations(auth.user.userId);
   return apiData({ conversations });
 });
 
@@ -21,7 +21,7 @@ export const POST = safeRoute(async (req: Request) => {
   }
 
   try {
-    const conversation = await messagesService.startConversation(auth.user.userId, parsed.data.listingId);
+    const conversation = await MessagingDomain.startConversation(auth.user.userId, parsed.data.listingId);
     return apiData({ conversation }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not start conversation';

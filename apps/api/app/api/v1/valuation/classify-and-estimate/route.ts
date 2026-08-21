@@ -1,6 +1,6 @@
 import { apiData, apiError, safeRoute } from '@/lib/http';
 import { getAuthUser } from '@/lib/auth';
-import { VisionAgentService } from '@/lib/services/VisionAgentService';
+import { ValuationDomain } from '@/lib/domain/ValuationDomain';
 
 export const POST = safeRoute(async (req: Request) => {
   let body: any = {};
@@ -20,7 +20,7 @@ export const POST = safeRoute(async (req: Request) => {
   const declaredQuantity = body.declaredQuantity || body.declared_quantity || body.quantity || body.weight || body.piece_count || body.pieceCount;
 
   try {
-    const result = await VisionAgentService.classifyAndEstimate({
+    const result = await ValuationDomain.classifyAndEstimate({
       userId: authUser?.userId || null,
       imageUrl,
       imageBase64,
