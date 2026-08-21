@@ -20,6 +20,7 @@ import {
   isNearDuplicate,
   isAuditSampled,
 } from '../lib/domain/TrustGateDomain';
+import { CreditVerificationDomain } from '../lib/domain/CreditVerificationDomain';
 import { POST as evaluateGateRoute } from '../app/api/v1/trust-gate/evaluate/route';
 import {
   GET as getThresholdsRoute,
@@ -297,18 +298,14 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
   // =========================================================================
   describe('3. POST /api/v1/trust-gate/evaluate', () => {
     it('AUTO_CLEAR flips pending credit to VERIFIED and records trust_decision_id', async () => {
-      // 1. Seed pending credit transaction
-      const custodyRef = `CUSTODY-DEP-${crypto.randomUUID().slice(0, 8)}`;
-      const [credit] = await db
-        .insert(creditTxns)
-        .values({
-          user_id: user.id,
-          amount: '400.00',
-          kind: 'EARN',
-          status: 'PENDING',
-          custody_ref: custodyRef,
-        })
-        .returning();
+      // 1. Seed pending credit via single owner (replaces hand-seeded CUSTODY-DEP- fallback)
+      const depositId = crypto.randomUUID();
+      const credit = await CreditVerificationDomain.mintPending({
+        userId: user.id,
+        amount: 400,
+        kind: 'DEPOSIT',
+        subjectId: depositId,
+      });
 
       // 2. Initial wallet balance has 0 verified, 400 pending
       const initBalanceRes = await getWalletBalance(
@@ -320,12 +317,9 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
       expect(initBalance.balance.verified).toBe(0);
       expect(initBalance.balance.pending).toBe(400);
 
-      // 3. Call Trust Gate evaluate with clean signals
-      const depositId = crypto.randomUUID();
-      const evalReq = new Request('http://localhost/api/v1/trust-gate/evaluate', {
-        method: 'POST',
-        headers: authHeaders(userToken),
-        body: JSON.stringify({
+      // 3. Call Trust Gate evaluate with clean signals via domain (server-assembled; route is admin-only)
+      const evalBody = await TrustGateDomain.evaluateAndApply(
+        {
           subjectType: 'DEPOSIT',
           subjectId: depositId,
           userId: user.id,
@@ -335,16 +329,11 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
           unit: 'kg',
           inAppCaptured: true,
           isSessionValid: true,
-          creditTxnId: credit.id,
-          custodyRef,
           evidenceUrl: 'https://evidence.chokro.org/deposit-clean-photo.jpg',
           evidencePhash: '1122334455667788',
-        }),
-      });
-
-      const evalRes = await evaluateGateRoute(evalReq);
-      expect(evalRes.status).toBe(200);
-      const evalBody = await evalRes.json();
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
+      );
 
       expect(evalBody.decision).toBe('AUTO_CLEAR');
       expect(evalBody.failingSignals).toEqual([]);
@@ -388,39 +377,28 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
     });
 
     it('ESCALATE leaves credit PENDING and records decision with failing signal names', async () => {
-      const custodyRef = `CUSTODY-DEP-${crypto.randomUUID().slice(0, 8)}`;
-      const [credit] = await db
-        .insert(creditTxns)
-        .values({
-          user_id: user.id,
-          amount: '500.00',
-          kind: 'EARN',
-          status: 'PENDING',
-          custody_ref: custodyRef,
-        })
-        .returning();
+      const depositId = crypto.randomUUID();
+      const credit = await CreditVerificationDomain.mintPending({
+        userId: user.id,
+        amount: 500,
+        kind: 'DEPOSIT',
+        subjectId: depositId,
+      });
 
-      // Submit deposit with high divergence (declared 20kg, verified 5kg)
-      const evalReq = new Request('http://localhost/api/v1/trust-gate/evaluate', {
-        method: 'POST',
-        headers: authHeaders(userToken),
-        body: JSON.stringify({
+      // Submit deposit with high divergence (declared 20kg, verified 5kg) via domain
+      const evalBody = await TrustGateDomain.evaluateAndApply(
+        {
           subjectType: 'DEPOSIT',
-          subjectId: crypto.randomUUID(),
+          subjectId: depositId,
           userId: user.id,
           category: 'PLASTICS',
           declaredQuantity: 20,
           verifiedQuantity: 5,
           unit: 'kg',
           isSessionValid: true,
-          creditTxnId: credit.id,
-          custodyRef,
-        }),
-      });
-
-      const evalRes = await evaluateGateRoute(evalReq);
-      expect(evalRes.status).toBe(200);
-      const evalBody = await evalRes.json();
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
+      );
 
       expect(evalBody.decision).toBe('ESCALATE');
       expect(evalBody.failingSignals).toContain('quantity_within_band');
@@ -442,6 +420,46 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
       expect(flags[0].flag_type).toBe('QUANTITY_DIVERGENCE');
     });
 
+    it('trust bypass fix: non-admin cannot evaluate trust gate and caller signals are ignored', async () => {
+      const depositId = crypto.randomUUID();
+      await CreditVerificationDomain.mintPending({
+        userId: user.id,
+        amount: 100,
+        kind: 'DEPOSIT',
+        subjectId: depositId,
+      });
+      // Individual tries to call admin-only route with forged signals
+      const bypassReq = new Request('http://localhost/api/v1/trust-gate/evaluate', {
+        method: 'POST',
+        headers: authHeaders(userToken),
+        body: JSON.stringify({
+          subjectType: 'DEPOSIT',
+          subjectId: depositId,
+          signals: { quantity_within_band: { available: true, passed: true } },
+          activeFraudFlagCount: 0,
+        }),
+      });
+      const bypassRes = await evaluateGateRoute(bypassReq);
+      expect(bypassRes.status).toBe(403);
+
+      // Admin calling with forged passing signals still escalates on real divergence (server-derived)
+      const evalBody = await TrustGateDomain.evaluateAndApply(
+        {
+          subjectType: 'DEPOSIT',
+          subjectId: depositId,
+          userId: user.id,
+          category: 'PLASTICS',
+          declaredQuantity: 20,
+          verifiedQuantity: 5,
+          unit: 'kg',
+          isSessionValid: true,
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
+      );
+      expect(evalBody.decision).toBe('ESCALATE');
+      expect(evalBody.failingSignals).toContain('quantity_within_band');
+    });
+
     it('catches duplicate photo submission via perceptual hash collision and raises fraud flag', async () => {
       // 1. Seed existing evidence hash in DB
       const existingPhash = 'a1b2c3d4e5f60718';
@@ -451,12 +469,10 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
         uploader_id: user.id,
       });
 
-      // 2. Submit new deposit with cropped photo (Hamming distance = 1 bit diff)
+      // 2. Submit new deposit with cropped photo (Hamming distance = 1 bit diff) via domain (route is admin-only)
       const croppedPhash = 'a1b2c3d4e5f60719';
-      const evalReq = new Request('http://localhost/api/v1/trust-gate/evaluate', {
-        method: 'POST',
-        headers: authHeaders(userToken),
-        body: JSON.stringify({
+      const evalBody = await TrustGateDomain.evaluateAndApply(
+        {
           subjectType: 'DEPOSIT',
           subjectId: crypto.randomUUID(),
           userId: user.id,
@@ -467,11 +483,9 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
           isSessionValid: true,
           evidenceUrl: 'https://evidence.chokro.org/second-deposit-crop.jpg',
           evidencePhash: croppedPhash,
-        }),
-      });
-
-      const evalRes = await evaluateGateRoute(evalReq);
-      const evalBody = await evalRes.json();
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
+      );
 
       expect(evalBody.decision).toBe('ESCALATE');
       expect(evalBody.failingSignals).toContain('hash_unique');
@@ -487,10 +501,8 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
     });
 
     it('E_WASTE deposits always escalate with e_waste_mandatory_review', async () => {
-      const evalReq = new Request('http://localhost/api/v1/trust-gate/evaluate', {
-        method: 'POST',
-        headers: authHeaders(userToken),
-        body: JSON.stringify({
+      const evalBody = await TrustGateDomain.evaluateAndApply(
+        {
           subjectType: 'DEPOSIT',
           subjectId: crypto.randomUUID(),
           userId: user.id,
@@ -500,11 +512,9 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
           unit: 'piece',
           isSessionValid: true,
           inAppCaptured: true,
-        }),
-      });
-
-      const evalRes = await evaluateGateRoute(evalReq);
-      const evalBody = await evalRes.json();
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
+      );
 
       expect(evalBody.decision).toBe('ESCALATE');
       expect(evalBody.failingSignals).toContain('e_waste_mandatory_review');
@@ -560,12 +570,10 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
       expect(getBody.history[0].updated_by).toBe(admin.id);
       expect(getBody.history[0].config_json.max_quantity_divergence_ratio).toBe(0.05);
 
-      // 3. Evaluate a deposit with 10% divergence:
+      // 3. Evaluate a deposit with 10% divergence via domain (route is admin-only):
       // Under old 25% threshold it would have passed; under new 5% threshold it must ESCALATE!
-      const evalReq = new Request('http://localhost/api/v1/trust-gate/evaluate', {
-        method: 'POST',
-        headers: authHeaders(userToken),
-        body: JSON.stringify({
+      const evalBody2 = await TrustGateDomain.evaluateAndApply(
+        {
           subjectType: 'DEPOSIT',
           subjectId: crypto.randomUUID(),
           userId: user.id,
@@ -574,13 +582,11 @@ describe('SPEC 12: Trust Gate Core & Dynamic Thresholds (Ticket 08a)', () => {
           verifiedQuantity: 9, // 10% divergence
           unit: 'kg',
           isSessionValid: true,
-        }),
-      });
-
-      const evalRes = await evaluateGateRoute(evalReq);
-      const evalBody = await evalRes.json();
-      expect(evalBody.decision).toBe('ESCALATE');
-      expect(evalBody.failingSignals).toContain('quantity_within_band');
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
+      );
+      expect(evalBody2.decision).toBe('ESCALATE');
+      expect(evalBody2.failingSignals).toContain('quantity_within_band');
     });
 
     it('rejects non-admin users from viewing or updating thresholds', async () => {

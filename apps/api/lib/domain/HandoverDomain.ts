@@ -1,15 +1,11 @@
 // HandoverDomain: 2-Sided OTP Custody Handshake, Admin Escalation Worklist Adjudication, and Appeals (SPEC 12 / Ticket 08b)
 import crypto from 'crypto';
-import { db, creditTxns, depositRecords, pickupOrders, trustDecisions, eq, and } from '@chokro/db';
+import { db, trustDecisions, eq } from '@chokro/db';
 import { handoverRepo } from '../repos/handovers';
 import { pickupRepo } from '../repos/pickups';
 import { trustGateRepo } from '../repos/trustGate';
-import { walletRepo } from '../repos/wallet';
-import { depositRepo } from '../repos/deposits';
-import { disputeRepo } from '../repos/disputes';
 import { TrustGateDomain } from './TrustGateDomain';
-import { WalletDomain } from './WalletDomain';
-import { ImpactDomain } from './ImpactDomain';
+import { CreditVerificationDomain } from './CreditVerificationDomain';
 import { NotificationSeam } from '../notify';
 import type { EscalationWorklistItem, AdjudicateDecisionInput, ContestDecisionInput } from '@chokro/shared';
 
@@ -186,16 +182,15 @@ export class HandoverDomain {
       creditAmount = Math.round(Number(listing.price_bdt) * ratio * 100) / 100;
     }
 
-    const custodyRef = `CUSTODY-PICKUP-${params.taskId}`;
-
-    // Mint pending green credit
-    const creditTxn = await walletRepo.createEarnTransaction({
+    // Mint pending green credit — single owner
+    const creditTxn = await CreditVerificationDomain.mintPending({
       userId: handover.giver_user_id,
       amount: creditAmount,
-      custodyRef,
-      status: 'PENDING',
+      kind: 'PICKUP',
+      subjectId: params.taskId,
       reason: `Pickup custody handover confirmed for ${listing.category}`,
     });
+    const custodyRef = CreditVerificationDomain.encodeCustodyRef('PICKUP', params.taskId);
 
     const declaredQty =
       listing.unit === 'piece'
@@ -270,78 +265,8 @@ export class HandoverDomain {
     let creditTxn = null;
 
     if (input.action === 'VERIFY') {
-      const openDispute = await disputeRepo.findOpenBySource(decision.subject_type, decision.subject_id);
-      if (openDispute) {
-        throw new Error(`Cannot verify credits while an open dispute is active on this ${decision.subject_type.toLowerCase()}`);
-      }
-
-      // 1. Flip credit transaction to VERIFIED
-      creditTxn = await walletRepo.verifyCreditTransaction({
-        trustDecisionId: decisionId,
-      });
-
-      // If credit was not linked by trustDecisionId, try finding by custodyRef or subjectId
-      if (!creditTxn) {
-        const custodyRef =
-          decision.subject_type === 'PICKUP'
-            ? `CUSTODY-PICKUP-${decision.subject_id}`
-            : `CUSTODY-DEP-${decision.subject_id}`;
-        creditTxn = await walletRepo.verifyCreditTransaction({
-          custodyRef,
-          trustDecisionId: decisionId,
-        });
-      }
-
-      // If deposit subject, update deposit status to VERIFIED
-      if (decision.subject_type === 'DEPOSIT') {
-        const deposit = await depositRepo.findDepositById(decision.subject_id);
-        if (deposit) {
-          await depositRepo.updateDepositVerification(
-            deposit.id,
-            deposit.verified_quantity || deposit.declared_quantity,
-            deposit.verified_bdt || deposit.estimated_bdt,
-            deposit.divergence_ratio || 0,
-            'VERIFIED'
-          );
-          await WalletDomain.onCreditsVerified(deposit.user_id);
-          try {
-            await ImpactDomain.recordVerifiedImpact({
-              custodyType: 'DEPOSIT',
-              custodyId: deposit.id,
-              trustDecisionId: decisionId,
-              userId: deposit.user_id,
-              category: deposit.category,
-              declaredQuantity: Number(deposit.declared_quantity),
-              verifiedQuantity: Number(deposit.verified_quantity || deposit.declared_quantity),
-              unit: deposit.unit,
-            });
-          } catch (err) {
-            console.error('Failed to record verified impact on adjudication:', err);
-          }
-        }
-      } else if (decision.subject_type === 'PICKUP') {
-        const pickup = await pickupRepo.findByIdWithRefs(decision.subject_id);
-        if (pickup) {
-          try {
-            const qty =
-              pickup.listing.unit === 'piece'
-                ? pickup.listing.piece_count || 1
-                : Number(pickup.listing.declared_weight || 1);
-            await ImpactDomain.recordVerifiedImpact({
-              custodyType: 'PICKUP',
-              custodyId: decision.subject_id,
-              trustDecisionId: decisionId,
-              userId: pickup.order.customer_id!,
-              category: pickup.listing.category,
-              declaredQuantity: qty,
-              verifiedQuantity: qty,
-              unit: pickup.listing.unit,
-            });
-          } catch (err) {
-            console.error('Failed to record verified impact on adjudication:', err);
-          }
-        }
-      }
+      // Single owner flips ledger, checks dispute-pause, and fires streak/impact tails
+      creditTxn = await CreditVerificationDomain.verify(decisionId);
 
       // If contest existed, mark OVERTURNED
       if (pendingContest) {
@@ -369,41 +294,8 @@ export class HandoverDomain {
         creditTxn,
       };
     } else {
-      // REJECT action
-      // 1. Flip credit transaction to REJECTED
-      const conditions = [eq(creditTxns.status, 'PENDING')];
-      const custodyRef =
-        decision.subject_type === 'PICKUP'
-          ? `CUSTODY-PICKUP-${decision.subject_id}`
-          : `CUSTODY-DEP-${decision.subject_id}`;
-
-      await db
-        .update(creditTxns)
-        .set({
-          status: 'REJECTED',
-          reason: input.reason,
-          trust_decision_id: decisionId,
-        })
-        .where(
-          and(
-            eq(creditTxns.status, 'PENDING'),
-            eq(creditTxns.custody_ref, custodyRef)
-          )
-        );
-
-      // If deposit, update deposit status to REJECTED
-      if (decision.subject_type === 'DEPOSIT') {
-        const deposit = await depositRepo.findDepositById(decision.subject_id);
-        if (deposit) {
-          await depositRepo.updateDepositVerification(
-            deposit.id,
-            deposit.verified_quantity || deposit.declared_quantity,
-            deposit.verified_bdt || deposit.estimated_bdt,
-            deposit.divergence_ratio || 0,
-            'REJECTED'
-          );
-        }
-      }
+      // REJECT action — single owner flips to REJECTED and updates deposit status
+      await CreditVerificationDomain.reject(decisionId, input.reason!);
 
       // If contest existed, mark UPHELD
       if (pendingContest) {

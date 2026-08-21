@@ -28,6 +28,8 @@ import { POST as adjustWallet } from '../app/api/v1/admin/wallet/adjust/route';
 import { POST as evaluateTrustGateRoute } from '../app/api/v1/trust-gate/evaluate/route';
 import { SettlementDomain } from '../lib/domain/SettlementDomain';
 import { WalletDomain } from '../lib/domain/WalletDomain';
+import { TrustGateDomain } from '../lib/domain/TrustGateDomain';
+import { CreditVerificationDomain } from '../lib/domain/CreditVerificationDomain';
 import {
   authHeaders,
   createTestUser,
@@ -59,39 +61,30 @@ describe('SPEC 13: Wallet Settlement & MFS Cash-Out Engine (Ticket 09a)', () => 
   // =========================================================================
   describe('1. Full Circular Economy Loop (Deposit -> Verification -> Redemption -> Payout)', () => {
     it('closes the loop: deposit -> trust gate auto-clears -> verified balance -> redemption -> payout -> derived balance is zero', async () => {
-      // Step A: Seed earned credit through deposit & Trust Gate auto-clear
-      const custodyRef = `CUSTODY-DEP-${crypto.randomUUID().slice(0, 8)}`;
-      const [earnTxn] = await db
-        .insert(creditTxns)
-        .values({
-          user_id: user.id,
-          amount: '150.00',
-          kind: 'EARN',
-          status: 'PENDING',
-          custody_ref: custodyRef,
-        })
-        .returning();
+      // Step A: Seed earned credit through deposit & Trust Gate auto-clear via single owner
+      const depositId = crypto.randomUUID();
+      await CreditVerificationDomain.mintPending({
+        userId: user.id,
+        amount: 150,
+        kind: 'DEPOSIT',
+        subjectId: depositId,
+      });
 
-      // Evaluate Trust Gate
-      const gateRes = await evaluateTrustGateRoute(
-        new Request('http://localhost/api/v1/trust-gate/evaluate', {
-          method: 'POST',
-          headers: authHeaders(userToken),
-          body: JSON.stringify({
-            subjectType: 'DEPOSIT',
-            subjectId: crypto.randomUUID(),
-            userId: user.id,
-            category: 'PLASTICS',
-            declaredQuantity: 10,
-            verifiedQuantity: 10,
-            unit: 'kg',
-            isSessionValid: true,
-            creditTxnId: earnTxn.id,
-            custodyRef,
-          }),
-        })
+      // Evaluate Trust Gate via domain (server-assembled; route is admin-only)
+      const gateResBody = await TrustGateDomain.evaluateAndApply(
+        {
+          subjectType: 'DEPOSIT',
+          subjectId: depositId,
+          userId: user.id,
+          category: 'PLASTICS',
+          declaredQuantity: 10,
+          verifiedQuantity: 10,
+          unit: 'kg',
+          isSessionValid: true,
+        } as any,
+        { userId: admin.id, role: 'ADMIN' }
       );
-      expect(gateRes.status).toBe(200);
+      expect(gateResBody.decision).toBe('AUTO_CLEAR');
 
       // Verify spendable balance is now 150 BDT
       const balRes1 = await getWalletBalance(

@@ -65,22 +65,34 @@ export const walletRepo = {
     });
   },
 
-  // Update pending credit amount upon verified scale reading
+  // Update pending credit amount upon verified scale reading — backfill-tolerant for DEPOSIT legacy raw UUID
   async updatePendingCreditAmount(custodyRef: string, newAmount: number | string) {
     return withDb(async () => {
-      const [updated] = await db
-        .update(creditTxns)
-        .set({
-          amount: String(typeof newAmount === 'number' ? newAmount.toFixed(2) : newAmount),
-        })
-        .where(
-          and(
-            eq(creditTxns.custody_ref, custodyRef),
-            eq(creditTxns.status, 'PENDING')
-          )
-        )
-        .returning();
-      return updated || null;
+      const amountStr = String(typeof newAmount === 'number' ? newAmount.toFixed(2) : newAmount);
+      const tryUpdate = async (ref: string) => {
+        const [updated] = await db
+          .update(creditTxns)
+          .set({ amount: amountStr })
+          .where(and(eq(creditTxns.custody_ref, ref), eq(creditTxns.status, 'PENDING')))
+          .returning();
+        return updated || null;
+      };
+      let updated = await tryUpdate(custodyRef);
+      if (updated) return updated;
+      // Fallback for DEPOSIT: try canonical or legacy alternate
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (UUID_RE.test(custodyRef)) {
+        // raw UUID -> try CUSTODY-DEP- variant
+        updated = await tryUpdate(`CUSTODY-DEP-${custodyRef}`);
+        if (updated) return updated;
+      } else if (custodyRef.startsWith('CUSTODY-DEP-')) {
+        const id = custodyRef.slice('CUSTODY-DEP-'.length);
+        if (UUID_RE.test(id)) {
+          updated = await tryUpdate(id);
+          if (updated) return updated;
+        }
+      }
+      return null;
     });
   },
 
@@ -138,6 +150,30 @@ export const walletRepo = {
       const [updated] = await db
         .update(creditTxns)
         .set(updateData)
+        .where(and(...conditions))
+        .returning();
+      return updated || null;
+    });
+  },
+
+  // Flips PENDING credit to REJECTED, sets trust_decision_id and reason — the only REJECT path
+  async rejectCreditTransaction(input: { id?: string; custodyRef?: string; trustDecisionId: string; reason: string }) {
+    return withDb(async () => {
+      const conditions = [eq(creditTxns.status, 'PENDING')];
+      if (input.id) {
+        conditions.push(eq(creditTxns.id, input.id));
+      } else if (input.custodyRef) {
+        conditions.push(eq(creditTxns.custody_ref, input.custodyRef));
+      } else {
+        return null;
+      }
+      const [updated] = await db
+        .update(creditTxns)
+        .set({
+          status: 'REJECTED',
+          trust_decision_id: input.trustDecisionId,
+          reason: input.reason,
+        })
         .where(and(...conditions))
         .returning();
       return updated || null;

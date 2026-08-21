@@ -2,11 +2,11 @@
 import crypto from 'crypto';
 import { dropZoneRepo } from '../repos/dropZones';
 import { depositRepo } from '../repos/deposits';
-import { walletRepo } from '../repos/wallet';
 import { rateCardRepo } from '../repos/rateCards';
 import { partnerRepo } from '../repos/partners';
 import { isPieceCategory, type Category } from '@chokro/shared';
 import { BadRequestError, ConflictError } from '../database';
+import { CreditVerificationDomain } from './CreditVerificationDomain';
 
 export interface CreateSessionParams {
   userId: string;
@@ -159,14 +159,14 @@ export const DepositDomain = {
       status: 'RECORDED',
     });
 
-    // Mint exactly one PENDING EARN credit referencing the deposit
-    const credit = await walletRepo.createEarnTransaction({
+    // Mint exactly one PENDING EARN credit referencing the deposit — via single owner
+    const credit = await CreditVerificationDomain.mintPending({
       userId: params.userId,
       amount: estimatedBdt,
-      custodyRef: deposit.id,
+      kind: 'DEPOSIT',
+      subjectId: deposit.id,
       rateCardEntryId,
       reason: `Drop zone deposit: ${params.declaredQuantity} ${params.unit} of ${params.category} at ${zone.name}`,
-      status: 'PENDING',
     });
 
     // Update cumulative fill level estimate

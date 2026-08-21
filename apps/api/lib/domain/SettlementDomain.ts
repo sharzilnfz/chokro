@@ -13,6 +13,7 @@ import { trustGateRepo } from '../repos/trustGate';
 import { userRepo } from '../repos/users';
 import { WalletDomain } from './WalletDomain';
 import { TrustGateDomain } from './TrustGateDomain';
+import { CreditVerificationDomain } from './CreditVerificationDomain';
 import { BadRequestError, ConflictError } from '../database';
 
 export class SettlementDomain {
@@ -256,11 +257,8 @@ export class SettlementDomain {
           gateEvaluation.trustDecisionId
         );
 
-        // Verify credit transaction
-        await walletRepo.verifyCreditTransaction({
-          id: creditTxn.id,
-          trustDecisionId: gateEvaluation.trustDecisionId,
-        });
+        // Single owner flips REDEEM pending -> VERIFIED
+        await CreditVerificationDomain.verify(gateEvaluation.trustDecisionId);
 
         return {
           redemption: paidRedemption,
@@ -403,11 +401,15 @@ export class SettlementDomain {
       if (payoutResult.success) {
         const paidRedemption = await settlementRepo.updateRedemptionStatus(redemptionId, 'PAID');
 
-        // Flip credit transaction to VERIFIED
-        await walletRepo.verifyCreditTransaction({
-          custodyRef: `REDEMPTION-${redemptionId}`,
-          trustDecisionId: redemption.trust_decision_id || undefined,
-        });
+        // Single owner flips REDEEM pending -> VERIFIED
+        if (redemption.trust_decision_id) {
+          await CreditVerificationDomain.verify(redemption.trust_decision_id);
+        } else {
+          await walletRepo.verifyCreditTransaction({
+            custodyRef: CreditVerificationDomain.encodeCustodyRef('REDEMPTION', redemptionId),
+            trustDecisionId: redemption.trust_decision_id || '',
+          });
+        }
 
         return {
           redemption: paidRedemption,

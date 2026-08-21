@@ -15,6 +15,7 @@ import {
 import { HandoverDomain } from '../lib/domain/HandoverDomain';
 import { PickupDomain } from '../lib/domain/PickupDomain';
 import { TrustGateDomain } from '../lib/domain/TrustGateDomain';
+import { CreditVerificationDomain } from '../lib/domain/CreditVerificationDomain';
 import { partnerRepo } from '../lib/repos/partners';
 import { POST as generateHandoverRoute } from '../app/api/v1/handovers/generate/route';
 import { POST as verifyOtpRoute } from '../app/api/v1/handovers/verify-otp/route';
@@ -452,18 +453,12 @@ describe('SPEC 12: Custody Handover OTP, Admin Worklist & Flag Gating (Ticket 08
 
     it('admin adjudication VERIFY flips credit to VERIFIED', async () => {
       const depositId = crypto.randomUUID();
-      const custodyRef = `CUSTODY-DEP-${depositId}`;
-
-      const [credit] = await db
-        .insert(creditTxns)
-        .values({
-          user_id: customerUser.id,
-          amount: '750.00',
-          kind: 'EARN',
-          status: 'PENDING',
-          custody_ref: custodyRef,
-        })
-        .returning();
+      const credit = await CreditVerificationDomain.mintPending({
+        userId: customerUser.id,
+        amount: 750,
+        kind: 'DEPOSIT',
+        subjectId: depositId,
+      });
 
       const [decision] = await db
         .insert(trustDecisions)
@@ -502,18 +497,12 @@ describe('SPEC 12: Custody Handover OTP, Admin Worklist & Flag Gating (Ticket 08
 
     it('admin adjudication REJECT requires a mandatory explanation reason and marks credit REJECTED', async () => {
       const depositId = crypto.randomUUID();
-      const custodyRef = `CUSTODY-DEP-${depositId}`;
-
-      const [credit] = await db
-        .insert(creditTxns)
-        .values({
-          user_id: customerUser.id,
-          amount: '750.00',
-          kind: 'EARN',
-          status: 'PENDING',
-          custody_ref: custodyRef,
-        })
-        .returning();
+      const credit = await CreditVerificationDomain.mintPending({
+        userId: customerUser.id,
+        amount: 750,
+        kind: 'DEPOSIT',
+        subjectId: depositId,
+      });
 
       const [decision] = await db
         .insert(trustDecisions)

@@ -9,12 +9,9 @@ import {
   type EvaluateTrustGateInput,
   DEFAULT_TRUST_THRESHOLDS,
 } from '@chokro/shared';
+import { CreditVerificationDomain } from './CreditVerificationDomain';
 import { trustGateRepo } from '../repos/trustGate';
-import { walletRepo } from '../repos/wallet';
 import { depositRepo } from '../repos/deposits';
-import { disputeRepo } from '../repos/disputes';
-import { WalletDomain } from './WalletDomain';
-import { ImpactDomain } from './ImpactDomain';
 
 export interface DecisionEvaluationResult {
   decision: 'AUTO_CLEAR' | 'ESCALATE';
@@ -409,9 +406,48 @@ export class TrustGateDomain {
    * updates credit transactions from PENDING -> VERIFIED, and manages fraud flags.
    */
   static async evaluateAndApply(
-    input: EvaluateTrustGateInput,
+    input: EvaluateTrustGateInput | any,
     caller?: { userId?: string; role?: string }
   ) {
+    // If route gave only subject reference, enrich from server-side facts
+    let enriched: any = { ...input };
+    if (!enriched.userId) {
+      if (enriched.subjectType === 'DEPOSIT') {
+        const dep = await depositRepo.findDepositById(enriched.subjectId);
+        if (dep) {
+          enriched.userId = dep.user_id;
+          enriched.category = enriched.category ?? dep.category;
+          enriched.declaredQuantity = enriched.declaredQuantity ?? Number(dep.declared_quantity);
+          enriched.verifiedQuantity = enriched.verifiedQuantity ?? (dep.verified_quantity ? Number(dep.verified_quantity) : undefined);
+          enriched.unit = enriched.unit ?? dep.unit;
+          enriched.evidenceUrl = enriched.evidenceUrl ?? dep.evidence_url;
+        }
+      } else if (enriched.subjectType === 'PICKUP') {
+        // Lazy import to avoid cycle
+        const { pickupRepo } = await import('../repos/pickups');
+        const pickup = await pickupRepo.findByIdWithRefs(enriched.subjectId);
+        if (pickup) {
+          enriched.userId = pickup.order.customer_id;
+          enriched.partnerId = enriched.partnerId ?? pickup.order.collector_partner_id;
+          enriched.category = enriched.category ?? pickup.listing?.category;
+          const qty = pickup.listing?.unit === 'piece' ? pickup.listing?.piece_count || 1 : Number(pickup.listing?.declared_weight || 1);
+          enriched.declaredQuantity = enriched.declaredQuantity ?? qty;
+          enriched.unit = enriched.unit ?? pickup.listing?.unit;
+        }
+      } else if (enriched.subjectType === 'REDEMPTION') {
+        const { settlementRepo } = await import('../repos/settlement');
+        const { userRepo } = await import('../repos/users');
+        const redemption = await settlementRepo.findRedemptionById(enriched.subjectId);
+        if (redemption) {
+          enriched.userId = redemption.user_id;
+          enriched.estimatedBdt = enriched.estimatedBdt ?? Number(redemption.gross_amount_bdt);
+          const user = await userRepo.findById(redemption.user_id);
+          if (user) enriched.accountCreatedAt = (user as any).created_at;
+        }
+      }
+      if (!enriched.userId) throw new Error('Unable to resolve subject owner for trust gate evaluation');
+    }
+    input = enriched;
     const { config: thresholds, configId: thresholdConfigId } =
       await this.getEffectiveThresholds();
 
@@ -450,11 +486,8 @@ export class TrustGateDomain {
       };
     }
 
-    // Active fraud flags count if not supplied
-    let activeFraudCount = input.activeFraudFlagCount;
-    if (activeFraudCount === undefined) {
-      activeFraudCount = await trustGateRepo.countActiveFraudFlags('USER', input.userId);
-    }
+    // Server-side fraud flag count — never trust caller-supplied activeFraudFlagCount
+    const activeFraudCount = await trustGateRepo.countActiveFraudFlags('USER', input.userId);
 
     const subject: TrustSubject = {
       ...input,
@@ -466,17 +499,17 @@ export class TrustGateDomain {
       activeFraudFlagCount: activeFraudCount,
     };
 
+    // Ignore caller-supplied signals; server assembles only hash_unique from evidence
     const combinedSignals = {
-      ...(input.signals || {}),
       ...(hashUniqueSignal ? { hash_unique: hashUniqueSignal } : {}),
     };
 
     // Run pure evaluation
     const evaluation = this.evaluate(subject, combinedSignals, thresholds);
 
-    // Cross-cutting check: an open dispute on a pickup/deposit/lot pauses verification
-    const openDispute = await disputeRepo.findOpenBySource(input.subjectType ?? 'DEPOSIT', input.subjectId);
-    if (openDispute) {
+    // Cross-cutting dispute-pause — single owner via CreditVerificationDomain helper
+    const hasDispute = await CreditVerificationDomain.checkDisputePause(input.subjectType ?? 'DEPOSIT', input.subjectId);
+    if (hasDispute) {
       evaluation.decision = 'ESCALATE';
       if (!evaluation.failingSignals.includes('open_dispute_pause')) {
         evaluation.failingSignals.push('open_dispute_pause');
@@ -500,48 +533,15 @@ export class TrustGateDomain {
     let creditTxn = null;
 
     if (evaluation.decision === 'AUTO_CLEAR') {
-      // Flip PENDING credit to VERIFIED with trust_decision_id
-      if (input.creditTxnId || input.custodyRef) {
-        creditTxn = await walletRepo.verifyCreditTransaction({
-          id: input.creditTxnId || undefined,
-          custodyRef: input.custodyRef || undefined,
-          trustDecisionId: decisionRecord.id,
-          amount: input.verifiedQuantity ? undefined : undefined,
-        });
-
-        if (creditTxn) {
-          await WalletDomain.onCreditsVerified(input.userId);
-        }
-      }
-
-      // Update deposit status to VERIFIED if deposit
-      if (input.subjectType === 'DEPOSIT') {
-        const deposit = await depositRepo.findDepositById(input.subjectId);
-        if (deposit && deposit.status === 'RECORDED') {
-          await depositRepo.updateDepositVerification(
-            input.subjectId,
-            deposit.verified_quantity || deposit.declared_quantity,
-            deposit.verified_bdt || deposit.estimated_bdt,
-            deposit.divergence_ratio || 0,
-            'VERIFIED'
-          );
-        }
-      }
-
-      // Record verified impact
+      // Single owner flips ledger and fires deposit/impact/streak tails
       try {
-        await ImpactDomain.recordVerifiedImpact({
-          custodyType: input.subjectType ?? 'DEPOSIT',
-          custodyId: input.subjectId,
-          trustDecisionId: decisionRecord.id,
-          userId: input.userId,
-          category: input.category ?? 'PLASTICS',
-          declaredQuantity: input.declaredQuantity ?? 0,
-          verifiedQuantity: input.verifiedQuantity,
-          unit: input.unit ?? 'kg',
-        });
+        creditTxn = await CreditVerificationDomain.verify(decisionRecord.id);
       } catch (err) {
-        console.error('Failed to record verified impact on auto-clear:', err);
+        // If verify throws due to dispute pause raced after decision, escalate instead
+        console.error('Verify failed on auto-clear:', err);
+        // Downgrade decision to ESCALATE in-memory for response; DB record remains AUTO_CLEAR but credit stays pending
+        evaluation.decision = 'ESCALATE';
+        if (!evaluation.failingSignals.includes('open_dispute_pause')) evaluation.failingSignals.push('open_dispute_pause');
       }
     } else {
       // Escalated

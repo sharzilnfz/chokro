@@ -93,8 +93,17 @@ export const DEFAULT_TRUST_THRESHOLDS: TrustThresholdConfig = {
   audit_sample_rate: 0.05,
 };
 
-// API Schema: Evaluate Trust Gate
+// API Schema: Evaluate Trust Gate — public route accepts only subject reference; all signals/flags are server-derived.
+// Extra fields if supplied are stripped/ignored (trust bypass fix). Internal domain callers use EvaluateTrustGateDomainInput.
 export const EvaluateTrustGateSchema = z.object({
+  subjectType: z.enum(['DEPOSIT', 'PICKUP', 'MANUAL', 'REDEMPTION']).default('DEPOSIT'),
+  subjectId: z.string().uuid(),
+});
+
+export type EvaluateTrustGateInput = z.input<typeof EvaluateTrustGateSchema>;
+
+// Internal domain input — server-assembled bundle (not exposed via HTTP)
+export const EvaluateTrustGateDomainSchema = z.object({
   subjectType: z.enum(['DEPOSIT', 'PICKUP', 'MANUAL', 'REDEMPTION']).default('DEPOSIT'),
   subjectId: z.string().uuid(),
   userId: z.string().uuid(),
@@ -115,27 +124,13 @@ export const EvaluateTrustGateSchema = z.object({
   pairDailyInteractionCount: z.number().int().min(0).optional(),
   accountCreatedAt: z.union([z.string(), z.date()]).optional(),
   estimatedBdt: z.number().min(0).optional(),
-  activeFraudFlagCount: z.number().int().min(0).optional(),
   visionDetectedCategory: CategoryEnum.optional().nullable(),
   visionAvailable: z.boolean().optional().default(true),
   creditTxnId: z.string().uuid().optional().nullable(),
   custodyRef: z.string().optional().nullable(),
-  signals: z
-    .record(
-      z.string(),
-      z.object({
-        name: z.string().optional(),
-        available: z.boolean(),
-        passed: z.boolean(),
-        value: z.any().optional(),
-        reason: z.string().optional(),
-      })
-    )
-    .optional(),
-  thresholds: z.record(z.string(), z.any()).optional(),
 });
 
-export type EvaluateTrustGateInput = z.input<typeof EvaluateTrustGateSchema>;
+export type EvaluateTrustGateDomainInput = z.input<typeof EvaluateTrustGateDomainSchema>;
 
 // API Schema: Update Dynamic Thresholds
 export const UpdateThresholdsSchema = z.object({
