@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agents": {
+    "worker": {
+      "description": "Deepening-plan implementation worker (forced model: openrouter/stealth/ox-alpha, reasoning high)",
+      "mode": "subagent",
+      "model": "openrouter/stealth/ox-alpha#high"
+    }
+  }
+}
