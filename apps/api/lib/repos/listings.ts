@@ -5,6 +5,9 @@ import { withDb } from './seam';
 import { KeysetPagination } from '../domain/KeysetPagination';
 import type { KeysetCursor } from '../domain/KeysetPagination';
 
+// Full listing row as stored (select shape).
+export type ListingRow = typeof listings.$inferSelect;
+
 // Row-shaped insert payload for a listing.
 export interface CreateListingInput {
   owner_id: string;

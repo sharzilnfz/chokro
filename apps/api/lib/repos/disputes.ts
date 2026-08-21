@@ -139,11 +139,23 @@ export const disputeRepo = {
     });
   },
 
-  async updateStatus(id: string, status: string) {
+  // Merge new evidence URLs into the dispute's existing set (deduped) and persist.
+  async addEvidence(id: string, evidenceUrls: string[]) {
     return withDb(async () => {
+      const rows = await db
+        .select()
+        .from(disputes)
+        .where(eq(disputes.id, id))
+        .limit(1);
+      const current = rows[0];
+      if (!current) return null;
+
+      const merged = Array.from(
+        new Set([...(current.evidence_urls as string[]), ...evidenceUrls])
+      );
       const [updated] = await db
         .update(disputes)
-        .set({ status })
+        .set({ evidence_urls: merged })
         .where(eq(disputes.id, id))
         .returning();
       return updated || null;

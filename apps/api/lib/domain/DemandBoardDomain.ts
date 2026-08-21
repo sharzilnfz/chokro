@@ -1,9 +1,7 @@
 // DemandBoardDomain: Reverse Recycler Demand Board & Synchronous Match Dispatcher (SPEC 17)
 import { demandRepo, CreateDemandInput } from '../repos/demands';
 import { FeedDomain } from './FeedDomain';
-import type { listings } from '@chokro/db';
-
-type ListingRow = typeof listings.$inferSelect;
+import type { ListingRow } from '../repos/listings';
 
 export interface CreateDemandPayload {
   category: string;

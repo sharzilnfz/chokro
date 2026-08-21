@@ -416,6 +416,31 @@ describe('SPEC 13: Auction Escrow Hold & Unified Dispute Arbitration (Ticket 09b
       expect(unauthReleaseRes.status).toBe(403);
     });
 
+    it('persists evidence added to an open dispute (merged, deduped)', async () => {
+      const lotId = crypto.randomUUID();
+
+      const dispute = await DisputeDomain.createDispute({
+        sourceType: 'AUCTION_LOT',
+        sourceId: lotId,
+        openedBy: buyerPartner.user.id,
+        againstUserId: sellerPartner.user.id,
+        reason: 'Lot contents do not match the listing photos at all.',
+        evidenceUrls: ['https://storage.chokro.org/disputes/lot-photo-1.jpg'],
+      });
+
+      await DisputeDomain.addEvidence(dispute.id, buyerPartner.user.id, [
+        'https://storage.chokro.org/disputes/lot-photo-2.jpg',
+        'https://storage.chokro.org/disputes/lot-photo-1.jpg', // duplicate must be dropped
+      ]);
+
+      // Evidence must survive a fresh read — not just an in-memory merge
+      const reloaded = await disputeRepo.findById(dispute.id);
+      expect(reloaded?.evidence_urls).toEqual([
+        'https://storage.chokro.org/disputes/lot-photo-1.jpg',
+        'https://storage.chokro.org/disputes/lot-photo-2.jpg',
+      ]);
+    });
+
     it('prevents opening duplicate disputes on the same active subject', async () => {
       const lotId = crypto.randomUUID();
 

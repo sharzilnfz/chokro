@@ -69,6 +69,24 @@ export const trustGateRepo = {
     });
   },
 
+  async updateDecisionNotes(
+    id: string,
+    input: { notes: string; decided_by: string; decided_at: Date }
+  ) {
+    return withDb(async () => {
+      const [updated] = await db
+        .update(trustDecisions)
+        .set({
+          notes: input.notes,
+          decided_by: input.decided_by,
+          decided_at: input.decided_at,
+        })
+        .where(eq(trustDecisions.id, id))
+        .returning();
+      return updated || null;
+    });
+  },
+
   async findDecisionsBySubject(subjectType: string, subjectId: string) {
     return withDb(async () => {
       return db

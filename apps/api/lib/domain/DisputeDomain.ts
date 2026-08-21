@@ -106,9 +106,11 @@ export class DisputeDomain {
       throw new DomainRuleError('Only involved parties can submit evidence to this dispute', 403);
     }
 
-    const combined = Array.from(new Set([...(dispute.evidence_urls as string[]), ...evidenceUrls]));
-    const updated = await disputeRepo.updateStatus(dispute.id, dispute.status);
-    return { ...dispute, evidence_urls: combined };
+    const updated = await disputeRepo.addEvidence(disputeId, evidenceUrls);
+    if (!updated) {
+      throw new DomainRuleError('Dispute not found', 404);
+    }
+    return updated;
   }
 
   /**

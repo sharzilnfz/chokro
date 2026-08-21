@@ -1,6 +1,5 @@
 // HandoverDomain: 2-Sided OTP Custody Handshake, Admin Escalation Worklist Adjudication, and Appeals (SPEC 12 / Ticket 08b)
 import crypto from 'crypto';
-import { db, trustDecisions, eq } from '@chokro/db';
 import { handoverRepo } from '../repos/handovers';
 import { pickupRepo } from '../repos/pickups';
 import { trustGateRepo } from '../repos/trustGate';
@@ -278,14 +277,11 @@ export class HandoverDomain {
       }
 
       // Update decision notes
-      await db
-        .update(trustDecisions)
-        .set({
-          notes: `Adjudicated VERIFIED by admin ${adminUserId}${input.reason ? `: ${input.reason}` : ''}`,
-          decided_by: adminUserId,
-          decided_at: new Date(),
-        })
-        .where(eq(trustDecisions.id, decisionId));
+      await trustGateRepo.updateDecisionNotes(decisionId, {
+        notes: `Adjudicated VERIFIED by admin ${adminUserId}${input.reason ? `: ${input.reason}` : ''}`,
+        decided_by: adminUserId,
+        decided_at: new Date(),
+      });
 
       return {
         success: true,
@@ -307,14 +303,11 @@ export class HandoverDomain {
       }
 
       // Update decision notes
-      await db
-        .update(trustDecisions)
-        .set({
-          notes: `Adjudicated REJECTED by admin ${adminUserId}: ${input.reason}`,
-          decided_by: adminUserId,
-          decided_at: new Date(),
-        })
-        .where(eq(trustDecisions.id, decisionId));
+      await trustGateRepo.updateDecisionNotes(decisionId, {
+        notes: `Adjudicated REJECTED by admin ${adminUserId}: ${input.reason}`,
+        decided_by: adminUserId,
+        decided_at: new Date(),
+      });
 
       return {
         success: true,
