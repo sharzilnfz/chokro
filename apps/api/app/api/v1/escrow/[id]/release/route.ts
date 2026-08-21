@@ -23,7 +23,11 @@ export const POST = safeRoute(async (req: Request, { params }: { params: Promise
     // If empty body or non-JSON, notes remains undefined
   }
 
-  const hold = await EscrowDomain.releaseToSeller(id, auth.user.userId, notes);
+  const hold = await EscrowDomain.releaseToSeller(
+    id,
+    { userId: auth.user.userId, role: auth.user.role },
+    notes
+  );
   return apiSuccess('Escrow funds released to seller', { escrowHold: hold }, 200);
 });
 

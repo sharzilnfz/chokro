@@ -4,12 +4,23 @@ import { auctionRepo, type AuctionLot, type AuctionBid } from '../repos/auctions
 import { disputeRepo } from '../repos/disputes';
 import { NotificationSeam } from '../notify';
 import { DomainRuleError } from '../database';
+import type { Role } from '@chokro/shared';
 
 export const DEFAULT_INSPECTION_HOURS = 48;
 
+/**
+ * The authenticated principal attempting an escrow mutation. The module enforces
+ * buyer/seller/admin authorization itself — route-level checks are defense in
+ * depth, never the only gate.
+ */
+export interface EscrowActor {
+  userId: string;
+  role: Role;
+}
+
 const ESCROW_TRANSITIONS: Record<string, string[]> = {
   HELD: ['RELEASED_TO_SELLER', 'RETURNED_TO_BUYER', 'PARTIALLY_RELEASED', 'FROZEN_IN_DISPUTE'],
-  FROZEN_IN_DISPUTE: ['RELEASED_TO_SELLER', 'RETURNED_TO_BUYER', 'PARTIALLY_RELEASED', 'HELD'],
+  FROZEN_IN_DISPUTE: ['RELEASED_TO_SELLER', 'RETURNED_TO_BUYER', 'PARTIALLY_RELEASED', 'HELD', 'FROZEN_IN_DISPUTE'],
   RELEASED_TO_SELLER: [],
   RETURNED_TO_BUYER: [],
   PARTIALLY_RELEASED: [],
@@ -30,18 +41,25 @@ export class EscrowDomain {
   }
 
   /**
-   * Evaluates expired HELD escrow holds where inspection window has passed without active disputes,
-   * automatically releasing funds to the seller.
+   * Explicit sweep entry point: releases expired HELD holds whose inspection
+   * window passed without an active dispute (funds go to the seller), and
+   * freezes expired HELD holds that do have an open dispute. Callers invoke it
+   * where expiry matters for correctness (lot-close reads) or from a scheduled
+   * hook — never implicitly on a pure read.
    */
-  static async evaluateAndReleaseExpiredHolds(asOf = new Date()): Promise<EscrowHold[]> {
+  static async sweepExpiredHolds(asOf = new Date()): Promise<{
+    released: EscrowHold[];
+    frozen: EscrowHold[];
+  }> {
     const expiredHolds = await escrowRepo.findExpiredHeld(asOf);
     const released: EscrowHold[] = [];
+    const frozen: EscrowHold[] = [];
 
     for (const hold of expiredHolds) {
       const openDispute = await disputeRepo.findOpenBySource('AUCTION_LOT', hold.lot_id);
       if (openDispute) {
-        // Freeze hold if open dispute exists
-        await escrowRepo.updateStatus(hold.id, 'FROZEN_IN_DISPUTE');
+        const frozenHold = await this.freezeForDispute(hold.id);
+        if (frozenHold.status === 'FROZEN_IN_DISPUTE') frozen.push(frozenHold);
         continue;
       }
 
@@ -56,7 +74,7 @@ export class EscrowDomain {
       }
     }
 
-    return released;
+    return { released, frozen };
   }
 
   /**
@@ -69,6 +87,11 @@ export class EscrowDomain {
   ): Promise<EscrowHold> {
     const existing = await escrowRepo.findByLotId(lot.id);
     if (existing) return existing;
+
+    // Lot-close entry point: settle any holds whose inspection window has
+    // already elapsed before committing a new one (explicit sweep — see
+    // sweepExpiredHolds).
+    await this.sweepExpiredHolds();
 
     const amountBdt =
       typeof winningBid.amount_bdt === 'number'
@@ -102,19 +125,37 @@ export class EscrowDomain {
   }
 
   /**
-   * Retrieves escrow hold by ID with lazy evaluation of inspection window expiry.
+   * Retrieves escrow hold by ID. Pure read — no state mutation; expired holds
+   * are swept explicitly via sweepExpiredHolds().
    */
   static async getHoldById(id: string): Promise<EscrowHold | null> {
-    await this.evaluateAndReleaseExpiredHolds();
     return escrowRepo.findById(id);
   }
 
   /**
-   * Retrieves escrow hold by lot ID with lazy evaluation of inspection window expiry.
+   * Retrieves escrow hold by lot ID. Pure read — no state mutation; expired
+   * holds are swept explicitly via sweepExpiredHolds().
    */
   static async getHoldByLotId(lotId: string): Promise<EscrowHold | null> {
-    await this.evaluateAndReleaseExpiredHolds();
     return escrowRepo.findByLotId(lotId);
+  }
+
+  /**
+   * Authorization lives inside the module (defense in depth): only the buyer,
+   * the seller, or an Admin may mutate a hold — and while a hold is frozen in
+   * dispute, only an Admin may act on it. Unrelated actors get 403.
+   */
+  private static assertActorCanMutate(hold: EscrowHold, actor: EscrowActor): void {
+    if (actor.role === 'ADMIN') return;
+    if (hold.status === 'FROZEN_IN_DISPUTE') {
+      throw new DomainRuleError('Only an Admin can act on an escrow hold frozen in dispute', 403);
+    }
+    if (actor.userId !== hold.buyer_id && actor.userId !== hold.seller_id) {
+      throw new DomainRuleError(
+        'Only the buyer, the seller, or an Admin may act on this escrow hold',
+        403
+      );
+    }
   }
 
   /**
@@ -122,7 +163,7 @@ export class EscrowDomain {
    */
   static async releaseToSeller(
     escrowHoldId: string,
-    actorUserId?: string,
+    actor: EscrowActor,
     notes?: string
   ): Promise<EscrowHold> {
     const hold = await escrowRepo.findById(escrowHoldId);
@@ -130,20 +171,9 @@ export class EscrowDomain {
       throw new DomainRuleError('Escrow hold not found', 404);
     }
 
-    if (hold.status === 'RELEASED_TO_SELLER') {
-      return hold;
-    }
-
-    if (hold.status === 'FROZEN_IN_DISPUTE' && (!actorUserId || actorUserId === hold.buyer_id)) {
-      throw new DomainRuleError('Cannot release funds while escrow is frozen in dispute', 400);
-    }
+    this.assertActorCanMutate(hold, actor);
 
     this.assertTransition(hold.status, 'RELEASED_TO_SELLER');
-
-    // Only buyer, seller, or admin/system can release
-    if (actorUserId && actorUserId !== hold.buyer_id && actorUserId !== hold.seller_id) {
-      // In route handlers, admin permissions are checked
-    }
 
     const updated = await escrowRepo.updateStatus(hold.id, 'RELEASED_TO_SELLER');
     if (!updated) {
@@ -164,7 +194,7 @@ export class EscrowDomain {
    */
   static async returnToBuyer(
     escrowHoldId: string,
-    actorUserId?: string,
+    actor: EscrowActor,
     notes?: string
   ): Promise<EscrowHold> {
     const hold = await escrowRepo.findById(escrowHoldId);
@@ -172,9 +202,7 @@ export class EscrowDomain {
       throw new DomainRuleError('Escrow hold not found', 404);
     }
 
-    if (hold.status === 'RETURNED_TO_BUYER') {
-      return hold;
-    }
+    this.assertActorCanMutate(hold, actor);
 
     this.assertTransition(hold.status, 'RETURNED_TO_BUYER');
 
@@ -250,10 +278,6 @@ export class EscrowDomain {
     const hold = await escrowRepo.findById(escrowHoldId);
     if (!hold) {
       throw new DomainRuleError('Escrow hold not found', 404);
-    }
-
-    if (hold.status === 'FROZEN_IN_DISPUTE') {
-      return hold;
     }
 
     this.assertTransition(hold.status, 'FROZEN_IN_DISPUTE');

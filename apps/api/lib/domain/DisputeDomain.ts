@@ -135,9 +135,17 @@ export class DisputeDomain {
         const totalHeld = Number(hold.amount_bdt);
 
         if (params.resolution === 'BUYER_FAVORED') {
-          await EscrowDomain.returnToBuyer(hold.id, params.adminUserId, params.resolutionNotes);
+          await EscrowDomain.returnToBuyer(
+            hold.id,
+            { userId: params.adminUserId, role: 'ADMIN' },
+            params.resolutionNotes
+          );
         } else if (params.resolution === 'SELLER_FAVORED') {
-          await EscrowDomain.releaseToSeller(hold.id, params.adminUserId, params.resolutionNotes);
+          await EscrowDomain.releaseToSeller(
+            hold.id,
+            { userId: params.adminUserId, role: 'ADMIN' },
+            params.resolutionNotes
+          );
         } else if (params.resolution === 'PARTIAL_RELEASE' || params.resolution === 'SPLIT') {
           let buyerAmt = params.buyerAmountBdt;
           let sellerAmt = params.sellerAmountBdt;
@@ -151,7 +159,11 @@ export class DisputeDomain {
           await EscrowDomain.partialRelease(hold.id, buyerAmt, sellerAmt, params.resolutionNotes);
         } else if (params.resolution === 'DISMISSED') {
           // If dismissed, release funds to seller
-          await EscrowDomain.releaseToSeller(hold.id, params.adminUserId, params.resolutionNotes);
+          await EscrowDomain.releaseToSeller(
+            hold.id,
+            { userId: params.adminUserId, role: 'ADMIN' },
+            params.resolutionNotes
+          );
         }
       }
     }

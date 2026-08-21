@@ -262,12 +262,98 @@ describe('SPEC 13: Auction Escrow Hold & Unified Dispute Arbitration (Ticket 09b
         inspection_expires_at: new Date(Date.now() - 3600_000), // Expired 1 hour ago
       });
 
-      // Trigger lazy evaluation
-      const released = await EscrowDomain.evaluateAndReleaseExpiredHolds();
+      // Explicit sweep settles the expired window
+      const { released } = await EscrowDomain.sweepExpiredHolds();
       expect(released.some((h) => h.id === hold.id)).toBe(true);
 
       const checkHold = await escrowRepo.findById(hold.id);
       expect(checkHold?.status).toBe('RELEASED_TO_SELLER');
+    });
+
+    it('sweep freezes expired holds with an open dispute and reports both outcomes', async () => {
+      const lot = await auctionRepo.createLot({
+        title: 'Disputed Expiry Lot',
+        category: 'METAL',
+        quantity_kg: '80.00',
+        starting_price_bdt: '9000.00',
+        reserve_price_bdt: '9000.00',
+        status: 'ENDED',
+        opens_at: new Date(Date.now() - 7200_000),
+        closes_at: new Date(Date.now() - 3600_000),
+        created_by: sellerPartner.user.id,
+      });
+
+      const bid = await auctionRepo.insertBid({
+        lot_id: lot.id,
+        bidder_user_id: buyerPartner.user.id,
+        amount_bdt: '11000.00',
+        bid_number: 1,
+      });
+
+      const hold = await escrowRepo.create({
+        lot_id: lot.id,
+        buyer_id: buyerPartner.user.id,
+        seller_id: sellerPartner.user.id,
+        amount_bdt: '11000.00',
+        status: 'HELD',
+        inspection_expires_at: new Date(Date.now() - 3600_000),
+      });
+
+      // Seed the open dispute directly (bypassing DisputeDomain.createDispute,
+      // which would freeze the hold immediately and take it out of the HELD
+      // state that sweepExpiredHolds targets).
+      await disputeRepo.create({
+        source_type: 'AUCTION_LOT',
+        source_id: lot.id,
+        opened_by: buyerPartner.user.id,
+        against_user_id: sellerPartner.user.id,
+        reason: 'Material arrived contaminated with mixed waste.',
+        evidence_urls: [],
+        status: 'OPEN',
+      });
+
+      const { released, frozen } = await EscrowDomain.sweepExpiredHolds();
+      expect(released.some((h) => h.id === hold.id)).toBe(false);
+      expect(frozen.some((h) => h.id === hold.id)).toBe(true);
+
+      const checkHold = await escrowRepo.findById(hold.id);
+      expect(checkHold?.status).toBe('FROZEN_IN_DISPUTE');
+    });
+
+    it('pure reads never mutate state even when a hold is expired', async () => {
+      const lot = await auctionRepo.createLot({
+        title: 'Read-Only Lot',
+        category: 'PAPER',
+        quantity_kg: '40.00',
+        starting_price_bdt: '5000.00',
+        reserve_price_bdt: '5000.00',
+        status: 'ENDED',
+        opens_at: new Date(Date.now() - 7200_000),
+        closes_at: new Date(Date.now() - 3600_000),
+        created_by: sellerPartner.user.id,
+      });
+
+      const bid = await auctionRepo.insertBid({
+        lot_id: lot.id,
+        bidder_user_id: buyerPartner.user.id,
+        amount_bdt: '7000.00',
+        bid_number: 1,
+      });
+
+      const hold = await escrowRepo.create({
+        lot_id: lot.id,
+        buyer_id: buyerPartner.user.id,
+        seller_id: sellerPartner.user.id,
+        amount_bdt: '7000.00',
+        status: 'HELD',
+        inspection_expires_at: new Date(Date.now() - 3600_000), // Expired
+      });
+
+      await EscrowDomain.getHoldById(hold.id);
+      await EscrowDomain.getHoldByLotId(lot.id);
+
+      const afterReads = await escrowRepo.findById(hold.id);
+      expect(afterReads?.status).toBe('HELD');
     });
   });
 
@@ -327,7 +413,7 @@ describe('SPEC 13: Auction Escrow Hold & Unified Dispute Arbitration (Ticket 09b
         headers: authHeaders(buyerPartner.token),
       });
       const unauthReleaseRes = await releaseEscrowRoute(unauthReleaseReq, routeParams(hold.id));
-      expect(unauthReleaseRes.status).toBe(400);
+      expect(unauthReleaseRes.status).toBe(403);
     });
 
     it('prevents opening duplicate disputes on the same active subject', async () => {
