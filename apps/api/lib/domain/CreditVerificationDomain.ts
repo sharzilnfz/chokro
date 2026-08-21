@@ -5,10 +5,14 @@ import { trustGateRepo } from '../repos/trustGate';
 import { depositRepo } from '../repos/deposits';
 import { pickupRepo } from '../repos/pickups';
 import { disputeRepo } from '../repos/disputes';
+import { db, creditTxns, eq, and } from '@chokro/db';
 import { WalletDomain } from './WalletDomain';
 import { ImpactDomain } from './ImpactDomain';
 import { TrustGateDomain } from './TrustGateDomain';
 import { DomainRuleError } from '../database';
+
+// A drizzle query executor for in-transaction flips: an open transaction (tx).
+type TxExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ---------------------------------------------------------------------------
 // Custody-ref codec — one format, parsed, never string-concatenated at call sites.
@@ -120,6 +124,27 @@ export const CreditVerificationDomain = {
       return null;
     }
     return credit && credit.status === 'PENDING' ? credit : null;
+  },
+
+  // In-transaction entry point (settlement crash-window fix): performs ONLY the
+  // ledger status flip PENDING->VERIFIED using the CALLER'S executor — never the
+  // global withDb(db) seam (PGlite single connection would deadlock) and none of
+  // the impact/streak/badge tails. The public verify() keeps the full behaviour.
+  async verifyWithin(
+    executor: TxExecutor,
+    input: { redemptionId: string; trustDecisionId?: string | null }
+  ) {
+    const custodyRef = encodeCustodyRef('REDEMPTION', input.redemptionId);
+    const [flipped] = await executor
+      .update(creditTxns)
+      .set({
+        status: 'VERIFIED',
+        // UUID column: no decision (legacy fallback) stores NULL, not ''
+        trust_decision_id: input.trustDecisionId || null,
+      })
+      .where(and(eq(creditTxns.custody_ref, custodyRef), eq(creditTxns.status, 'PENDING')))
+      .returning();
+    return flipped || null;
   },
 
   async verify(trustDecisionId: string) {

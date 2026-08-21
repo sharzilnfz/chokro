@@ -105,3 +105,101 @@ describe('CreditVerificationDomain — dispute-pause rule', () => {
     expect(verified?.trust_decision_id).toBe(decision.id);
   });
 });
+
+describe('CreditVerificationDomain — verifyWithin (in-transaction entry point)', () => {
+  beforeEach(async () => {
+    await resetTestStore();
+  });
+
+  it('flips PENDING REDEEM to VERIFIED using the caller executor and stamps the trust decision id', async () => {
+    const user = await createTestUser('INDIVIDUAL', `vw-${crypto.randomUUID()}@test.com`);
+    const redemptionId = crypto.randomUUID();
+    const [decision] = await db
+      .insert(trustDecisions)
+      .values({
+        subject_type: 'REDEMPTION',
+        subject_id: redemptionId,
+        decision: 'AUTO_CLEAR',
+        failing_signals: [],
+        evaluated_signals: { user_id: user.id },
+      })
+      .returning();
+
+    await db.insert(creditTxns).values({
+      user_id: user.id,
+      amount: '100.00',
+      kind: 'REDEEM',
+      status: 'PENDING',
+      source_id: redemptionId,
+      custody_ref: `REDEMPTION-${redemptionId}`,
+    });
+
+    let flipped: any = null;
+    await db.transaction(async (tx) => {
+      flipped = await CreditVerificationDomain.verifyWithin(tx, {
+        redemptionId,
+        trustDecisionId: decision.id,
+      });
+    });
+
+    expect(flipped).not.toBeNull();
+    expect(flipped.status).toBe('VERIFIED');
+    expect(flipped.trust_decision_id).toBe(decision.id);
+
+    const [row] = await db
+      .select()
+      .from(creditTxns)
+      .where(eq(creditTxns.custody_ref, `REDEMPTION-${redemptionId}`));
+    expect(row.status).toBe('VERIFIED');
+  });
+
+  it('falls back to an empty decision id when none is provided (legacy rows)', async () => {
+    const user = await createTestUser('INDIVIDUAL', `vw2-${crypto.randomUUID()}@test.com`);
+    const redemptionId = crypto.randomUUID();
+    await db.insert(creditTxns).values({
+      user_id: user.id,
+      amount: '50.00',
+      kind: 'REDEEM',
+      status: 'PENDING',
+      source_id: redemptionId,
+      custody_ref: `REDEMPTION-${redemptionId}`,
+    });
+
+    await db.transaction(async (tx) => {
+      await CreditVerificationDomain.verifyWithin(tx, { redemptionId });
+    });
+
+    const [row] = await db
+      .select()
+      .from(creditTxns)
+      .where(eq(creditTxns.custody_ref, `REDEMPTION-${redemptionId}`));
+    expect(row.status).toBe('VERIFIED');
+    expect(row.trust_decision_id).toBeNull();
+  });
+
+  it('is a no-op when no PENDING row matches (hold already released)', async () => {
+    const user = await createTestUser('INDIVIDUAL', `vw3-${crypto.randomUUID()}@test.com`);
+    const redemptionId = crypto.randomUUID();
+    await db.insert(creditTxns).values({
+      user_id: user.id,
+      amount: '50.00',
+      kind: 'REDEEM',
+      status: 'VERIFIED',
+      source_id: redemptionId,
+      custody_ref: `REDEMPTION-${redemptionId}`,
+    });
+
+    let flipped: any = null;
+    await db.transaction(async (tx) => {
+      flipped = await CreditVerificationDomain.verifyWithin(tx, { redemptionId });
+    });
+
+    expect(flipped).toBeNull();
+
+    const [row] = await db
+      .select()
+      .from(creditTxns)
+      .where(eq(creditTxns.custody_ref, `REDEMPTION-${redemptionId}`));
+    expect(row.status).toBe('VERIFIED');
+  });
+});

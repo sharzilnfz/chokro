@@ -12,6 +12,7 @@ import {
   liabilityCaps,
   redemptionRequests,
   payoutRecords,
+  disputes,
   eq,
   desc,
 } from '@chokro/db';
@@ -530,6 +531,152 @@ describe('SPEC 13: Wallet Settlement & MFS Cash-Out Engine (Ticket 09a)', () => 
       const bal = await balRes.json();
       expect(bal.balance.verified).toBe(1500);
     });
+
+    it('blocks admin approval while an open dispute exists on the redemption: 409 before any payout, PAID flip, or ledger write', async () => {
+      await adjustWallet(
+        new Request('http://localhost/api/v1/admin/wallet/adjust', {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ userId: user.id, amount: 1500, reason: 'Large grant' }),
+        })
+      );
+
+      const res = await requestRedemptionRoute(
+        new Request('http://localhost/api/v1/wallet/redemptions', {
+          method: 'POST',
+          headers: authHeaders(userToken),
+          body: JSON.stringify({
+            amountCredits: 1200,
+            payoutChannel: 'BKASH',
+            accountNumber: '01711223344',
+          }),
+        })
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.redemption.status).toBe('ESCALATED');
+
+      // Open a dispute against the redemption subject (same subjectType/subjectId
+      // the Trust Gate was evaluated with in requestRedemption)
+      await db.insert(disputes).values({
+        source_type: 'REDEMPTION',
+        source_id: body.redemption.id,
+        opened_by: admin.id,
+        against_user_id: user.id,
+        reason: 'test dispute blocks settlement',
+        status: 'OPEN',
+      });
+
+      const rowsBefore = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+
+      const settleRes = await settleRedemptionRoute(
+        new Request(`http://localhost/api/v1/wallet/redemptions/${body.redemption.id}/settle`, {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ action: 'APPROVE' }),
+        }),
+        routeParams(body.redemption.id)
+      );
+      expect(settleRes.status).toBe(409);
+      const settleBody = await settleRes.json();
+      expect(settleBody.error).toMatch(/dispute/i);
+
+      // Money never moved: no payout record, no PAID flip, zero new ledger rows
+      const payouts = await db
+        .select()
+        .from(payoutRecords)
+        .where(eq(payoutRecords.redemption_id, body.redemption.id));
+      expect(payouts.length).toBe(0);
+
+      const [redemption] = await db
+        .select()
+        .from(redemptionRequests)
+        .where(eq(redemptionRequests.id, body.redemption.id));
+      expect(redemption.status).toBe('ESCALATED');
+
+      const rowsAfter = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+      expect(rowsAfter.length).toBe(rowsBefore.length);
+    });
+
+    it('blocks admin RETRY while an open dispute exists on the redemption: 409 before any gateway call, payout record, or ledger write', async () => {
+      await adjustWallet(
+        new Request('http://localhost/api/v1/admin/wallet/adjust', {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ userId: user.id, amount: 200, reason: 'Initial balance' }),
+        })
+      );
+
+      // Attempt 1 fails at the gateway -> FAILED with exactly one payout record
+      process.env.SIMULATE_GATEWAY_FAILURE = 'true';
+      const res = await requestRedemptionRoute(
+        new Request('http://localhost/api/v1/wallet/redemptions', {
+          method: 'POST',
+          headers: authHeaders(userToken),
+          body: JSON.stringify({
+            amountCredits: 100,
+            payoutChannel: 'BKASH',
+            accountNumber: '01711223344',
+          }),
+        })
+      );
+      const body = await res.json();
+      expect(body.redemption.status).toBe('FAILED');
+      delete process.env.SIMULATE_GATEWAY_FAILURE;
+
+      const payoutsBefore = await db
+        .select()
+        .from(payoutRecords)
+        .where(eq(payoutRecords.redemption_id, body.redemption.id));
+      expect(payoutsBefore.length).toBe(1);
+
+      // Open a dispute against the redemption subject
+      await db.insert(disputes).values({
+        source_type: 'REDEMPTION',
+        source_id: body.redemption.id,
+        opened_by: admin.id,
+        against_user_id: user.id,
+        reason: 'test dispute blocks retry',
+        status: 'OPEN',
+      });
+
+      const rowsBefore = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+
+      // Spy proves the gateway is never reached while the dispute is open
+      const payoutSpy = jest.spyOn(SettlementDomain, 'executePayout');
+
+      const retryRes = await settleRedemptionRoute(
+        new Request(`http://localhost/api/v1/wallet/redemptions/${body.redemption.id}/settle`, {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ action: 'RETRY' }),
+        }),
+        routeParams(body.redemption.id)
+      );
+      expect(retryRes.status).toBe(409);
+      const retryBody = await retryRes.json();
+      expect(retryBody.error).toMatch(/dispute/i);
+
+      // Money never moved: no gateway call, no new payout record, zero new ledger rows
+      expect(payoutSpy).not.toHaveBeenCalled();
+
+      const payoutsAfter = await db
+        .select()
+        .from(payoutRecords)
+        .where(eq(payoutRecords.redemption_id, body.redemption.id));
+      expect(payoutsAfter.length).toBe(1);
+
+      const [redemption] = await db
+        .select()
+        .from(redemptionRequests)
+        .where(eq(redemptionRequests.id, body.redemption.id));
+      expect(redemption.status).toBe('FAILED');
+
+      const rowsAfter = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+      expect(rowsAfter.length).toBe(rowsBefore.length);
+
+      payoutSpy.mockRestore();
+    });
   });
 
   // =========================================================================
@@ -749,6 +896,175 @@ describe('SPEC 13: Wallet Settlement & MFS Cash-Out Engine (Ticket 09a)', () => 
       } finally {
         payoutSpy.mockRestore();
       }
+    });
+
+    it('crash window: gateway succeeds but settlement persistence fails -> the whole unit rolls back atomically (no PAID, credits stay PENDING, no orphan payout)', async () => {
+      await adjustWallet(
+        new Request('http://localhost/api/v1/admin/wallet/adjust', {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ userId: user.id, amount: 1500, reason: 'Large grant' }),
+        })
+      );
+
+      // Escalated redemption: the REDEEM hold row stays PENDING through review
+      const reqRes = await requestRedemptionRoute(
+        new Request('http://localhost/api/v1/wallet/redemptions', {
+          method: 'POST',
+          headers: authHeaders(userToken),
+          body: JSON.stringify({
+            amountCredits: 1200,
+            payoutChannel: 'NAGAD',
+            accountNumber: '01811223344',
+          }),
+        })
+      );
+      const reqBody = await reqRes.json();
+      expect(reqBody.redemption.status).toBe('ESCALATED');
+
+      // Gateway succeeds but persistence crashes INSIDE the settlement
+      // transaction (the in-tx ledger verify rejects) — payout record insert,
+      // PAID flip, and credit verify must roll back as ONE unit.
+      const verifySpy = jest
+        .spyOn(CreditVerificationDomain, 'verifyWithin')
+        .mockRejectedValue(new Error('db crash mid-settlement'));
+
+      try {
+        const settleRes = await settleRedemptionRoute(
+          new Request(`http://localhost/api/v1/wallet/redemptions/${reqBody.redemption.id}/settle`, {
+            method: 'POST',
+            headers: authHeaders(adminToken),
+            body: JSON.stringify({ action: 'APPROVE' }),
+          }),
+          routeParams(reqBody.redemption.id)
+        );
+        // The crash surfaces as a uniform DB-unavailable response…
+        expect(settleRes.status).toBe(503);
+
+        // NO PAID status anywhere
+        const redemptions = await db.select().from(redemptionRequests);
+        expect(redemptions.some((r) => r.status === 'PAID')).toBe(false);
+        expect(redemptions.find((r) => r.id === reqBody.redemption.id)?.status).toBe('ESCALATED');
+
+        // No orphan payout record — nothing leaked out of the rolled-back tx
+        expect((await db.select().from(payoutRecords)).length).toBe(0);
+
+        // Credits NOT verified: the held REDEEM row is still PENDING
+        const txns = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+        const redeemRow = txns.find((t) => t.kind === 'REDEEM');
+        expect(redeemRow?.status).toBe('PENDING');
+      } finally {
+        verifySpy.mockRestore();
+      }
+    });
+
+    it('verify-inside-tx: after successful settlement the credit row is VERIFIED in the same read that sees PAID', async () => {
+      await adjustWallet(
+        new Request('http://localhost/api/v1/admin/wallet/adjust', {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ userId: user.id, amount: 1500, reason: 'Large grant' }),
+        })
+      );
+
+      const reqRes = await requestRedemptionRoute(
+        new Request('http://localhost/api/v1/wallet/redemptions', {
+          method: 'POST',
+          headers: authHeaders(userToken),
+          body: JSON.stringify({
+            amountCredits: 1200,
+            payoutChannel: 'BKASH',
+            accountNumber: '01711223344',
+          }),
+        })
+      );
+      const reqBody = await reqRes.json();
+      expect(reqBody.redemption.status).toBe('ESCALATED');
+
+      const settleRes = await settleRedemptionRoute(
+        new Request(`http://localhost/api/v1/wallet/redemptions/${reqBody.redemption.id}/settle`, {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ action: 'APPROVE' }),
+        }),
+        routeParams(reqBody.redemption.id)
+      );
+      expect(settleRes.status).toBe(200);
+
+      // One read sees BOTH the PAID flip and the VERIFIED credit flip
+      const [redemption] = await db
+        .select()
+        .from(redemptionRequests)
+        .where(eq(redemptionRequests.id, reqBody.redemption.id));
+      expect(redemption.status).toBe('PAID');
+
+      const txns = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+      const redeemRow = txns.find((t) => t.kind === 'REDEEM');
+      expect(redeemRow?.status).toBe('VERIFIED');
+      expect(redeemRow?.trust_decision_id).toBe(redemption.trust_decision_id);
+    });
+
+    it('blocks retry beyond MAX_PAYOUT_ATTEMPTS with a 409 DomainRuleError and mints zero new ledger rows', async () => {
+      await adjustWallet(
+        new Request('http://localhost/api/v1/admin/wallet/adjust', {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ userId: user.id, amount: 200, reason: 'Initial balance' }),
+        })
+      );
+
+      // Attempt 1: initial request fails at the gateway -> FAILED + REDEEM/ADJUST pair
+      process.env.SIMULATE_GATEWAY_FAILURE = 'true';
+      const res1 = await requestRedemptionRoute(
+        new Request('http://localhost/api/v1/wallet/redemptions', {
+          method: 'POST',
+          headers: authHeaders(userToken),
+          body: JSON.stringify({
+            amountCredits: 100,
+            payoutChannel: 'BKASH',
+            accountNumber: '01711223344',
+          }),
+        })
+      );
+      const body1 = await res1.json();
+      expect(body1.redemption.status).toBe('FAILED');
+
+      const retry = () =>
+        settleRedemptionRoute(
+          new Request(`http://localhost/api/v1/wallet/redemptions/${body1.redemption.id}/settle`, {
+            method: 'POST',
+            headers: authHeaders(adminToken),
+            body: JSON.stringify({ action: 'RETRY' }),
+          }),
+          routeParams(body1.redemption.id)
+        );
+
+      // Attempts 2 and 3 fail (append-only REDEEM+ADJUST pairs accumulate)
+      const res2 = await retry();
+      expect(res2.status).toBe(200);
+      const res3 = await retry();
+      expect(res3.status).toBe(200);
+
+      const payouts = await db.select().from(payoutRecords);
+      expect(payouts.length).toBe(3);
+      const rowsBefore = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+
+      // Attempt 4 is beyond MAX_PAYOUT_ATTEMPTS: refused with 409 BEFORE any
+      // gateway call or ledger write — zero new rows, redemption stays FAILED.
+      const res4 = await retry();
+      expect(res4.status).toBe(409);
+      const body4 = await res4.json();
+      expect(body4.error).toMatch(/payout attempts/i);
+
+      const rowsAfter = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+      expect(rowsAfter.length).toBe(rowsBefore.length);
+      expect((await db.select().from(payoutRecords)).length).toBe(3);
+
+      const [redemption] = await db
+        .select()
+        .from(redemptionRequests)
+        .where(eq(redemptionRequests.id, body1.redemption.id));
+      expect(redemption.status).toBe('FAILED');
     });
   });
 

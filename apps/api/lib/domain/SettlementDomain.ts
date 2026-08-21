@@ -11,9 +11,14 @@ import { walletRepo } from '../repos/wallet';
 import { trustGateRepo } from '../repos/trustGate';
 import { userRepo } from '../repos/users';
 import { WalletDomain } from './WalletDomain';
-import { TrustGateDomain } from './TrustGateDomain';
 import { CreditVerificationDomain } from './CreditVerificationDomain';
-import { BadRequestError } from '../database';
+import { TrustGateDomain } from './TrustGateDomain';
+import { BadRequestError, DomainRuleError } from '../database';
+
+// Bound retry accumulation: each failed payout cycle mints one REDEEM+ADJUST
+// pair (correct append-only behaviour, but unbounded). Beyond this many payout
+// attempts the retry is refused and the redemption stays FAILED.
+export const MAX_PAYOUT_ATTEMPTS = 3;
 
 export class SettlementDomain {
   /**
@@ -191,25 +196,6 @@ export class SettlementDomain {
   }
 
   /**
-   * Flip the redemption's held PENDING REDEEM ledger row to VERIFIED.
-   * Status flips go through CreditVerificationDomain when a trust decision exists;
-   * legacy rows without one fall back to the same repo seam CVD uses internally.
-   */
-  private static async verifyRedemptionLedger(redemption: {
-    id: string;
-    trust_decision_id?: string | null;
-  }) {
-    if (redemption.trust_decision_id) {
-      await CreditVerificationDomain.verify(redemption.trust_decision_id);
-    } else {
-      await walletRepo.verifyCreditTransaction({
-        custodyRef: CreditVerificationDomain.encodeCustodyRef('REDEMPTION', redemption.id),
-        trustDecisionId: '',
-      });
-    }
-  }
-
-  /**
    * 6. User submits a Redemption Request (Main Entrypoint)
    */
   static async requestRedemption(input: CreateRedemptionInput, userId: string) {
@@ -334,14 +320,14 @@ export class SettlementDomain {
       }
 
       if (payoutResult.success) {
-        // Payout record + PAID flip in ONE transaction (crash-window fix)
+        // Payout record + PAID flip + in-tx credit-ledger verify in ONE
+        // transaction (crash-window fix). The streak/badge tail already fired
+        // at gate-clear time inside TrustGateDomain.evaluateAndApply.
         const settled = await settlementRepo.settlePayoutAtomic({
           redemptionId: redemption.id,
           payout: payoutResult.record,
+          trustDecisionId: gateEvaluation.trustDecisionId,
         });
-
-        // Single owner flips REDEEM pending -> VERIFIED
-        await this.verifyRedemptionLedger({ ...redemption, trust_decision_id: gateEvaluation.trustDecisionId });
 
         return {
           redemption: settled.redemption,
@@ -472,18 +458,38 @@ export class SettlementDomain {
         throw new BadRequestError(`Cannot approve redemption in status ${redemption.status}`);
       }
 
+      // Cross-cutting dispute-pause — single owner via CreditVerificationDomain
+      // helper. PRE-MONEY guard: an open dispute on this redemption blocks
+      // settlement BEFORE any gateway call or ledger write. (The user
+      // AUTO_CLEAR path already gets the same check inside
+      // TrustGateDomain.evaluateAndApply.)
+      const disputePaused = await CreditVerificationDomain.checkDisputePause('REDEMPTION', redemptionId);
+      if (disputePaused) {
+        throw new DomainRuleError(
+          `Cannot approve payout while an open dispute is active on this redemption`,
+          409
+        );
+      }
+
       // Execute MFS payout — OUTSIDE any transaction
       const payoutResult = await this.executePayout(redemption);
 
       if (payoutResult.success) {
-        // Payout record + PAID flip in ONE transaction (crash-window fix)
+        // Payout record + PAID flip + in-tx credit-ledger verify in ONE
+        // transaction (crash-window fix)
         const settled = await settlementRepo.settlePayoutAtomic({
           redemptionId,
           payout: payoutResult.record,
+          trustDecisionId: redemption.trust_decision_id,
         });
 
-        // Single owner flips REDEEM pending -> VERIFIED
-        await this.verifyRedemptionLedger(redemption);
+        // Non-ledger tails fire AFTER the transaction commits; the ledger flip
+        // itself ran inside the tx via CreditVerificationDomain.verifyWithin.
+        try {
+          await WalletDomain.onCreditsVerified(redemption.user_id);
+        } catch (e) {
+          console.error('Failed streak/badge tail:', e);
+        }
 
         return {
           redemption: settled.redemption,
@@ -518,11 +524,30 @@ export class SettlementDomain {
         throw new BadRequestError(`Can only retry redemptions in FAILED status, current is ${redemption.status}`);
       }
 
+      // Same PRE-MONEY dispute-pause guard as APPROVE: an open dispute on this
+      // redemption blocks a retry BEFORE any gateway call or ledger write.
+      const disputePaused = await CreditVerificationDomain.checkDisputePause('REDEMPTION', redemptionId);
+      if (disputePaused) {
+        throw new DomainRuleError(
+          `Cannot retry payout while an open dispute is active on this redemption`,
+          409
+        );
+      }
+
       // The Trust Gate auto-clear already released the original hold (flipped the
       // REDEEM row to VERIFIED before payout), so a retry must re-deduct. The
       // deduction gets a deterministic per-attempt ref derived from the payout
       // attempt number — never a hand-built Date.now() ref.
       const attempt = (await settlementRepo.findPayoutsByRedemptionId(redemptionId)).length + 1;
+
+      // Bound retry accumulation: past the cap, refuse WITHOUT minting any new
+      // ledger rows — the redemption stays FAILED.
+      if (attempt > MAX_PAYOUT_ATTEMPTS) {
+        throw new DomainRuleError(
+          `Redemption ${redemptionId} has exhausted its ${MAX_PAYOUT_ATTEMPTS} payout attempts and can no longer be retried`,
+          409
+        );
+      }
 
       await walletRepo.createRedeemTransaction({
         userId: redemption.user_id,

@@ -18,6 +18,7 @@ import {
 import { withDb } from './seam';
 import { ConflictError, BadRequestError } from '../database';
 import { LedgerMath } from '../LedgerMath';
+import { CreditVerificationDomain } from '../domain/CreditVerificationDomain';
 import { DEFAULT_LIABILITY_CAPS, type RedemptionStatus, type PayoutStatus } from '@chokro/shared';
 import crypto from 'crypto';
 
@@ -51,8 +52,34 @@ export interface CreatePayoutRecordInput {
 }
 
 // A drizzle query executor: the shared db handle or an open transaction (tx).
-// Callers inside db.transaction MUST pass their tx so reads serialize with the writes they guard.
+// Module-private: NO public repo signature accepts an executor — methods that
+// need a transaction create it INSIDE themselves via db.transaction and pass
+// the tx only to module-private helpers.
 type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Shared SUM core for monthly redeemed BDT (the twins' parameterized body).
+// Takes an explicit executor so the atomic redemption transaction can re-check
+// caps against its own tx (reads serialize with the writes they guard); the
+// public wrappers below pass the shared db through the withDb seam.
+async function sumMonthlyRedeemedBdt(executor: Executor, userId: string | null, date: Date = new Date()) {
+  const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const filters = [
+    gte(redemptionRequests.created_at, startOfMonth),
+    lte(redemptionRequests.created_at, endOfMonth),
+    inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID']),
+  ];
+  if (userId !== null) filters.push(eq(redemptionRequests.user_id, userId));
+
+  const [row] = await executor
+    .select({ total: sql<string>`COALESCE(SUM(${redemptionRequests.gross_amount_bdt}), 0)` })
+    .from(redemptionRequests)
+    .where(and(...filters));
+
+  const total = Number(row?.total);
+  return Number.isFinite(total) ? Number(total.toFixed(2)) : 0;
+}
 
 export const settlementRepo = {
   // 1. Get active liability caps (latest row or defaults)
@@ -289,37 +316,17 @@ export const settlementRepo = {
     });
   },
 
-  // 11/12. Sum gross redeemed BDT in calendar month — across all users or one user (the twins, parameterized).
-  // Executor is explicit: callers inside an open transaction pass their tx so cap
-  // re-checks serialize with the writes they guard (see atomicCreateRedemption).
-  async sumMonthlyRedeemedBdt(executor: Executor, userId: string | null, date: Date = new Date()) {
-    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-
-    const filters = [
-      gte(redemptionRequests.created_at, startOfMonth),
-      lte(redemptionRequests.created_at, endOfMonth),
-      inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID']),
-    ];
-    if (userId !== null) filters.push(eq(redemptionRequests.user_id, userId));
-
-    const [row] = await executor
-      .select({ total: sql<string>`COALESCE(SUM(${redemptionRequests.gross_amount_bdt}), 0)` })
-      .from(redemptionRequests)
-      .where(and(...filters));
-
-    const total = Number(row?.total);
-    return Number.isFinite(total) ? Number(total.toFixed(2)) : 0;
-  },
-
+  // 11/12. Sum gross redeemed BDT in calendar month — across all users or one user.
+  // The executor-taking core is module-private (above); these public wrappers
+  // expose plain inputs only.
   // 11. Sum user's gross redeemed BDT in calendar month
   async getUserMonthlyRedeemedBdt(userId: string, date: Date = new Date()) {
-    return withDb(() => this.sumMonthlyRedeemedBdt(db, userId, date));
+    return withDb(() => sumMonthlyRedeemedBdt(db, userId, date));
   },
 
   // 12. Sum platform's gross redeemed BDT in calendar month
   async getPlatformMonthlyRedeemedBdt(date: Date = new Date()) {
-    return withDb(() => this.sumMonthlyRedeemedBdt(db, null, date));
+    return withDb(() => sumMonthlyRedeemedBdt(db, null, date));
   },
 
   // 13. Derive platform outstanding liability from append-only credit ledger.
@@ -355,7 +362,7 @@ export const settlementRepo = {
     return withDb(async () => {
       return db.transaction(async (tx) => {
         // 1. Re-evaluate monthly user cap inside transaction
-        const userMonthly = await this.sumMonthlyRedeemedBdt(tx, params.userId);
+        const userMonthly = await sumMonthlyRedeemedBdt(tx, params.userId);
         if (userMonthly + params.amountCredits > params.monthlyUserCapBdt) {
           const remaining = Math.max(0, params.monthlyUserCapBdt - userMonthly);
           throw new BadRequestError(
@@ -364,7 +371,7 @@ export const settlementRepo = {
         }
 
         // 2. Re-evaluate monthly platform liability cap inside transaction
-        const platformMonthly = await this.sumMonthlyRedeemedBdt(tx, null);
+        const platformMonthly = await sumMonthlyRedeemedBdt(tx, null);
         if (platformMonthly + params.amountCredits > params.monthlyPlatformCapBdt) {
           throw new BadRequestError('Platform monthly liability cap reached. Cash-out temporarily paused.');
         }
@@ -423,10 +430,15 @@ export const settlementRepo = {
 
   // 15. Atomic payout settlement: the MFS gateway call happens OUTSIDE this
   // transaction (in SettlementDomain); only its settled outcome is persisted here,
-  // together with the PAID status flip and an in-tx settleable-status re-check.
+  // together with the PAID status flip, an in-tx settleable-status re-check, and
+  // the in-transaction credit-ledger verify (CreditVerificationDomain.verifyWithin).
   // This closes the crash window where money was sent but the redemption never
-  // left its pre-paid status.
-  async settlePayoutAtomic(params: { redemptionId: string; payout: CreatePayoutRecordInput }) {
+  // left its pre-paid status or the credits were never verified.
+  async settlePayoutAtomic(params: {
+    redemptionId: string;
+    payout: CreatePayoutRecordInput;
+    trustDecisionId?: string | null;
+  }) {
     return withDb(async () => {
       return db.transaction(async (tx) => {
         const [payout] = await tx
@@ -463,6 +475,15 @@ export const settlementRepo = {
           );
         }
 
+        // Crash-window fix: the PENDING->VERIFIED credit flip runs INSIDE this
+        // transaction via the single flip owner (CVD), using the tx executor.
+        // Legacy rows without a trust decision flip through the same custody-ref
+        // path with an empty decision id — same fallback CVD.verify uses today.
+        await CreditVerificationDomain.verifyWithin(tx, {
+          redemptionId: params.redemptionId,
+          trustDecisionId: params.trustDecisionId || null,
+        });
+
         return { redemption: paid, payout };
       });
     });
@@ -490,7 +511,13 @@ export const settlementRepo = {
           .where(
             and(
               eq(redemptionRequests.id, params.redemptionId),
-              inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED'])
+              inArray(redemptionRequests.status, [
+                'REQUESTED',
+                'AUTO_APPROVED',
+                'ESCALATED',
+                'APPROVED',
+                'FAILED',
+              ])
             )
           )
           .returning();
