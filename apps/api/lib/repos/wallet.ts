@@ -188,20 +188,22 @@ export const walletRepo = {
     custodyRef?: string | null;
     reason?: string | null;
     status?: 'PENDING' | 'VERIFIED';
-  }, dbOrTx: any = db) {
-    const [txn] = await dbOrTx
-      .insert(creditTxns)
-      .values({
-        user_id: input.userId,
-        amount: String(typeof input.amount === 'number' ? input.amount.toFixed(2) : input.amount),
-        kind: 'REDEEM',
-        status: input.status || 'PENDING',
-        source_id: input.sourceId || null,
-        custody_ref: input.custodyRef || null,
-        reason: input.reason || null,
-      })
-      .returning();
-    return txn;
+  }) {
+    return withDb(async () => {
+      const [txn] = await db
+        .insert(creditTxns)
+        .values({
+          user_id: input.userId,
+          amount: String(typeof input.amount === 'number' ? input.amount.toFixed(2) : input.amount),
+          kind: 'REDEEM',
+          status: input.status || 'PENDING',
+          source_id: input.sourceId || null,
+          custody_ref: input.custodyRef || null,
+          reason: input.reason || null,
+        })
+        .returning();
+      return txn;
+    });
   },
 
   // Record a compensating ADJUST transaction to restore balance on failure/cancellation
@@ -211,20 +213,22 @@ export const walletRepo = {
     sourceId?: string | null;
     custodyRef?: string | null;
     reason: string;
-  }, dbOrTx: any = db) {
-    const [txn] = await dbOrTx
-      .insert(creditTxns)
-      .values({
-        user_id: input.userId,
-        amount: String(typeof input.amount === 'number' ? input.amount.toFixed(2) : input.amount),
-        kind: 'ADJUST',
-        status: 'VERIFIED',
-        source_id: input.sourceId || null,
-        custody_ref: input.custodyRef || null,
-        reason: input.reason,
-      })
-      .returning();
-    return txn;
+  }) {
+    return withDb(async () => {
+      const [txn] = await db
+        .insert(creditTxns)
+        .values({
+          user_id: input.userId,
+          amount: String(typeof input.amount === 'number' ? input.amount.toFixed(2) : input.amount),
+          kind: 'ADJUST',
+          status: 'VERIFIED',
+          source_id: input.sourceId || null,
+          custody_ref: input.custodyRef || null,
+          reason: input.reason,
+        })
+        .returning();
+      return txn;
+    });
   },
 };
 

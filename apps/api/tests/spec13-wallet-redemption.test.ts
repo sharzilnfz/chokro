@@ -665,6 +665,90 @@ describe('SPEC 13: Wallet Settlement & MFS Cash-Out Engine (Ticket 09a)', () => 
         })
       );
       expect((await balRes2.json()).balance.verified).toBe(100);
+
+      // Retry re-deducts with a DETERMINISTIC per-attempt ref (attempt 2: one
+      // FAILED payout already recorded) — no Date.now() ref, exactly one retry row.
+      const txnsAfterRetry = await db
+        .select()
+        .from(creditTxns)
+        .where(eq(creditTxns.user_id, user.id));
+      const retryRows = txnsAfterRetry.filter((t) => t.custody_ref?.startsWith('REDEMPTION-RETRY-'));
+      expect(retryRows.length).toBe(1);
+      expect(retryRows[0].custody_ref).toBe(`REDEMPTION-RETRY-${body.redemption.id}-2`);
+      expect(retryRows[0].status).toBe('VERIFIED');
+      expect(
+        txnsAfterRetry.some((t) => /REDEMPTION-RETRY-.*-\d{13}/.test(t.custody_ref ?? ''))
+      ).toBe(false);
+    });
+
+    it('crash window: a THROWN gateway error leaves no PAID status and restores credits via the single reversal helper', async () => {
+      await adjustWallet(
+        new Request('http://localhost/api/v1/admin/wallet/adjust', {
+          method: 'POST',
+          headers: authHeaders(adminToken),
+          body: JSON.stringify({ userId: user.id, amount: 200, reason: 'Initial balance' }),
+        })
+      );
+
+      // Simulate the MFS call throwing mid-settlement (network crash), not returning failure
+      const payoutSpy = jest
+        .spyOn(SettlementDomain, 'executePayout')
+        .mockRejectedValue(new Error('MFS gateway connection reset'));
+
+      try {
+        const res = await requestRedemptionRoute(
+          new Request('http://localhost/api/v1/wallet/redemptions', {
+            method: 'POST',
+            headers: authHeaders(userToken),
+            body: JSON.stringify({
+              amountCredits: 100,
+              payoutChannel: 'BKASH',
+              accountNumber: '01711223344',
+            }),
+          })
+        );
+        expect(res.status).toBe(201);
+        const body = await res.json();
+        expect(body.error).toBeDefined();
+        expect(body.redemption.status).toBe('FAILED');
+
+        // No redemption anywhere reached PAID
+        const redemptions = await db.select().from(redemptionRequests);
+        expect(redemptions.some((r) => r.status === 'PAID')).toBe(false);
+
+        // The FAILED payout attempt is persisted alongside the FAILED flip
+        const payouts = await db.select().from(payoutRecords);
+        expect(payouts.length).toBe(1);
+        expect(payouts[0].status).toBe('FAILED');
+
+        // Compensating-entry rules live in ONE place: one NEW append-only
+        // VERIFIED ADJUST row carrying the REVERSAL-FAIL-<id> ref.
+        const txns = await db.select().from(creditTxns).where(eq(creditTxns.user_id, user.id));
+        const compRows = txns.filter(
+          (t) => t.kind === 'ADJUST' && t.custody_ref?.startsWith('REVERSAL-')
+        );
+        expect(compRows.length).toBe(1);
+        expect(compRows[0].custody_ref).toBe(`REVERSAL-FAIL-${body.redemption.id}`);
+        expect(compRows[0].source_id).toBe(body.redemption.id);
+        expect(compRows[0].status).toBe('VERIFIED');
+        expect(Number(compRows[0].amount)).toBe(100);
+
+        // The original REDEEM hold row was already released to VERIFIED by the
+        // Trust Gate auto-clear (before payout) — the crash window is about the
+        // deducted balance and the redemption status, both now repaired.
+        const redeemRow = txns.find((t) => t.kind === 'REDEEM');
+        expect(redeemRow?.status).toBe('VERIFIED');
+
+        // Balance fully restored: 200 - 100 (redeem) + 100 (compensating)
+        const balRes = await getWalletBalance(
+          new Request('http://localhost/api/v1/wallet/balance', {
+            headers: authHeaders(userToken),
+          })
+        );
+        expect((await balRes.json()).balance.verified).toBe(200);
+      } finally {
+        payoutSpy.mockRestore();
+      }
     });
   });
 

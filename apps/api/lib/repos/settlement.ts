@@ -50,11 +50,15 @@ export interface CreatePayoutRecordInput {
   payload?: Record<string, any> | null;
 }
 
+// A drizzle query executor: the shared db handle or an open transaction (tx).
+// Callers inside db.transaction MUST pass their tx so reads serialize with the writes they guard.
+type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export const settlementRepo = {
   // 1. Get active liability caps (latest row or defaults)
-  async getActiveLiabilityCaps(dbOrTx: any = db) {
+  async getActiveLiabilityCaps() {
     return withDb(async () => {
-      const rows = await dbOrTx
+      const rows = await db
         .select()
         .from(liabilityCaps)
         .orderBy(desc(liabilityCaps.created_at))
@@ -84,15 +88,10 @@ export const settlementRepo = {
   },
 
   // 2. Create new liability cap (supersedes active cap)
-  async createLiabilityCap(
-    input: CreateLiabilityCapInput,
-    updatedBy?: string | null,
-    dbOrTx: any = db
-  ) {
+  async createLiabilityCap(input: CreateLiabilityCapInput, updatedBy?: string | null) {
     const actorId = updatedBy !== undefined ? updatedBy : input.updatedBy;
-    return withDb(async (dbInstance) => {
-      const targetDb = dbOrTx && typeof dbOrTx.insert === 'function' ? dbOrTx : dbInstance;
-      const [record] = await targetDb
+    return withDb(async () => {
+      const [record] = await db
         .insert(liabilityCaps)
         .values({
           monthly_platform_cap_bdt: String(input.monthlyPlatformCapBdt.toFixed(2)),
@@ -117,9 +116,9 @@ export const settlementRepo = {
   },
 
   // 3. Get liability caps audit history
-  async getLiabilityCapHistory(limit = 50, dbOrTx: any = db) {
+  async getLiabilityCapHistory(limit = 50) {
     return withDb(async () => {
-      return dbOrTx
+      return db
         .select()
         .from(liabilityCaps)
         .orderBy(desc(liabilityCaps.created_at))
@@ -128,9 +127,9 @@ export const settlementRepo = {
   },
 
   // 4. Create redemption request
-  async createRedemptionRequest(input: CreateRedemptionRequestInput, dbOrTx: any = db) {
+  async createRedemptionRequest(input: CreateRedemptionRequestInput) {
     return withDb(async () => {
-      const [record] = await dbOrTx
+      const [record] = await db
         .insert(redemptionRequests)
         .values({
           id: input.id || crypto.randomUUID(),
@@ -151,9 +150,9 @@ export const settlementRepo = {
   },
 
   // 5. Find redemption by ID
-  async findRedemptionById(id: string, dbOrTx: any = db) {
+  async findRedemptionById(id: string) {
     return withDb(async () => {
-      const rows = await dbOrTx
+      const rows = await db
         .select()
         .from(redemptionRequests)
         .where(eq(redemptionRequests.id, id))
@@ -164,9 +163,9 @@ export const settlementRepo = {
   },
 
   // 6. Find redemptions by user
-  async findRedemptionsByUser(userId: string, limit = 50, dbOrTx: any = db) {
+  async findRedemptionsByUser(userId: string, limit = 50) {
     return withDb(async () => {
-      return dbOrTx
+      return db
         .select()
         .from(redemptionRequests)
         .where(eq(redemptionRequests.user_id, userId))
@@ -176,15 +175,12 @@ export const settlementRepo = {
   },
 
   // 7. Find all redemptions with joins for Admin console (A10)
-  async findAllRedemptions(
-    filters?: { status?: string; limit?: number; offset?: number },
-    dbOrTx: any = db
-  ) {
+  async findAllRedemptions(filters?: { status?: string; limit?: number; offset?: number }) {
     return withDb(async () => {
       const limit = filters?.limit ?? 50;
       const offset = filters?.offset ?? 0;
 
-      let query = dbOrTx
+      const baseQuery = db
         .select({
           redemption: redemptionRequests,
           user: {
@@ -203,23 +199,24 @@ export const settlementRepo = {
         })
         .from(redemptionRequests)
         .leftJoin(users, eq(redemptionRequests.user_id, users.id))
-        .leftJoin(trustDecisions, eq(redemptionRequests.trust_decision_id, trustDecisions.id))
+        .leftJoin(trustDecisions, eq(redemptionRequests.trust_decision_id, trustDecisions.id));
+
+      const filtered =
+        filters?.status && filters.status !== 'ALL'
+          ? baseQuery.where(eq(redemptionRequests.status, filters.status as any))
+          : baseQuery;
+
+      const rows = await filtered
         .orderBy(desc(redemptionRequests.created_at))
         .limit(limit)
         .offset(offset);
-
-      if (filters?.status && filters.status !== 'ALL') {
-        query = query.where(eq(redemptionRequests.status, filters.status as any));
-      }
-
-      const rows = await query;
 
       // Fetch latest payouts for these redemptions
       const redemptionIds = rows.map((r: any) => r.redemption.id);
       let payoutsMap: Record<string, any> = {};
 
       if (redemptionIds.length > 0) {
-        const payouts = await dbOrTx
+        const payouts = await db
           .select()
           .from(payoutRecords)
           .where(inArray(payoutRecords.redemption_id, redemptionIds))
@@ -245,8 +242,7 @@ export const settlementRepo = {
   async updateRedemptionStatus(
     id: string,
     status: RedemptionStatus,
-    trustDecisionId?: string | null,
-    dbOrTx: any = db
+    trustDecisionId?: string | null
   ) {
     return withDb(async () => {
       const updateData: Record<string, any> = { status };
@@ -254,7 +250,7 @@ export const settlementRepo = {
         updateData.trust_decision_id = trustDecisionId;
       }
 
-      const [updated] = await dbOrTx
+      const [updated] = await db
         .update(redemptionRequests)
         .set(updateData)
         .where(eq(redemptionRequests.id, id))
@@ -265,9 +261,9 @@ export const settlementRepo = {
   },
 
   // 9. Create payout record
-  async createPayoutRecord(input: CreatePayoutRecordInput, dbOrTx: any = db) {
+  async createPayoutRecord(input: CreatePayoutRecordInput) {
     return withDb(async () => {
-      const [record] = await dbOrTx
+      const [record] = await db
         .insert(payoutRecords)
         .values({
           redemption_id: input.redemptionId,
@@ -283,9 +279,9 @@ export const settlementRepo = {
   },
 
   // 10. Find payouts for a redemption
-  async findPayoutsByRedemptionId(redemptionId: string, dbOrTx: any = db) {
+  async findPayoutsByRedemptionId(redemptionId: string) {
     return withDb(async () => {
-      return dbOrTx
+      return db
         .select()
         .from(payoutRecords)
         .where(eq(payoutRecords.redemption_id, redemptionId))
@@ -294,43 +290,43 @@ export const settlementRepo = {
   },
 
   // 11/12. Sum gross redeemed BDT in calendar month — across all users or one user (the twins, parameterized).
-  async getMonthlyRedeemedBdt(userId: string | null, date: Date = new Date(), dbOrTx: any = db) {
-    return withDb(async () => {
-      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+  // Executor is explicit: callers inside an open transaction pass their tx so cap
+  // re-checks serialize with the writes they guard (see atomicCreateRedemption).
+  async sumMonthlyRedeemedBdt(executor: Executor, userId: string | null, date: Date = new Date()) {
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 
-      const filters = [
-        gte(redemptionRequests.created_at, startOfMonth),
-        lte(redemptionRequests.created_at, endOfMonth),
-        inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID']),
-      ];
-      if (userId !== null) filters.push(eq(redemptionRequests.user_id, userId));
+    const filters = [
+      gte(redemptionRequests.created_at, startOfMonth),
+      lte(redemptionRequests.created_at, endOfMonth),
+      inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED', 'PAID']),
+    ];
+    if (userId !== null) filters.push(eq(redemptionRequests.user_id, userId));
 
-      const [row] = await dbOrTx
-        .select({ total: sql<string>`COALESCE(SUM(${redemptionRequests.gross_amount_bdt}), 0)` })
-        .from(redemptionRequests)
-        .where(and(...filters));
+    const [row] = await executor
+      .select({ total: sql<string>`COALESCE(SUM(${redemptionRequests.gross_amount_bdt}), 0)` })
+      .from(redemptionRequests)
+      .where(and(...filters));
 
-      const total = Number(row?.total);
-      return Number.isFinite(total) ? Number(total.toFixed(2)) : 0;
-    });
+    const total = Number(row?.total);
+    return Number.isFinite(total) ? Number(total.toFixed(2)) : 0;
   },
 
   // 11. Sum user's gross redeemed BDT in calendar month
-  async getUserMonthlyRedeemedBdt(userId: string, date: Date = new Date(), dbOrTx: any = db) {
-    return this.getMonthlyRedeemedBdt(userId, date, dbOrTx);
+  async getUserMonthlyRedeemedBdt(userId: string, date: Date = new Date()) {
+    return withDb(() => this.sumMonthlyRedeemedBdt(db, userId, date));
   },
 
   // 12. Sum platform's gross redeemed BDT in calendar month
-  async getPlatformMonthlyRedeemedBdt(date: Date = new Date(), dbOrTx: any = db) {
-    return this.getMonthlyRedeemedBdt(null, date, dbOrTx);
+  async getPlatformMonthlyRedeemedBdt(date: Date = new Date()) {
+    return withDb(() => this.sumMonthlyRedeemedBdt(db, null, date));
   },
 
   // 13. Derive platform outstanding liability from append-only credit ledger.
   // Aggregation is pushed into SQL (GROUP BY kind, status) — the whole ledger is never loaded.
-  async getPlatformLiabilityMetrics(dbOrTx: any = db) {
+  async getPlatformLiabilityMetrics() {
     return withDb(async () => {
-      const grouped = await dbOrTx
+      const grouped = await db
         .select({
           kind: creditTxns.kind,
           status: creditTxns.status,
@@ -359,7 +355,7 @@ export const settlementRepo = {
     return withDb(async () => {
       return db.transaction(async (tx) => {
         // 1. Re-evaluate monthly user cap inside transaction
-        const userMonthly = await this.getUserMonthlyRedeemedBdt(params.userId, new Date(), tx);
+        const userMonthly = await this.sumMonthlyRedeemedBdt(tx, params.userId);
         if (userMonthly + params.amountCredits > params.monthlyUserCapBdt) {
           const remaining = Math.max(0, params.monthlyUserCapBdt - userMonthly);
           throw new BadRequestError(
@@ -368,7 +364,7 @@ export const settlementRepo = {
         }
 
         // 2. Re-evaluate monthly platform liability cap inside transaction
-        const platformMonthly = await this.getPlatformMonthlyRedeemedBdt(new Date(), tx);
+        const platformMonthly = await this.sumMonthlyRedeemedBdt(tx, null);
         if (platformMonthly + params.amountCredits > params.monthlyPlatformCapBdt) {
           throw new BadRequestError('Platform monthly liability cap reached. Cash-out temporarily paused.');
         }
@@ -421,6 +417,91 @@ export const settlementRepo = {
           .returning();
 
         return { redemption, creditTxn };
+      });
+    });
+  },
+
+  // 15. Atomic payout settlement: the MFS gateway call happens OUTSIDE this
+  // transaction (in SettlementDomain); only its settled outcome is persisted here,
+  // together with the PAID status flip and an in-tx settleable-status re-check.
+  // This closes the crash window where money was sent but the redemption never
+  // left its pre-paid status.
+  async settlePayoutAtomic(params: { redemptionId: string; payout: CreatePayoutRecordInput }) {
+    return withDb(async () => {
+      return db.transaction(async (tx) => {
+        const [payout] = await tx
+          .insert(payoutRecords)
+          .values({
+            redemption_id: params.payout.redemptionId,
+            gateway_ref: params.payout.gatewayRef || null,
+            gateway_provider: params.payout.gatewayProvider || 'SSLCOMMERZ_MFS',
+            status: params.payout.status,
+            payload: params.payout.payload || null,
+          })
+          .returning();
+
+        const [paid] = await tx
+          .update(redemptionRequests)
+          .set({ status: 'PAID' })
+          .where(
+            and(
+              eq(redemptionRequests.id, params.redemptionId),
+              inArray(redemptionRequests.status, [
+                'REQUESTED',
+                'AUTO_APPROVED',
+                'ESCALATED',
+                'APPROVED',
+                'FAILED',
+              ])
+            )
+          )
+          .returning();
+
+        if (!paid) {
+          throw new ConflictError(
+            `Cannot settle redemption ${params.redemptionId}: not in a settleable status`
+          );
+        }
+
+        return { redemption: paid, payout };
+      });
+    });
+  },
+
+  // 16. Atomic failure marking: FAILED payout record + FAILED status flip in one
+  // transaction, mirroring settlePayoutAtomic for the gateway-refused path.
+  async markRedemptionFailedAtomic(params: { redemptionId: string; payout: CreatePayoutRecordInput }) {
+    return withDb(async () => {
+      return db.transaction(async (tx) => {
+        const [payout] = await tx
+          .insert(payoutRecords)
+          .values({
+            redemption_id: params.payout.redemptionId,
+            gateway_ref: params.payout.gatewayRef || null,
+            gateway_provider: params.payout.gatewayProvider || 'SSLCOMMERZ_MFS',
+            status: 'FAILED',
+            payload: params.payout.payload || null,
+          })
+          .returning();
+
+        const [failed] = await tx
+          .update(redemptionRequests)
+          .set({ status: 'FAILED' })
+          .where(
+            and(
+              eq(redemptionRequests.id, params.redemptionId),
+              inArray(redemptionRequests.status, ['REQUESTED', 'AUTO_APPROVED', 'ESCALATED', 'APPROVED'])
+            )
+          )
+          .returning();
+
+        if (!failed) {
+          throw new ConflictError(
+            `Cannot mark redemption ${params.redemptionId} FAILED: not in a fail-able status`
+          );
+        }
+
+        return { redemption: failed, payout };
       });
     });
   },

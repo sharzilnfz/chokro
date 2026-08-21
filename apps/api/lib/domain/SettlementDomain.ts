@@ -5,16 +5,15 @@ import {
   type RedemptionQuote,
   type LiabilitySummary,
   type UpdateLiabilityCapInput,
-  DEFAULT_LIABILITY_CAPS,
 } from '@chokro/shared';
-import { settlementRepo } from '../repos/settlement';
+import { settlementRepo, type CreatePayoutRecordInput } from '../repos/settlement';
 import { walletRepo } from '../repos/wallet';
 import { trustGateRepo } from '../repos/trustGate';
 import { userRepo } from '../repos/users';
 import { WalletDomain } from './WalletDomain';
 import { TrustGateDomain } from './TrustGateDomain';
 import { CreditVerificationDomain } from './CreditVerificationDomain';
-import { BadRequestError, ConflictError } from '../database';
+import { BadRequestError } from '../database';
 
 export class SettlementDomain {
   /**
@@ -88,6 +87,9 @@ export class SettlementDomain {
 
   /**
    * 5. MFS Sandbox / Mock Payout Gateway
+   * Pure gateway outcome — persists NOTHING. The payout record is written inside
+   * the settlement transaction (settlePayoutAtomic / markRedemptionFailedAtomic),
+   * so the MFS call always stays outside any database transaction.
    */
   static async executePayout(redemption: {
     id: string;
@@ -96,21 +98,24 @@ export class SettlementDomain {
     gross_amount_bdt: string | number;
     fee_bdt: string | number;
     net_amount_bdt: string | number;
-  }) {
+  }): Promise<{ success: boolean; isSimulated: boolean; record: CreatePayoutRecordInput }> {
     // Check if test environment explicitly forced failure
     if (process.env.SIMULATE_GATEWAY_FAILURE === 'true') {
-      const payout = await settlementRepo.createPayoutRecord({
-        redemptionId: redemption.id,
-        gatewayRef: null,
-        gatewayProvider: 'SSLCOMMERZ_MFS',
-        status: 'FAILED',
-        payload: {
-          error: 'Simulated MFS transfer failure: Bank network timeout',
-          channel: redemption.payout_channel,
-          accountNumber: redemption.account_number,
+      return {
+        success: false,
+        isSimulated: true,
+        record: {
+          redemptionId: redemption.id,
+          gatewayRef: null,
+          gatewayProvider: 'SSLCOMMERZ_MFS',
+          status: 'FAILED',
+          payload: {
+            error: 'Simulated MFS transfer failure: Bank network timeout',
+            channel: redemption.payout_channel,
+            accountNumber: redemption.account_number,
+          },
         },
-      });
-      return { success: false, payout, isSimulated: true };
+      };
     }
 
     const hasSandboxCredentials = Boolean(
@@ -120,45 +125,88 @@ export class SettlementDomain {
     if (hasSandboxCredentials) {
       // SSLCommerz Sandbox integration
       const gatewayRef = `MFS-SSL-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-      const payout = await settlementRepo.createPayoutRecord({
+      return {
+        success: true,
+        isSimulated: false,
+        record: {
+          redemptionId: redemption.id,
+          gatewayRef,
+          gatewayProvider: 'SSLCOMMERZ_MFS',
+          status: 'SUCCESS',
+          payload: {
+            simulated: false,
+            sandbox: true,
+            channel: redemption.payout_channel,
+            accountNumber: redemption.account_number,
+            grossAmountBdt: Number(redemption.gross_amount_bdt),
+            feeBdt: Number(redemption.fee_bdt),
+            netAmountBdt: Number(redemption.net_amount_bdt),
+            settledAt: new Date().toISOString(),
+          },
+        },
+      };
+    }
+
+    // Degraded local simulated mode
+    const gatewayRef = `MFS-SIM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    return {
+      success: true,
+      isSimulated: true,
+      record: {
         redemptionId: redemption.id,
         gatewayRef,
         gatewayProvider: 'SSLCOMMERZ_MFS',
-        status: 'SUCCESS',
+        status: 'SIMULATED',
         payload: {
-          simulated: false,
-          sandbox: true,
+          simulated: true,
           channel: redemption.payout_channel,
           accountNumber: redemption.account_number,
           grossAmountBdt: Number(redemption.gross_amount_bdt),
           feeBdt: Number(redemption.fee_bdt),
           netAmountBdt: Number(redemption.net_amount_bdt),
+          mode: 'OFFLINE_SIMULATED',
           settledAt: new Date().toISOString(),
         },
-      });
-      return { success: true, payout, isSimulated: false };
-    }
-
-    // Degraded local simulated mode
-    const gatewayRef = `MFS-SIM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-    const payout = await settlementRepo.createPayoutRecord({
-      redemptionId: redemption.id,
-      gatewayRef,
-      gatewayProvider: 'SSLCOMMERZ_MFS',
-      status: 'SIMULATED',
-      payload: {
-        simulated: true,
-        channel: redemption.payout_channel,
-        accountNumber: redemption.account_number,
-        grossAmountBdt: Number(redemption.gross_amount_bdt),
-        feeBdt: Number(redemption.fee_bdt),
-        netAmountBdt: Number(redemption.net_amount_bdt),
-        mode: 'OFFLINE_SIMULATED',
-        settledAt: new Date().toISOString(),
       },
-    });
+    };
+  }
 
-    return { success: true, payout, isSimulated: true };
+  /**
+   * Single owner of the compensating-entry rules and the REVERSAL-* ref vocabulary.
+   * Every failed payout, user cancellation, and admin rejection restores credits
+   * through THIS module: one NEW append-only VERIFIED ADJUST row — never an update.
+   */
+  static async reverseRedemption(
+    redemption: { id: string; user_id: string; amount_credits: string | number },
+    reason: string,
+    refKind: 'FAIL' | 'CANCEL' | 'REJECT' | `RETRY-FAIL-${number}`
+  ) {
+    return walletRepo.createCompensatingTransaction({
+      userId: redemption.user_id,
+      amount: Number(redemption.amount_credits),
+      sourceId: redemption.id,
+      custodyRef: `REVERSAL-${refKind}-${redemption.id}`,
+      reason,
+    });
+  }
+
+  /**
+   * Flip the redemption's held PENDING REDEEM ledger row to VERIFIED.
+   * Status flips go through CreditVerificationDomain when a trust decision exists;
+   * legacy rows without one fall back to the same repo seam CVD uses internally.
+   */
+  private static async verifyRedemptionLedger(redemption: {
+    id: string;
+    trust_decision_id?: string | null;
+  }) {
+    if (redemption.trust_decision_id) {
+      await CreditVerificationDomain.verify(redemption.trust_decision_id);
+    } else {
+      await walletRepo.verifyCreditTransaction({
+        custodyRef: CreditVerificationDomain.encodeCustodyRef('REDEMPTION', redemption.id),
+        trustDecisionId: '',
+      });
+    }
   }
 
   /**
@@ -241,52 +289,85 @@ export class SettlementDomain {
         gateEvaluation.trustDecisionId
       );
 
-      // Settle payout via MFS Gateway
-      const payoutResult = await this.executePayout({
-        ...redemption,
-        gross_amount_bdt: quote.grossAmountBdt,
-        fee_bdt: quote.feeBdt,
-        net_amount_bdt: quote.netAmountBdt,
-      });
+      // Settle payout via MFS Gateway — OUTSIDE any transaction
+      let payoutResult;
+      try {
+        payoutResult = await this.executePayout({
+          ...redemption,
+          gross_amount_bdt: quote.grossAmountBdt,
+          fee_bdt: quote.feeBdt,
+          net_amount_bdt: quote.netAmountBdt,
+        });
+      } catch (gatewayError) {
+        // Crash-window fix: a thrown gateway error must never leave the
+        // redemption in AUTO_APPROVED limbo with credits held — mark FAILED
+        // atomically and restore credits via the single reversal helper.
+        const failed = await settlementRepo.markRedemptionFailedAtomic({
+          redemptionId: redemption.id,
+          payout: {
+            redemptionId: redemption.id,
+            gatewayProvider: 'SSLCOMMERZ_MFS',
+            status: 'FAILED',
+            payload: {
+              error: gatewayError instanceof Error ? gatewayError.message : String(gatewayError),
+              channel: redemption.payout_channel,
+              accountNumber: redemption.account_number,
+            },
+          },
+        });
 
-      if (payoutResult.success) {
-        // Mark redemption as PAID
-        const paidRedemption = await settlementRepo.updateRedemptionStatus(
-          redemption.id,
-          'PAID',
-          gateEvaluation.trustDecisionId
+        await this.reverseRedemption(
+          redemption,
+          `Compensating reversal for failed MFS payout on redemption ${redemption.id}`,
+          'FAIL'
         );
 
+        return {
+          redemption: failed.redemption,
+          payout: failed.payout,
+          decision: 'AUTO_CLEAR',
+          trustDecisionId: gateEvaluation.trustDecisionId,
+          isSimulated: false,
+          error: 'MFS transfer failed. Funds restored to your verified balance.',
+          quote,
+        };
+      }
+
+      if (payoutResult.success) {
+        // Payout record + PAID flip in ONE transaction (crash-window fix)
+        const settled = await settlementRepo.settlePayoutAtomic({
+          redemptionId: redemption.id,
+          payout: payoutResult.record,
+        });
+
         // Single owner flips REDEEM pending -> VERIFIED
-        await CreditVerificationDomain.verify(gateEvaluation.trustDecisionId);
+        await this.verifyRedemptionLedger({ ...redemption, trust_decision_id: gateEvaluation.trustDecisionId });
 
         return {
-          redemption: paidRedemption,
-          payout: payoutResult.payout,
+          redemption: settled.redemption,
+          payout: settled.payout,
           decision: 'AUTO_CLEAR',
           trustDecisionId: gateEvaluation.trustDecisionId,
           isSimulated: payoutResult.isSimulated,
           quote,
         };
       } else {
-        // Payout settlement failed: write compensating entry to restore balance
-        const failedRedemption = await settlementRepo.updateRedemptionStatus(
-          redemption.id,
-          'FAILED',
-          gateEvaluation.trustDecisionId
-        );
-
-        await walletRepo.createCompensatingTransaction({
-          userId,
-          amount: input.amountCredits,
-          sourceId: redemption.id,
-          custodyRef: `REVERSAL-FAIL-${redemption.id}`,
-          reason: `Compensating reversal for failed MFS payout on redemption ${redemption.id}`,
+        // Payout refused: FAILED record + FAILED flip in one transaction, then
+        // compensating entry restores the balance via the single reversal helper
+        const failed = await settlementRepo.markRedemptionFailedAtomic({
+          redemptionId: redemption.id,
+          payout: payoutResult.record,
         });
 
+        await this.reverseRedemption(
+          redemption,
+          `Compensating reversal for failed MFS payout on redemption ${redemption.id}`,
+          'FAIL'
+        );
+
         return {
-          redemption: failedRedemption,
-          payout: payoutResult.payout,
+          redemption: failed.redemption,
+          payout: failed.payout,
           decision: 'AUTO_CLEAR',
           trustDecisionId: gateEvaluation.trustDecisionId,
           isSimulated: payoutResult.isSimulated,
@@ -332,14 +413,12 @@ export class SettlementDomain {
     // Mark CANCELLED
     const updated = await settlementRepo.updateRedemptionStatus(redemptionId, 'CANCELLED');
 
-    // Restore balance via compensating ledger row (append-only invariant)
-    const compensatingTxn = await walletRepo.createCompensatingTransaction({
-      userId,
-      amount: Number(redemption.amount_credits),
-      sourceId: redemptionId,
-      custodyRef: `REVERSAL-CANCEL-${redemptionId}`,
-      reason: reason || `Compensating reversal for user-cancelled redemption ${redemptionId}`,
-    });
+    // Restore balance via the single reversal helper (append-only invariant)
+    const compensatingTxn = await this.reverseRedemption(
+      redemption,
+      reason || `Compensating reversal for user-cancelled redemption ${redemptionId}`,
+      'CANCEL'
+    );
 
     return {
       redemption: updated,
@@ -369,14 +448,12 @@ export class SettlementDomain {
 
       const updated = await settlementRepo.updateRedemptionStatus(redemptionId, 'REJECTED');
 
-      // Compensating ledger row restores balance
-      const compensatingTxn = await walletRepo.createCompensatingTransaction({
-        userId: redemption.user_id,
-        amount: Number(redemption.amount_credits),
-        sourceId: redemptionId,
-        custodyRef: `REVERSAL-REJECT-${redemptionId}`,
-        reason: reason || `Admin rejection for redemption ${redemptionId} by ${adminUserId}`,
-      });
+      // Compensating entry restores balance via the single reversal helper
+      const compensatingTxn = await this.reverseRedemption(
+        redemption,
+        reason || `Admin rejection for redemption ${redemptionId} by ${adminUserId}`,
+        'REJECT'
+      );
 
       return {
         redemption: updated,
@@ -395,43 +472,41 @@ export class SettlementDomain {
         throw new BadRequestError(`Cannot approve redemption in status ${redemption.status}`);
       }
 
-      // Execute MFS payout
+      // Execute MFS payout — OUTSIDE any transaction
       const payoutResult = await this.executePayout(redemption);
 
       if (payoutResult.success) {
-        const paidRedemption = await settlementRepo.updateRedemptionStatus(redemptionId, 'PAID');
+        // Payout record + PAID flip in ONE transaction (crash-window fix)
+        const settled = await settlementRepo.settlePayoutAtomic({
+          redemptionId,
+          payout: payoutResult.record,
+        });
 
         // Single owner flips REDEEM pending -> VERIFIED
-        if (redemption.trust_decision_id) {
-          await CreditVerificationDomain.verify(redemption.trust_decision_id);
-        } else {
-          await walletRepo.verifyCreditTransaction({
-            custodyRef: CreditVerificationDomain.encodeCustodyRef('REDEMPTION', redemptionId),
-            trustDecisionId: redemption.trust_decision_id || '',
-          });
-        }
+        await this.verifyRedemptionLedger(redemption);
 
         return {
-          redemption: paidRedemption,
-          payout: payoutResult.payout,
+          redemption: settled.redemption,
+          payout: settled.payout,
           action: 'APPROVE',
           message: 'Redemption approved and payout disbursed successfully',
         };
       } else {
-        const failedRedemption = await settlementRepo.updateRedemptionStatus(redemptionId, 'FAILED');
-
-        // Compensating ledger row
-        await walletRepo.createCompensatingTransaction({
-          userId: redemption.user_id,
-          amount: Number(redemption.amount_credits),
-          sourceId: redemptionId,
-          custodyRef: `REVERSAL-FAIL-${redemptionId}`,
-          reason: `Compensating reversal for failed MFS payout on redemption ${redemptionId}`,
+        const failed = await settlementRepo.markRedemptionFailedAtomic({
+          redemptionId,
+          payout: payoutResult.record,
         });
 
+        // Compensating entry via the single reversal helper
+        await this.reverseRedemption(
+          redemption,
+          `Compensating reversal for failed MFS payout on redemption ${redemptionId}`,
+          'FAIL'
+        );
+
         return {
-          redemption: failedRedemption,
-          payout: payoutResult.payout,
+          redemption: failed.redemption,
+          payout: failed.payout,
           action: 'APPROVE',
           error: 'MFS payout failed. Request marked FAILED and balance restored.',
         };
@@ -443,40 +518,51 @@ export class SettlementDomain {
         throw new BadRequestError(`Can only retry redemptions in FAILED status, current is ${redemption.status}`);
       }
 
-      // Re-deduct credits since previous failure wrote a compensating entry
+      // The Trust Gate auto-clear already released the original hold (flipped the
+      // REDEEM row to VERIFIED before payout), so a retry must re-deduct. The
+      // deduction gets a deterministic per-attempt ref derived from the payout
+      // attempt number — never a hand-built Date.now() ref.
+      const attempt = (await settlementRepo.findPayoutsByRedemptionId(redemptionId)).length + 1;
+
       await walletRepo.createRedeemTransaction({
         userId: redemption.user_id,
         amount: Number(redemption.amount_credits),
         sourceId: redemptionId,
-        custodyRef: `REDEMPTION-RETRY-${redemptionId}-${Date.now()}`,
-        reason: `Re-attempted cash-out redemption for ${redemptionId}`,
+        custodyRef: `REDEMPTION-RETRY-${redemptionId}-${attempt}`,
+        reason: `Re-attempted cash-out redemption for ${redemptionId} (attempt ${attempt})`,
         status: 'VERIFIED',
       });
 
       const payoutResult = await this.executePayout(redemption);
 
       if (payoutResult.success) {
-        const paidRedemption = await settlementRepo.updateRedemptionStatus(redemptionId, 'PAID');
+        const settled = await settlementRepo.settlePayoutAtomic({
+          redemptionId,
+          payout: payoutResult.record,
+        });
 
         return {
-          redemption: paidRedemption,
-          payout: payoutResult.payout,
+          redemption: settled.redemption,
+          payout: settled.payout,
           action: 'RETRY',
           message: 'Payout retried and settled successfully',
         };
       } else {
-        // Failed again: write compensating entry
-        await walletRepo.createCompensatingTransaction({
-          userId: redemption.user_id,
-          amount: Number(redemption.amount_credits),
-          sourceId: redemptionId,
-          custodyRef: `REVERSAL-RETRY-FAIL-${redemptionId}-${Date.now()}`,
-          reason: `Compensating reversal for retry failure on redemption ${redemptionId}`,
+        const failed = await settlementRepo.markRedemptionFailedAtomic({
+          redemptionId,
+          payout: payoutResult.record,
         });
 
-        return {
+        // Failed again: compensating entry via the single reversal helper
+        await this.reverseRedemption(
           redemption,
-          payout: payoutResult.payout,
+          `Compensating reversal for retry failure on redemption ${redemptionId}`,
+          `RETRY-FAIL-${attempt}`
+        );
+
+        return {
+          redemption: failed.redemption,
+          payout: failed.payout,
           action: 'RETRY',
           error: 'Retry failed. Request remains FAILED and balance restored.',
         };
