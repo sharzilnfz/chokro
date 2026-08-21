@@ -1,4 +1,6 @@
 // Modular notification seam: Telegram Bot, Twilio SMS, Resend Email with test/console fallback (SPEC 12 / Ticket 08b)
+import { userRepo } from './repos/users';
+import { getTransporter, hasMailerOverride, EMAIL_FROM } from './notifications/mailer';
 
 export interface NotificationPayload {
   recipientUserId?: string;
@@ -9,6 +11,33 @@ export interface NotificationPayload {
   message: string;
   html?: string;
   metadata?: Record<string, any>;
+}
+
+// ContactResolver adapter: notify() resolves a bare recipientUserId into
+// deliverable contacts through this seam (users repo in prod, fake in tests).
+export interface ResolvedContacts {
+  email?: string;
+  phone?: string;
+}
+
+export interface ContactResolver {
+  resolve(userId: string): Promise<ResolvedContacts | null>;
+}
+
+// Production implementation backed by the users repo.
+const userContactResolver: ContactResolver = {
+  async resolve(userId) {
+    const user = await userRepo.findById(userId);
+    if (!user) return null;
+    return { email: user.email, phone: user.phone || undefined };
+  },
+};
+
+let contactResolver: ContactResolver = userContactResolver;
+
+/** Inject a ContactResolver (tests pass a fake); null restores the users-repo adapter. */
+export function setContactResolver(resolver: ContactResolver | null): void {
+  contactResolver = resolver || userContactResolver;
 }
 
 export interface NotificationResult {
@@ -96,63 +125,60 @@ export const NotificationSeam = {
   },
 
   /**
-   * Resend Email notification
+   * Email notification through the shared mailer transport selection
+   * (same surface as the digest job: NOTIFY_TRANSPORT=smtp|ethereal|json).
    */
   async sendResendEmail(to: string, subject: string, html: string, text?: string): Promise<NotificationResult> {
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM || 'Chokro Trust <notifications@chokro.org>';
-
-    if (!apiKey || process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && !hasMailerOverride()) {
       console.log(`[notify:resend:fallback] to=${to} subject="${subject}"\n${text || html}`);
       return { channel: 'resend', success: true, messageId: 'test-resend-msg' };
     }
 
     try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from,
-          to: [to],
-          subject,
-          html,
-          text: text || undefined,
-        }),
+      const mailer = await getTransporter();
+      const info = await mailer.transporter.sendMail({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        html,
+        text: text || undefined,
       });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        return { channel: 'resend', success: false, error: errText };
-      }
-
-      const json = await res.json();
-      return { channel: 'resend', success: true, messageId: json.id };
+      return { channel: 'resend', success: true, messageId: String(info.messageId) };
     } catch (err: any) {
       return { channel: 'resend', success: false, error: err.message };
     }
   },
 
   /**
-   * Broadcast or send targeted notification across configured channels
+   * Broadcast or send targeted notification across configured channels.
+   * A bare recipientUserId is resolved into contacts through the injected
+   * ContactResolver adapter before channel selection.
    */
   async notify(payload: NotificationPayload): Promise<NotificationResult[]> {
     const results: NotificationResult[] = [];
+
+    let email = payload.recipientEmail;
+    let phone = payload.recipientPhone;
+    if (payload.recipientUserId && (!email || !phone)) {
+      const contacts = await contactResolver.resolve(payload.recipientUserId);
+      if (contacts) {
+        email = email || contacts.email;
+        phone = phone || contacts.phone;
+      }
+    }
 
     if (payload.telegramChatId || process.env.TELEGRAM_CHAT_ID) {
       results.push(await this.sendTelegram(payload.message, payload.telegramChatId));
     }
 
-    if (payload.recipientPhone) {
-      results.push(await this.sendTwilioSms(payload.recipientPhone, payload.message));
+    if (phone) {
+      results.push(await this.sendTwilioSms(phone, payload.message));
     }
 
-    if (payload.recipientEmail && payload.subject) {
+    if (email && payload.subject) {
       results.push(
         await this.sendResendEmail(
-          payload.recipientEmail,
+          email,
           payload.subject,
           payload.html || `<p>${payload.message}</p>`,
           payload.message

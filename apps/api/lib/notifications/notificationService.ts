@@ -1,11 +1,10 @@
 import { db, listings, savedListings, users } from '@chokro/db';
 import { and, eq, gte } from 'drizzle-orm';
-import { getTransporter } from './mailer';
+import { getTransporter, EMAIL_FROM } from './mailer';
 
 const WINDOW_HOURS = Number(process.env.NOTIFY_WINDOW_HOURS || 24);
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const APP_SCHEME = process.env.APP_SCHEME || 'chokro';
-const EMAIL_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@chokro.dev';
 
 export interface NewListing {
   id: string;
