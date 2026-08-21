@@ -608,7 +608,7 @@ export const impactRecords = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     custody_type: varchar('custody_type', { length: 50 }).notNull(), // DEPOSIT, PICKUP, MANUAL
-    custody_id: uuid('custody_id').notNull(),
+    custody_id: varchar('custody_id', { length: 255 }).notNull(),
     trust_decision_id: uuid('trust_decision_id').notNull().references(() => trustDecisions.id),
     user_id: uuid('user_id').notNull().references(() => users.id),
     institution_id: uuid('institution_id').references(() => campuses.id),
