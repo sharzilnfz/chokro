@@ -18,28 +18,59 @@ import { usePartnerMe } from '@/hooks/usePartnerMe';
 import { useProfile } from '@/hooks/useProfile';
 import { getPersonaLabel, getVisibleTabs, type PersonaLabel, type Tab } from '@/navigation/roleTabs';
 import type { ListingPrefill } from '@/types';
-import { FeedScreen } from '@/screens/FeedScreen';
-import { CreateListingScreen } from '@/screens/CreateListingScreen';
-import { WalletScreen } from '@/screens/WalletScreen';
-import { QRScannerScreen } from '@/screens/QRScannerScreen';
-import { RateCardScreen } from '@/screens/RateCardScreen';
-import { VisionScanScreen } from '@/screens/VisionScanScreen';
-import { PickupScreen } from '@/screens/PickupScreen';
-import { AuctionsScreen } from '@/screens/AuctionsScreen';
-import { MessagesScreen, type MessagesTarget } from '@/screens/MessagesScreen';
+import type { MessagesTarget } from '@/screens/MessagesScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
-import { LeaderboardScreen } from '@/screens/LeaderboardScreen';
-import { MyBadgesScreen } from '@/screens/MyBadgesScreen';
-import { BecomePartnerScreen } from '@/screens/BecomePartnerScreen';
-import { PartnerStatusScreen } from '@/screens/PartnerStatusScreen';
-import { PartnerConsoleScreen } from '@/screens/PartnerConsoleScreen';
-import { ProfileScreen } from '@/screens/ProfileScreen';
-import { RedemptionRequestScreen } from '@/screens/RedemptionRequestScreen';
-import { DepositFlowScreen } from '@/screens/DepositFlowScreen';
 import { CATEGORIES } from '@chokro/shared';
 import type { FeedFilter } from '@/hooks/useFeed';
 import type { DropZone } from '@/components/DropZoneResultCard';
+
+type SignedInScreens = {
+  FeedScreen: typeof import('@/screens/FeedScreen').FeedScreen;
+  CreateListingScreen: typeof import('@/screens/CreateListingScreen').CreateListingScreen;
+  WalletScreen: typeof import('@/screens/WalletScreen').WalletScreen;
+  QRScannerScreen: typeof import('@/screens/QRScannerScreen').QRScannerScreen;
+  RateCardScreen: typeof import('@/screens/RateCardScreen').RateCardScreen;
+  VisionScanScreen: typeof import('@/screens/VisionScanScreen').VisionScanScreen;
+  PickupScreen: typeof import('@/screens/PickupScreen').PickupScreen;
+  AuctionsScreen: typeof import('@/screens/AuctionsScreen').AuctionsScreen;
+  MessagesScreen: typeof import('@/screens/MessagesScreen').MessagesScreen;
+  LeaderboardScreen: typeof import('@/screens/LeaderboardScreen').LeaderboardScreen;
+  MyBadgesScreen: typeof import('@/screens/MyBadgesScreen').MyBadgesScreen;
+  BecomePartnerScreen: typeof import('@/screens/BecomePartnerScreen').BecomePartnerScreen;
+  PartnerStatusScreen: typeof import('@/screens/PartnerStatusScreen').PartnerStatusScreen;
+  PartnerConsoleScreen: typeof import('@/screens/PartnerConsoleScreen').PartnerConsoleScreen;
+  ProfileScreen: typeof import('@/screens/ProfileScreen').ProfileScreen;
+  RedemptionRequestScreen: typeof import('@/screens/RedemptionRequestScreen').RedemptionRequestScreen;
+  DepositFlowScreen: typeof import('@/screens/DepositFlowScreen').DepositFlowScreen;
+};
+
+let signedInScreensCache: SignedInScreens | null = null;
+
+function loadSignedInScreens(): SignedInScreens {
+  if (!signedInScreensCache) {
+    signedInScreensCache = {
+      FeedScreen: require('@/screens/FeedScreen').FeedScreen,
+      CreateListingScreen: require('@/screens/CreateListingScreen').CreateListingScreen,
+      WalletScreen: require('@/screens/WalletScreen').WalletScreen,
+      QRScannerScreen: require('@/screens/QRScannerScreen').QRScannerScreen,
+      RateCardScreen: require('@/screens/RateCardScreen').RateCardScreen,
+      VisionScanScreen: require('@/screens/VisionScanScreen').VisionScanScreen,
+      PickupScreen: require('@/screens/PickupScreen').PickupScreen,
+      AuctionsScreen: require('@/screens/AuctionsScreen').AuctionsScreen,
+      MessagesScreen: require('@/screens/MessagesScreen').MessagesScreen,
+      LeaderboardScreen: require('@/screens/LeaderboardScreen').LeaderboardScreen,
+      MyBadgesScreen: require('@/screens/MyBadgesScreen').MyBadgesScreen,
+      BecomePartnerScreen: require('@/screens/BecomePartnerScreen').BecomePartnerScreen,
+      PartnerStatusScreen: require('@/screens/PartnerStatusScreen').PartnerStatusScreen,
+      PartnerConsoleScreen: require('@/screens/PartnerConsoleScreen').PartnerConsoleScreen,
+      ProfileScreen: require('@/screens/ProfileScreen').ProfileScreen,
+      RedemptionRequestScreen: require('@/screens/RedemptionRequestScreen').RedemptionRequestScreen,
+      DepositFlowScreen: require('@/screens/DepositFlowScreen').DepositFlowScreen,
+    };
+  }
+  return signedInScreensCache;
+}
 
 const TAB_META: Record<
   Tab,
@@ -199,6 +230,8 @@ export function AppShell() {
     );
   }
 
+  const screens = loadSignedInScreens();
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header bar */}
@@ -254,30 +287,30 @@ export function AppShell() {
       {/* Screen container */}
       <View className="flex-1">
         {subView === 'profile' ? (
-          <ProfileScreen onBack={() => setSubView(null)} />
+          <screens.ProfileScreen onBack={() => setSubView(null)} />
         ) : subView === 'leaderboard' ? (
-          <LeaderboardScreen
+          <screens.LeaderboardScreen
             onBack={() => setSubView(null)}
             onOpenBadges={() => setSubView('badges')}
           />
         ) : subView === 'badges' ? (
-          <MyBadgesScreen
+          <screens.MyBadgesScreen
             onBack={() => setSubView(null)}
             onOpenLeaderboard={() => setSubView('leaderboard')}
           />
         ) : subView === 'become_partner' ? (
-          <BecomePartnerScreen
+          <screens.BecomePartnerScreen
             onBack={() => setSubView(null)}
             onSuccess={() => setSubView(isVerifiedPartner ? 'partner_console' : 'partner_status')}
           />
         ) : subView === 'partner_status' ? (
-          <PartnerStatusScreen
+          <screens.PartnerStatusScreen
             onBack={() => setSubView(null)}
             onOpenApply={() => setSubView('become_partner')}
             onOpenConsole={() => setSubView('partner_console')}
           />
         ) : subView === 'partner_console' ? (
-          <PartnerConsoleScreen
+          <screens.PartnerConsoleScreen
             onBack={() => setSubView(null)}
             onOpenScanner={() => {
               setSubView(null);
@@ -286,12 +319,12 @@ export function AppShell() {
             onOpenStatus={() => setSubView('partner_status')}
           />
         ) : subView === 'redemption' ? (
-          <RedemptionRequestScreen
+          <screens.RedemptionRequestScreen
             onBack={() => setSubView(null)}
             onSuccess={() => setSubView(null)}
           />
         ) : subView === 'deposit_flow' ? depositZone ? (
-          <DepositFlowScreen
+          <screens.DepositFlowScreen
             zoneId={depositZone.id}
             zoneName={depositZone.name}
             acceptedCategories={depositZone.acceptedCategories}
@@ -310,14 +343,14 @@ export function AppShell() {
         ) : null : (
           <>
             {activeTab === 'browse' && (
-              <FeedScreen
+              <screens.FeedScreen
                 onContactSeller={openChatWithListing}
                 deepLinkCategory={browseCategory}
                 onCategoryChange={syncBrowseUrl}
               />
             )}
             {activeTab === 'list' && (
-              <CreateListingScreen
+              <screens.CreateListingScreen
                 key={listingPrefill ? `prefill-${listingPrefill.seededAt}` : 'blank'}
                 prefill={listingPrefill}
                 onCreated={() => {
@@ -327,16 +360,16 @@ export function AppShell() {
               />
             )}
             {activeTab === 'messages' && (
-              <MessagesScreen
+              <screens.MessagesScreen
                 target={messagesTarget}
                 onTargetHandled={() => setMessagesTarget(null)}
               />
             )}
-            {activeTab === 'pickup' && <PickupScreen />}
-            {activeTab === 'auctions' && <AuctionsScreen />}
-            {activeTab === 'rates' && <RateCardScreen />}
+            {activeTab === 'pickup' && <screens.PickupScreen />}
+            {activeTab === 'auctions' && <screens.AuctionsScreen />}
+            {activeTab === 'rates' && <screens.RateCardScreen />}
             {activeTab === 'wallet' && (
-              <WalletScreen
+              <screens.WalletScreen
                 onOpenLeaderboard={() => setSubView('leaderboard')}
                 onOpenBadges={() => setSubView('badges')}
                 onOpenPartner={() => setSubView(isVerifiedPartner ? 'partner_console' : 'partner_status')}
@@ -345,7 +378,7 @@ export function AppShell() {
             )}
 
             {activeTab === 'vision' && (
-              <VisionScanScreen
+              <screens.VisionScanScreen
                 onListScrap={(prefill) => {
                   setListingPrefill(prefill);
                   selectTab('list');
@@ -353,7 +386,7 @@ export function AppShell() {
               />
             )}
             {activeTab === 'scan' && (
-              <QRScannerScreen
+              <screens.QRScannerScreen
                 onZoneConfirmed={(zone, qrToken) => {
                   setDepositZone(zone);
                   setDepositQrToken(qrToken);
@@ -362,7 +395,7 @@ export function AppShell() {
               />
             )}
             {activeTab === 'console' && (
-              <PartnerConsoleScreen
+              <screens.PartnerConsoleScreen
                 onOpenScanner={() => {
                   setSubView(null);
                   selectTab('scan');
