@@ -35,15 +35,25 @@ export const GET = safeRoute(async (req: Request) => {
     return apiError('Drop zone not found', 404);
   }
 
+//   // Return a whitelisted subset so callers never receive internal fields.
+//   return apiData({
+//     zone: {
+//       name: zone.name,
+//       status: zone.status,
+//       acceptedCategories: zone.accepted_categories,
+//     },
+//   });
+
+
   // Return a whitelisted subset so callers never receive internal fields.
   return apiData({
     zone: {
+      id: zone.id,
       name: zone.name,
       status: zone.status,
       acceptedCategories: zone.accepted_categories,
     },
   });
 });
-
 
 export { OPTIONS } from '@/lib/http';
