@@ -21,7 +21,11 @@ import { DropZoneResultCard, type DropZone } from '@/components/DropZoneResultCa
 // Fallback so acceptedCategories is never undefined before a zone resolves.
 const EMPTY_CATEGORIES: string[] = [];
 
-export function QRScannerScreen() {
+export interface QRScannerScreenProps {
+  onZoneConfirmed?: (zone: DropZone, qrToken: string) => void;
+}
+
+export function QRScannerScreen({ onZoneConfirmed }: QRScannerScreenProps) {
   // Camera permission, manual token input, and the current scan/lookup session.
   const [permission, requestPermission] = useCameraPermissions();
   const [manualToken, setManualToken] = useState('');
@@ -177,7 +181,9 @@ export function QRScannerScreen() {
         <DropZoneResultCard
           zone={zone}
           acceptedCategories={acceptedCategories}
+          qrToken={manualToken}
           onScanAgain={scanAgain}
+          onAddItem={() => onZoneConfirmed?.(zone, manualToken)}
         />
       ) : null}
     </ScrollView>

@@ -1,0 +1,11 @@
+$kind: http-request
+description: Retrieves the audit log of recent AI valuation scans stored in valuation_scans table.
+url: "{{baseUrl}}/api/v1/valuation/scans?limit=10"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: limit
+    value: "10"
+    description: Number of scan records to return
+order: 4000

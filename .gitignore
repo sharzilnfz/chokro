@@ -6,6 +6,11 @@ node_modules/
 .next/
 out/
 
+# Uploads & Runtime Storage
+apps/api/public/uploads/
+public/uploads/
+
+
 # Expo / React Native
 .expo/
 dist/
@@ -38,5 +43,14 @@ pnpm-debug.log*
 .superpowers/
 .freebuff/
 
+# Local demos, architecture guides & viva materials (untracked)
+docs/demos/
+
+# nx
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
+compose.override.yaml
 
 *.tsbuildinfo
+.worktrees/

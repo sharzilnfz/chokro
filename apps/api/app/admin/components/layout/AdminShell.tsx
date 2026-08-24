@@ -12,12 +12,21 @@ import { AdminButton } from '../ui/AdminButton';
 // Top-level sections that make up the console navigation.
 const NAVIGATION_ITEMS = [
   { href: '/admin', label: 'Overview' },
+  { href: '/admin/redemptions', label: 'Redemptions (A10)' },
+  { href: '/admin/liability', label: 'Liability (A11)' },
   { href: '/admin/rate-card', label: 'Rate card' },
   { href: '/admin/partners', label: 'Partner queue' },
+  { href: '/admin/kyc-queue', label: 'KYC Queue' },
   { href: '/admin/leaderboard', label: 'Leaderboard' },
   { href: '/admin/campuses', label: 'Campuses' },
   { href: '/admin/drop-zones', label: 'Drop zones' },
+  { href: '/admin/zone-capacity', label: 'Zone capacity' },
+  { href: '/admin/thresholds', label: 'Trust thresholds' },
+  { href: '/admin/trust-gate', label: 'Escalations (A07)' },
+  { href: '/admin/disputes', label: 'Disputes (A09)' },
+  { href: '/admin/certificates', label: 'Certificates (A12)' },
 ] as const;
+
 
 export function AdminShell({ children }: { children: ReactNode }) {
   // Track the current route and read the session/lifecycle actions from the auth context.

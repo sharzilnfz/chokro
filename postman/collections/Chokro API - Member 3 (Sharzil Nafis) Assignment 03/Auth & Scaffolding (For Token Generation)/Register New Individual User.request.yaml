@@ -1,0 +1,23 @@
+$kind: http-request
+description: Registers a new user and sets the auth token.
+url: "{{baseUrl}}/api/auth/signup"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "student.sharzil@chokro.org",
+      "password": "password123",
+      "role": "INDIVIDUAL"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      var jsonData = pm.response.json();
+      if (jsonData.token) {
+          pm.collectionVariables.set('authToken', jsonData.token);
+      }
+    language: text/javascript
+order: 2000

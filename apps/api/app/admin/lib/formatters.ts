@@ -37,7 +37,8 @@ export function formatPrice(value: string | number): string {
 }
 
 // Formats an ISO timestamp as a localized medium date with short time, guarding against bad input.
-export function formatDate(value: string): string {
+export function formatDate(value: string | Date | null | undefined): string {
+  if (value == null) return 'Date unavailable';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Date unavailable';
   return new Intl.DateTimeFormat('en-BD', {

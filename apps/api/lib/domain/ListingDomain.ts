@@ -1,14 +1,15 @@
 // ListingDomain: listing lifecycle rules — legal status transitions, ownership
-// checks, and the published-catalog queries used by the marketplace.
-//
-// Listing repo + shared catalogue types that back these operations.
+// checks, published-catalog queries, and reverse demand auto-matching.
 import { listingRepo, ListingFilter } from '@/lib/repos/listings';
 import { ListingStatus, type Category, type Condition, type Unit } from '@chokro/shared';
+import { FeedDomain } from './FeedDomain';
+import { DemandBoardDomain } from './DemandBoardDomain';
 
 // Legal lifecycle edges a listing may traverse.
 const TRANSITIONS: Record<string, string[]> = {
   DRAFT: ['ACTIVE', 'CANCELLED'],
-  ACTIVE: ['CANCELLED'],
+  ACTIVE: ['CANCELLED', 'MATCHED'],
+  MATCHED: ['CANCELLED'],
   CANCELLED: [],
 };
 
@@ -22,6 +23,10 @@ export interface CreateListingData {
   price: number;
   photos: string[];
   status?: ListingStatus;
+  lat?: number | null;
+  lng?: number | null;
+  thana?: string | null;
+  zilla?: string | null;
 }
 
 // Application rules for creating, advancing, and browsing listings.
@@ -41,9 +46,21 @@ export const ListingDomain = {
     return listingRepo.findById(id);
   },
 
-  // Publish a new listing on the owner's behalf, normalizing numeric scale to a string column.
+  // Publish a new listing on the owner's behalf, reverse geocoding coordinates if needed,
+  // and synchronously evaluating matching recycler demands.
   async createListing(ownerId: string, data: CreateListingData) {
-    return listingRepo.create({
+    let lat = data.lat ?? null;
+    let lng = data.lng ?? null;
+    let thana = data.thana ?? null;
+    let zilla = data.zilla ?? null;
+
+    if (lat != null && lng != null && (!thana || !zilla)) {
+      const geo = await FeedDomain.reverseGeocode(lat, lng);
+      thana = thana || geo.thana;
+      zilla = zilla || geo.zilla;
+    }
+
+    const listing = await listingRepo.create({
       owner_id: ownerId,
       category: data.category,
       unit: data.unit,
@@ -53,13 +70,26 @@ export const ListingDomain = {
       price_bdt: data.price,
       photos: data.photos,
       status: data.status || 'ACTIVE',
+      lat,
+      lng,
+      thana,
+      zilla,
     });
+
+    // Synchronously evaluate standing buyer demands
+    if (listing.status === 'ACTIVE') {
+      try {
+        await DemandBoardDomain.evaluateDemandMatchesForListing(listing);
+      } catch {
+        // Demand matching failure should not prevent listing creation
+      }
+    }
+
+    return listing;
   },
 
   // Advance a listing through its lifecycle, validating the edge before persisting it.
   async updateListingStatus(id: string, targetStatus: ListingStatus, currentStatus?: string) {
-    // When the caller omits the source status, resolve it from the DB so the
-    // transition is always checked against persisted state.
     let sourceStatus = currentStatus;
     if (!sourceStatus) {
       const existing = await listingRepo.findById(id);
@@ -69,7 +99,6 @@ export const ListingDomain = {
       sourceStatus = existing.status;
     }
 
-    // Reject illegal jumps before writing.
     if (!this.isValidTransition(sourceStatus, targetStatus)) {
       throw new Error(`Invalid status transition from ${sourceStatus} to ${targetStatus}`);
     }

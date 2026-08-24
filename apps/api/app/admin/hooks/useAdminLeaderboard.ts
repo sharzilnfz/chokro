@@ -2,36 +2,21 @@
 'use client';
 
 import type { CampusLeaderboardEntry, LeaderboardPeriod, LeaderboardResponse } from '@chokro/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminApiRequest } from '../services/adminApi';
+import { useAdminList, useAdminAction } from './useAdminResource';
 
 export const ADMIN_LEADERBOARD_QUERY_KEY = ['admin', 'leaderboard'] as const;
 
 export function useAdminLeaderboard(period: LeaderboardPeriod = 'WEEKLY') {
-  const { status } = useAdminAuth();
-
-  return useQuery<CampusLeaderboardEntry[]>({
-    queryKey: [...ADMIN_LEADERBOARD_QUERY_KEY, period],
-    queryFn: async () => {
-      const data = await adminApiRequest<LeaderboardResponse>(`/api/leaderboard?period=${period}`);
-      return Array.isArray(data.campuses) ? data.campuses : [];
-    },
-    enabled: status === 'signed-in',
-  });
+  return useAdminList<LeaderboardResponse, CampusLeaderboardEntry>(
+    [...ADMIN_LEADERBOARD_QUERY_KEY, period],
+    `/api/leaderboard?period=${period}`,
+    (data) => data.campuses,
+  );
 }
 
 export function useRefreshLeaderboard() {
-  const queryClient = useQueryClient();
-
-  return useMutation<{ result: Record<string, unknown> }, Error>({
-    mutationFn: async () => {
-      return adminApiRequest<{ result: Record<string, unknown> }>('/api/admin/leaderboard/refresh', {
-        method: 'POST',
-      });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_LEADERBOARD_QUERY_KEY });
-    },
+  return useAdminAction<{ result: Record<string, unknown> }>({
+    path: '/api/admin/leaderboard/refresh',
+    invalidate: [ADMIN_LEADERBOARD_QUERY_KEY],
   });
 }

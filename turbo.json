@@ -10,7 +10,9 @@
       "persistent": true
     },
     "lint": {},
-    "test": {},
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "!public/uploads/**"]
+    },
     "typecheck": {}
   }
 }

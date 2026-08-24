@@ -1,26 +1,16 @@
 // WalletDomain: ledger math and adjustment writes behind user wallet balances.
 import { walletRepo } from '@/lib/repos/wallet';
+import { LedgerMath, type BalanceSummary } from '@/lib/LedgerMath';
 import { StreakDomain } from '@/lib/domain/StreakDomain';
 import { BadgeDomain } from '@/lib/domain/BadgeDomain';
 
-export interface BalanceSummary {
-  verified: number;
-  pending: number;
-}
+export type { BalanceSummary } from '@/lib/LedgerMath';
 
 export const WalletDomain = {
-  calculateBalance(transactions: Array<{ amount: string | number; status: string }>): BalanceSummary {
-    let verified = 0;
-    let pending = 0;
-
-    for (const txn of transactions) {
-      const amount = Number(txn.amount);
-      if (!Number.isFinite(amount)) continue;
-      if (txn.status === 'VERIFIED') verified += amount;
-      if (txn.status === 'PENDING') pending += amount;
-    }
-
-    return { verified, pending };
+  calculateBalance(
+    transactions: Array<{ amount: string | number; status: string; kind?: string }>
+  ): BalanceSummary {
+    return LedgerMath.sumUser(transactions);
   },
 
   async getUserBalance(userId: string): Promise<BalanceSummary> {

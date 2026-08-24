@@ -15,28 +15,32 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getErrorMessage } from '@/services/api';
 import { colors } from '@/theme';
-import { CATEGORIES, CONDITIONS, categoryLabel, getCategoryUnit, type Category, type Condition } from '@/types';
+import { CATEGORIES, CONDITIONS, categoryLabel, formatQuantityWithUnit, getCategoryUnit, type Category, type Condition } from '@/types';
 import { PhotoUploader } from '@/components/PhotoUploader';
-import { RateEstimateCard } from '@/components/RateEstimateCard';
+import { EstimatorCard } from '@/components/EstimatorCard';
 import { useCreateListing } from '@/hooks/useCreateListing';
 import { useEstimate } from '@/hooks/useEstimate';
-import { pickAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
+import { pickAndCompressPhoto, takeAndCompressPhoto, type PreparedPhoto } from '@/lib/photo';
+import type { ListingPrefill } from '@/types';
+import { isPieceCategory } from '@chokro/shared';
 
 // onCreated fires after a successful publish so the shell returns to Browse.
 type CreateListingScreenProps = {
   onCreated: () => void;
+  prefill?: ListingPrefill | null;
 };
 
-export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
-  // Form fields, the publish mutation, and the live rate estimate for this combo.
-  const [category, setCategory] = useState<Category>('PLASTICS');
-  const [condition, setCondition] = useState<Condition>('GOOD');
-  const [quantity, setQuantity] = useState('');
+export function CreateListingScreen({ onCreated, prefill = null }: CreateListingScreenProps) {
+  const [category, setCategory] = useState<Category>(prefill?.category ?? 'PLASTICS');
+  const [condition, setCondition] = useState<Condition>(prefill?.condition ?? 'GOOD');
+  const [quantity, setQuantity] = useState(prefill && prefill.quantity > 0 ? String(prefill.quantity) : '');
   const [price, setPrice] = useState('');
-  const [photo, setPhoto] = useState<PreparedPhoto | null>(null);
+  const [photo, setPhoto] = useState<PreparedPhoto | null>(prefill?.photo ?? null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(
+    prefill ? 'Prefilled from your AI scan — adjust anything before publishing.' : '',
+  );
   const createListing = useCreateListing();
   const { data: estimate, isLoading: estimateLoading } = useEstimate(category, condition);
   // Fires the onCreated navigation once after a successful publish.
@@ -51,6 +55,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
 
   // Derived values: per-category unit, parsed/validated quantity, and BDT total.
   const unit = getCategoryUnit(category);
+  const maxPhotos = isPieceCategory(category) ? 5 : 3;
   const parsedQuantity = parseFloat(quantity);
   const hasValidQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0;
   const parsedPrice = parseFloat(price);
@@ -67,7 +72,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
     setError('');
   }, []);
 
-  // Picks and compresses a photo, reporting the resulting size in the notice.
+  // Picks and compresses a photo from gallery
   const pickPhoto = useCallback(async () => {
     setPreparingPhoto(true);
     setError('');
@@ -79,6 +84,23 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       setNotice(`Photo ready: ${nextPhoto.width} x ${nextPhoto.height}, ${Math.ceil(nextPhoto.bytes / 1024)} KB.`);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not prepare this photo.'));
+    } finally {
+      setPreparingPhoto(false);
+    }
+  }, []);
+
+  // Takes and compresses a photo using camera
+  const takePhoto = useCallback(async () => {
+    setPreparingPhoto(true);
+    setError('');
+    setNotice('');
+    try {
+      const nextPhoto = await takeAndCompressPhoto();
+      if (!nextPhoto) return;
+      setPhoto(nextPhoto);
+      setNotice(`Photo captured: ${nextPhoto.width} x ${nextPhoto.height}, ${Math.ceil(nextPhoto.bytes / 1024)} KB.`);
+    } catch (nextError) {
+      setError(getErrorMessage(nextError, 'Could not capture photo.'));
     } finally {
       setPreparingPhoto(false);
     }
@@ -98,7 +120,11 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       setError('Piece count must be a whole number.');
       return;
     }
-    if (!hasValidPrice) {
+    const effectivePrice = hasValidPrice
+      ? parsedPrice
+      : (totalEstimatedBdt !== null ? totalEstimatedBdt : (ratePerUnit > 0 ? ratePerUnit * parsedQuantity : null));
+
+    if (!effectivePrice || effectivePrice <= 0) {
       setError('Enter an asking price greater than 0.');
       return;
     }
@@ -113,7 +139,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
           ? { declaredWeight: parsedQuantity }
           : { pieceCount: parsedQuantity }),
         declaredCondition: condition,
-        price: parsedPrice,
+        price: effectivePrice,
         photos: [photo.dataUri],
       });
       setNotice('Listing published as active. It is now available in Browse.');
@@ -121,7 +147,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'Could not publish this listing.'));
     }
-  }, [category, condition, createListing, hasValidPrice, hasValidQuantity, onCreated, parsedPrice, parsedQuantity, photo, unit]);
+  }, [category, condition, createListing, hasValidPrice, hasValidQuantity, onCreated, parsedPrice, parsedQuantity, photo, ratePerUnit, totalEstimatedBdt, unit]);
 
   // Scrollable, keyboard-aware form; each field group is a numbered step card.
   return (
@@ -135,16 +161,19 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">List an item</Text>
       <Text className="text-muted text-[14px] leading-[21px] mt-[7px] mb-[22px]">Choose only what you know. Final condition and value are confirmed by a partner later.</Text>
 
-      {/* Photo step: required before publishing; shows preview and remove control. */}
+      {/* Photo step: compound PhotoUploader with camera and gallery actions. */}
       <PhotoUploader
         photo={photo}
         preparingPhoto={preparingPhoto}
+        maxPhotos={maxPhotos}
         onPickPhoto={() => void pickPhoto()}
+        onTakePhoto={() => void takePhoto()}
         onRemovePhoto={() => {
           setPhoto(null);
           setNotice('');
         }}
       />
+
 
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
         {/* Step 02 — category selection as radio-style chips. */}
@@ -227,7 +256,7 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
       <View className="bg-surface border border-border rounded-md p-[16px] mb-[13px] shadow-card" style={{ elevation: 2 }}>
         <View className="flex-row items-center gap-[9px] mb-[13px]">
           <Text className="text-leaf text-[11px] font-black tracking-[0.8px]">05</Text>
-          <Text className="text-ink text-[17px] font-extrabold">Asking price</Text>
+          <Text className="text-ink text-[17px] font-extrabold">Asking price (optional)</Text>
         </View>
         <View className="flex-row">
           <View className="min-w-[70px] min-h-[52px] border border-r-0 border-border rounded-tl-[12px] rounded-bl-[12px] bg-surface-muted items-center justify-center px-[12px]">
@@ -236,21 +265,26 @@ export function CreateListingScreen({ onCreated }: CreateListingScreenProps) {
           <TextInput
             accessibilityLabel="Asking price in Bangladeshi Taka"
             className="flex-1 min-h-[52px] border border-border rounded-tr-[12px] rounded-br-[12px] bg-background text-ink text-[17px] px-[14px]"
-            placeholder="e.g. 50"
+            placeholder={totalEstimatedBdt !== null ? `Est. ৳${totalEstimatedBdt.toFixed(2)}` : 'e.g. 50'}
             placeholderTextColor={colors.muted}
             keyboardType="decimal-pad"
             value={price}
             onChangeText={setPrice}
           />
         </View>
-        <Text className="text-muted text-[12px] leading-[18px] mt-[7px]">Set the price a buyer would pay to take this item home.</Text>
+        <Text className="text-muted text-[12px] leading-[18px] mt-[7px]">Leave blank to use the official benchmarked rate estimate.</Text>
       </View>
 
-      <RateEstimateCard
+      <EstimatorCard
+        className="mb-[13px]"
         estimate={estimate ?? null}
         isLoading={estimateLoading}
-        parsedQuantity={parsedQuantity}
-        totalEstimatedBdt={totalEstimatedBdt}
+        notFound={!estimateLoading && !estimate}
+        hasQuantity={hasValidQuantity}
+        quantityLabel={formatQuantityWithUnit(unit, hasValidQuantity ? parsedQuantity : undefined)}
+        category={category}
+        condition={condition}
+        totalBdt={totalEstimatedBdt}
       />
 
       {/* Inline error or success notice for validation and publish outcomes. */}

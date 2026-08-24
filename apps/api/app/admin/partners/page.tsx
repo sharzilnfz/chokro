@@ -9,16 +9,14 @@ import { AdminBadge } from '../components/ui/AdminBadge';
 import { AdminButton } from '../components/ui/AdminButton';
 import { AdminConfirmModal } from '../components/ui/AdminConfirmModal';
 import { AdminSkeleton } from '../components/ui/AdminSkeleton';
-import { AdminStatusMessage, type NoticeTone } from '../components/ui/AdminStatusMessage';
+import { AdminResourceState } from '../components/ui/AdminResourceState';
+import { useAdminNotice } from '../components/ui/AdminNotice';
 import { useAdminPartners, useUpdatePartnerStatus, type Partner } from '../hooks/useAdminPartners';
 import { formatLabel, getErrorMessage } from '../lib/formatters';
 
 // Filter tabs: all applications or a single status bucket.
 const FILTERS = ['ALL', ...PARTNER_STATUSES] as const;
 type Filter = (typeof FILTERS)[number];
-
-// Success/error feedback banner state.
-type Notice = { tone: NoticeTone; text: string } | null;
 
 // The approval/rejection queued behind the confirmation modal.
 type PendingAction = {
@@ -30,10 +28,10 @@ export default function AdminPartnersPage() {
   // Load the partner queue and set up the status-update mutation.
   const { data: partners = [], isLoading, isError, refetch } = useAdminPartners();
   const updateStatusMutation = useUpdatePartnerStatus();
+  const { showNotice, clearNotice, noticeElement } = useAdminNotice();
 
-  // Local UI state: active filter, feedback banner, action awaiting confirmation, and rejection reason input.
+  // Local UI state: active filter, action awaiting confirmation, and rejection reason input.
   const [filter, setFilter] = useState<Filter>('ALL');
-  const [notice, setNotice] = useState<Notice>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
 
@@ -42,7 +40,7 @@ export default function AdminPartnersPage() {
     if (!pendingAction) return;
 
     const { partner, status } = pendingAction;
-    setNotice(null);
+    clearNotice();
 
     try {
       await updateStatusMutation.mutateAsync({
@@ -50,18 +48,14 @@ export default function AdminPartnersPage() {
         status,
         reason: status === 'REJECTED' ? rejectionReason || 'Application requirements not met.' : undefined,
       });
-      setNotice({
-        tone: 'success',
-        text:
-          status === 'VERIFIED'
-            ? `${partner.org_name} approved and moved to Verified status.`
-            : `${partner.org_name} rejected and moved to Rejected status.`,
-      });
+      showNotice(
+        'success',
+        status === 'VERIFIED'
+          ? `${partner.org_name} approved and moved to Verified status.`
+          : `${partner.org_name} rejected and moved to Rejected status.`,
+      );
     } catch (error) {
-      setNotice({
-        tone: 'error',
-        text: getErrorMessage(error, `${partner.org_name} could not be updated.`),
-      });
+      showNotice('error', getErrorMessage(error, `${partner.org_name} could not be updated.`));
     } finally {
       setPendingAction(null);
       setRejectionReason('');
@@ -102,11 +96,7 @@ export default function AdminPartnersPage() {
       />
 
       {/* Dismissible toast for decision results */}
-      {notice && (
-        <AdminStatusMessage tone={notice.tone} onDismiss={() => setNotice(null)}>
-          {notice.text}
-        </AdminStatusMessage>
-      )}
+      {noticeElement}
 
       {/* Application table with loading, error, and empty states */}
       <section className="admin-panel" aria-labelledby="partner-list-title">
@@ -122,30 +112,21 @@ export default function AdminPartnersPage() {
         </div>
 
         {/* Branch on load / error / empty / data states for the applications panel */}
-        {isLoading ? (
-          <AdminSkeleton rowCount={4} colCount={6} label="Loading partner applications" />
-        ) : isError && partners.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">Partner queue unavailable</h3>
-              <p className="admin-state-copy">Retry the request when the admin API is available.</p>
-              <AdminButton variant="secondary" type="button" onClick={() => void refetch()}>
-                Retry
-              </AdminButton>
-            </div>
-          </div>
-        ) : filteredPartners.length === 0 ? (
-          <div className="admin-state">
-            <div className="admin-state-content">
-              <h3 className="admin-state-title">No matching applications</h3>
-              <p className="admin-state-copy">
-                {partners.length === 0
-                  ? 'No partner applications have been submitted.'
-                  : `No applications currently have ${formatLabel(filter).toLowerCase()} status.`}
-              </p>
-            </div>
-          </div>
-        ) : (
+        <AdminResourceState
+          isLoading={isLoading}
+          isError={isError && partners.length === 0}
+          isEmpty={filteredPartners.length === 0}
+          onRetry={() => void refetch()}
+          skeleton={<AdminSkeleton rowCount={4} colCount={6} label="Loading partner applications" />}
+          errorTitle="Partner queue unavailable"
+          errorCopy="Retry the request when the admin API is available."
+          emptyTitle="No matching applications"
+          emptyCopy={
+            partners.length === 0
+              ? 'No partner applications have been submitted.'
+              : `No applications currently have ${formatLabel(filter).toLowerCase()} status.`
+          }
+        >
           <div className="admin-table-wrap admin-table-responsive">
             <table className="admin-table">
               <thead>
@@ -238,7 +219,7 @@ export default function AdminPartnersPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </AdminResourceState>
       </section>
 
       {/* Confirmation modal for partner verification decisions */}

@@ -42,14 +42,17 @@ export async function parseApiError(response: Response, fallback: string): Promi
 
 export type ApiRequestOptions = RequestInit & {
   token?: string | null;
+  // Optional Zod schema; when provided the JSON body is parsed through it.
+  schema?: { parse: (data: unknown) => unknown };
 };
 
 // Fetch wrapper that injects the bearer token and normalizes auth/HTTP failures into AdminApiError.
+// Pass `schema` to validate the response body instead of blind-casting it.
 export async function adminApiRequest<T>(
   input: RequestInfo | URL,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { token: explicitToken, headers: initHeaders, ...init } = options;
+  const { token: explicitToken, headers: initHeaders, schema, ...init } = options;
   const headers = new Headers(initHeaders);
 
   const activeToken = explicitToken ?? (tokenProvider ? tokenProvider() : null);
@@ -87,5 +90,9 @@ export async function adminApiRequest<T>(
     throw new AdminApiError(message, response.status);
   }
 
-  return (await response.json()) as T;
+  const body = await response.json();
+  if (schema) {
+    return schema.parse(body) as T;
+  }
+  return body as T;
 }

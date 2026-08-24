@@ -1,11 +1,9 @@
 // Data hooks for the partner queue: list applications and record verification decisions.
 'use client';
 
-// Shared partner status type, React Query primitives, auth session, and the admin fetch wrapper.
+// Shared partner status type and the admin resource factory.
 import type { PartnerStatus } from '@chokro/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminApiRequest } from '../services/adminApi';
+import { useAdminList, useAdminAction } from './useAdminResource';
 
 // One partner application as returned by the admin API.
 export type Partner = {
@@ -31,33 +29,19 @@ export const ADMIN_PARTNERS_QUERY_KEY = ['admin', 'partners'] as const;
 
 // Loads all partner applications once the admin session is active.
 export function useAdminPartners() {
-  const { status } = useAdminAuth();
-
-  return useQuery<Partner[]>({
-    queryKey: ADMIN_PARTNERS_QUERY_KEY,
-    queryFn: async () => {
-      const data = await adminApiRequest<{ partners?: Partner[] }>('/api/admin/partners');
-      return Array.isArray(data.partners) ? data.partners : [];
-    },
-    enabled: status === 'signed-in',
-  });
+  return useAdminList<{ partners?: Partner[] }, Partner>(
+    ADMIN_PARTNERS_QUERY_KEY,
+    '/api/admin/partners',
+    (data) => data.partners,
+  );
 }
 
 // Records an approve/reject decision and refreshes the queue on success.
 export function useUpdatePartnerStatus() {
-  const queryClient = useQueryClient();
-
-  return useMutation<Partner | undefined, Error, UpdatePartnerInput>({
-    mutationFn: async ({ partnerId, status, reason }) => {
-      const data = await adminApiRequest<{ partner?: Partner }>('/api/admin/partners', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId, status, reason }),
-      });
-      return data.partner;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_PARTNERS_QUERY_KEY });
-    },
+  return useAdminAction<Partner | undefined, UpdatePartnerInput>({
+    path: '/api/admin/partners',
+    payload: ({ partnerId, status, reason }) => ({ partnerId, status, reason }),
+    select: (data) => data.partner,
+    invalidate: [ADMIN_PARTNERS_QUERY_KEY],
   });
 }

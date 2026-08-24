@@ -8,26 +8,38 @@ import { categoryLabel } from '@/types';
 
 // Shape of a recognized drop zone returned by the scan API.
 export interface DropZone {
-  id: string;
+  id?: string;
   name: string;
   status: string;
   acceptedCategories?: string[];
   institutionId?: string;
+  fillPercentage?: number;
+  fillStatus?: string;
+  indicatorText?: string;
+  currentFillKg?: number;
+  maxCapacityKg?: number;
 }
 
-// Props: the matched zone, its accepted categories and a re-scan handler.
+// Props: the matched zone, its accepted categories, a re-scan handler, and add-item handler.
 export interface DropZoneResultCardProps {
   zone: DropZone;
   acceptedCategories: string[];
+  qrToken?: string;
   onScanAgain: () => void;
+  onAddItem?: () => void;
 }
 
-// Displays the zone identity and accepted categories, with a caution note.
+// Displays the zone identity, capacity fill status badge, and accepted categories.
 export function DropZoneResultCard({
   zone,
   acceptedCategories,
+  qrToken,
   onScanAgain,
+  onAddItem,
 }: DropZoneResultCardProps) {
+  const isNearFull = (zone.fillPercentage ?? 0) >= 85 || zone.fillStatus === 'APPROACHING_CAPACITY';
+  const isFull = (zone.fillPercentage ?? 0) >= 100 || zone.fillStatus === 'OVERFLOW_ALARM' || zone.fillStatus === 'FULL';
+
   return (
     <View accessibilityRole="summary" className="bg-surface border border-leaf rounded-lg p-[19px] mt-[13px] shadow-card" style={{ elevation: 2 }}>
       <View className="w-[48px] h-[48px] rounded-[16px] bg-leaf items-center justify-center mb-[14px]">
@@ -35,10 +47,39 @@ export function DropZoneResultCard({
       </View>
       <Text className="text-leaf text-[10px] font-black tracking-[1.2px]">REGISTERED DROP ZONE</Text>
       <Text className="text-ink text-[23px] leading-[29px] font-extrabold mt-[4px]">{zone.name}</Text>
-      <View className="self-start min-h-[32px] flex-row items-center gap-[6px] bg-leaf-soft rounded-pill px-[11px] mt-[10px]">
-        <View className="w-[7px] h-[7px] rounded-[4px] bg-leaf" />
-        <Text className="text-leaf-dark text-[11px] font-extrabold">{categoryLabel(zone.status)}</Text>
+      
+      <View className="flex-row items-center gap-[8px] mt-[10px]">
+        <View className="self-start min-h-[32px] flex-row items-center gap-[6px] bg-leaf-soft rounded-pill px-[11px]">
+          <View className="w-[7px] h-[7px] rounded-[4px] bg-leaf" />
+          <Text className="text-leaf-dark text-[11px] font-extrabold">{categoryLabel(zone.status)}</Text>
+        </View>
+
+        {zone.fillPercentage !== undefined ? (
+          <View
+            className={`self-start min-h-[32px] flex-row items-center gap-[6px] rounded-pill px-[11px] ${
+              isFull
+                ? 'bg-danger-soft'
+                : isNearFull
+                ? 'bg-amber-soft'
+                : 'bg-leaf-soft'
+            }`}
+          >
+            <Ionicons
+              name={isFull ? 'alert-circle' : isNearFull ? 'warning' : 'checkmark-circle'}
+              size={14}
+              color={isFull ? colors.danger : isNearFull ? colors.amber : colors.leafDark}
+            />
+            <Text
+              className={`text-[11px] font-extrabold ${
+                isFull ? 'text-danger' : isNearFull ? 'text-amber' : 'text-leaf-dark'
+              }`}
+            >
+              {zone.indicatorText ?? `${zone.fillPercentage}% Fill`}
+            </Text>
+          </View>
+        ) : null}
       </View>
+
       <Text className="text-ink text-[13px] font-extrabold mt-[18px] mb-[8px]">Accepted categories</Text>
       <View className="flex-row flex-wrap gap-[7px]">
         {acceptedCategories.length > 0 ? acceptedCategories.map((category) => (
@@ -51,6 +92,22 @@ export function DropZoneResultCard({
         <Ionicons name="information-circle-outline" size={21} color={colors.amber} />
         <Text className="flex-1 text-amber text-[12px] leading-[18px] font-bold">Zone recognized only. No deposit was recorded and no credit was created.</Text>
       </View>
+      {zone.status === 'ACTIVE' && onAddItem ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add item to this zone"
+          className={`min-h-[50px] flex-row items-center justify-center gap-[8px] rounded-[14px] mt-[13px] active:opacity-[0.72] ${
+            isFull ? 'bg-danger-soft opacity-55' : 'bg-leaf'
+          }`}
+          onPress={onAddItem}
+          disabled={isFull}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={isFull ? colors.danger : colors.surface} />
+          <Text className={`text-[14px] font-extrabold ${isFull ? 'text-danger' : 'text-surface'}`}>
+            Add item to this zone
+          </Text>
+        </Pressable>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Scan another Drop Zone"

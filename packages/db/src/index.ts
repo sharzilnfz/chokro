@@ -5,7 +5,12 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { PGlite } from '@electric-sql/pglite';
 import postgres from 'postgres';
+import * as dotenv from 'dotenv';
+import path from 'path';
 import * as schema from './schema';
+
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config();
 
 // Union of the two possible Drizzle handles (in-memory PGlite vs live Postgres)
 type DrizzleDb = ReturnType<typeof drizzle<typeof schema>> | ReturnType<typeof drizzlePglite<typeof schema>>;
@@ -33,7 +38,7 @@ function resolveConnectionString(): string {
 }
 
 // Pick the DB backend based on the runtime environment
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === 'test' || process.env.USE_PGLITE === 'true') {
   // In-memory real Postgres WASM engine for tests (Zero setup required!)
   pgliteClient = new PGlite();
   dbInstance = drizzlePglite(pgliteClient, { schema });

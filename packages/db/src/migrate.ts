@@ -138,7 +138,9 @@ async function migrate() {
   process.exit(0);
 }
 
-migrate().catch((error) => {
-  console.error('Database invariant migration failed:', error);
-  process.exit(1);
-});
+migrate()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('Database invariant migration failed:', error);
+    process.exit(1);
+  });

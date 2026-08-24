@@ -1,0 +1,4 @@
+$kind: collection
+name: "Feature 2: AI Next-Life Scrap Vision Agent"
+description: "Feature F2: Multimodal image classification, domain safety invariant enforcement, next-life recommendation (REUSE/DONATE/REPAIR/RESELL/RECYCLE), and DB rate valuation."
+order: 2000

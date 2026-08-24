@@ -1,0 +1,15 @@
+# Non-code directories & agent frameworks
+.agents/
+.claude/
+.opencode/
+.superpowers/
+.freebuff/
+cloud/
+.cloud/
+
+# Documentation & HTML masterclasses (creates unnecessary text section nodes)
+docs/
+*.html
+
+# Scratch & temporary scripts
+docs/archive/scratch/

@@ -19,7 +19,8 @@ import { CATEGORIES, categoryLabel } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { StateView } from '@/components/ui/StateView';
 import { Button } from '@/components/ui/Button';
-import { usePartner, useUpdatePartnerCapabilities } from '@/hooks/usePartner';
+import { Input } from '@/components/ui/Input';
+import { usePartner, useUpdatePartnerCapabilities, useExtractPartnerKyc } from '@/hooks/usePartner';
 import { useFeed, type FeedFilter, type Listing } from '@/hooks/useFeed';
 import { getErrorMessage } from '@/services/api';
 
@@ -41,11 +42,49 @@ export function PartnerConsoleScreen({
   const { data: partnerData, isLoading: partnerLoading, refetch: refetchPartner, isRefetching: partnerRefetching } = usePartner();
   const partner = partnerData?.partner;
   const updateCapabilitiesMutation = useUpdatePartnerCapabilities();
+  const extractKycMutation = useExtractPartnerKyc();
 
   const [activeSegment, setActiveSegment] = useState<ConsoleSegment>('queue');
   const [selectedCategory, setSelectedCategory] = useState<FeedFilter>('ALL');
   const [selectedClaimListing, setSelectedClaimListing] = useState<Listing | null>(null);
   const [claimSuccessMessage, setClaimSuccessMessage] = useState<string | null>(null);
+
+  // KYC Document Uploader state
+  const [showKycModal, setShowKycModal] = useState<boolean>(false);
+  const [kycDocType, setKycDocType] = useState<'TRADE_LICENSE' | 'DOE_EWASTE_PERMIT'>('TRADE_LICENSE');
+  const [kycDocUrl, setKycDocUrl] = useState<string>('');
+  const [kycSubmittedLicense, setKycSubmittedLicense] = useState<string>('');
+  const [kycExtractionResult, setKycExtractionResult] = useState<any>(null);
+
+  const handleRunKycExtraction = async () => {
+    if (!partner?.id) return;
+    if (!kycDocUrl.trim()) {
+      Alert.alert('Missing Document', 'Please provide a valid document URL or reference.');
+      return;
+    }
+
+    try {
+      const res = await extractKycMutation.mutateAsync({
+        partnerId: partner.id,
+        documentUrl: kycDocUrl.trim(),
+        documentType: kycDocType,
+        submittedLicenseNumber: kycSubmittedLicense.trim() || undefined,
+        submittedOrgName: partner.org_name,
+      });
+      setKycExtractionResult(res);
+      setShowKycModal(false);
+      Alert.alert(
+        'Document Processed',
+        `OCR extraction completed with ${res.matchStatus} (${(res.confidenceScore * 100).toFixed(0)}% confidence). ${
+          res.isExpired
+            ? 'Warning: Document is expired!'
+            : 'Document is queued for compliance verification.'
+        }`
+      );
+    } catch (err: any) {
+      Alert.alert('OCR Failed', getErrorMessage(err, 'Failed to extract document entities.'));
+    }
+  };
 
   // Waste collection feed
   const {
@@ -458,9 +497,149 @@ export function PartnerConsoleScreen({
                 <Text className="text-muted text-xs font-mono mt-0.5">{partner?.id}</Text>
               </View>
             </View>
+
+            {/* KYC Document Intelligence Section */}
+            <View className="mt-5 pt-4 border-t border-border">
+              <View className="flex-row items-center justify-between mb-2">
+                <View>
+                  <Text className="text-ink text-sm font-extrabold">Document Intelligence OCR</Text>
+                  <Text className="text-muted text-[11px]">Trade License & DoE permit verification gate</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Upload Document"
+                  className="px-3 py-2 rounded-xl bg-leaf items-center justify-center flex-row gap-1.5 active:opacity-[0.8]"
+                  onPress={() => setShowKycModal(true)}
+                >
+                  <Ionicons name="cloud-upload" size={14} color={colors.surface} />
+                  <Text className="text-surface text-xs font-bold">Upload Doc</Text>
+                </Pressable>
+              </View>
+
+              {kycExtractionResult && (
+                <View className="mt-3 p-3.5 rounded-xl bg-leaf-soft/50 border border-leaf">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-ink text-xs font-bold">Latest OCR Extraction</Text>
+                    <View className="px-2 py-0.5 rounded-full bg-leaf text-surface">
+                      <Text className="text-surface text-[10px] font-extrabold">
+                        {kycExtractionResult.matchStatus} ({(kycExtractionResult.confidenceScore * 100).toFixed(0)}%)
+                      </Text>
+                    </View>
+                  </View>
+                  <Text className="text-muted text-[11px] mt-1 font-mono">
+                    License: {kycExtractionResult.extractedFields?.licenseNumber || 'Not detected'}
+                  </Text>
+                  {kycExtractionResult.extractedFields?.expiryDate && (
+                    <Text className="text-muted text-[11px] font-mono">
+                      Expiry: {new Date(kycExtractionResult.extractedFields.expiryDate).toLocaleDateString()}
+                    </Text>
+                  )}
+                  {kycExtractionResult.isExpired && (
+                    <Text className="text-red-600 text-[11px] font-bold mt-1">
+                      ⚠️ License is expired under Bangladesh E-Waste Rules.
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
           </View>
         </ScrollView>
       )}
+
+      {/* KYC Document Upload Modal */}
+      <Modal
+        visible={showKycModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowKycModal(false)}
+      >
+        <View className="flex-1 bg-ink/50 justify-center items-center p-5">
+          <View className="w-full max-w-sm p-6 rounded-3xl bg-surface border border-border">
+            <View className="w-12 h-12 rounded-2xl bg-leaf-soft items-center justify-center mb-3">
+              <Ionicons name="document-text" size={24} color={colors.leafDark} />
+            </View>
+            <Text className="text-ink text-lg font-extrabold">KYC Document Ingestion</Text>
+            <Text className="text-muted text-xs mt-1 leading-relaxed">
+              Upload Trade License or DoE E-Waste Permit for automated entity extraction & verification.
+            </Text>
+
+            <View className="my-4 gap-3">
+              <View>
+                <Text className="text-ink text-xs font-bold mb-1.5">Document Classification</Text>
+                <View className="flex-row gap-2">
+                  <Pressable
+                    className={`flex-1 py-2 rounded-xl border items-center justify-center ${
+                      kycDocType === 'TRADE_LICENSE' ? 'bg-leaf-soft border-leaf' : 'bg-background border-border'
+                    }`}
+                    onPress={() => setKycDocType('TRADE_LICENSE')}
+                  >
+                    <Text className={`text-xs font-bold ${kycDocType === 'TRADE_LICENSE' ? 'text-leaf-dark' : 'text-muted'}`}>
+                      Trade License
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    className={`flex-1 py-2 rounded-xl border items-center justify-center ${
+                      kycDocType === 'DOE_EWASTE_PERMIT' ? 'bg-leaf-soft border-leaf' : 'bg-background border-border'
+                    }`}
+                    onPress={() => setKycDocType('DOE_EWASTE_PERMIT')}
+                  >
+                    <Text className={`text-xs font-bold ${kycDocType === 'DOE_EWASTE_PERMIT' ? 'text-leaf-dark' : 'text-muted'}`}>
+                      DoE Permit
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View>
+                <Text className="text-ink text-xs font-bold mb-1">Document URL or Reference</Text>
+                <Input
+                  label=""
+                  value={kycDocUrl}
+                  onChangeText={setKycDocUrl}
+                  placeholder="https://storage.chokro.org/docs/license.pdf"
+                />
+              </View>
+
+              <View>
+                <Text className="text-ink text-xs font-bold mb-1">Claimed License Number (Optional)</Text>
+                <Input
+                  label=""
+                  value={kycSubmittedLicense}
+                  onChangeText={setKycSubmittedLicense}
+                  placeholder="e.g. TRAD/DNCC/012345/2023"
+                />
+              </View>
+            </View>
+
+            <View className="flex-row gap-2.5 mt-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                className="flex-1 min-h-[48px] rounded-xl border border-border bg-surface items-center justify-center active:opacity-75"
+                onPress={() => setShowKycModal(false)}
+              >
+                <Text className="text-ink text-xs font-extrabold">Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Process OCR"
+                disabled={extractKycMutation.isPending}
+                className="flex-1 min-h-[48px] rounded-xl bg-leaf items-center justify-center active:opacity-75 flex-row gap-1.5"
+                onPress={handleRunKycExtraction}
+              >
+                {extractKycMutation.isPending ? (
+                  <ActivityIndicator size="small" color={colors.surface} />
+                ) : (
+                  <>
+                    <Ionicons name="scan" size={16} color={colors.surface} />
+                    <Text className="text-surface text-xs font-extrabold">Run OCR</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Claim Pickup Modal */}
       <Modal

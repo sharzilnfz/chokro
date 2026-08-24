@@ -22,9 +22,10 @@ interface WalletScreenProps {
   onOpenLeaderboard?: () => void;
   onOpenBadges?: () => void;
   onOpenPartner?: () => void;
+  onOpenRedemption?: () => void;
 }
 
-export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner }: WalletScreenProps) {
+export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner, onOpenRedemption }: WalletScreenProps) {
   const { data, isLoading, error, refetch, isRefetching } = useWallet();
   const { data: streakData, refetch: refetchStreak } = useStreaks();
   const { data: partnerData, refetch: refetchPartner } = usePartner();
@@ -86,17 +87,33 @@ export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner }:
 
             {/* Spendable balance card */}
             <View
-              className="bg-leaf-dark rounded-3xl p-5 min-h-[180px] justify-end shadow-card mb-3"
+              className="bg-leaf-dark rounded-3xl p-5 min-h-[180px] justify-between shadow-card mb-3"
               accessibilityLabel={`Verified balance ${balance.verified.toFixed(2)} Green Credits`}
             >
-              <View className="absolute top-4 right-4 w-12 h-12 rounded-2xl bg-leaf items-center justify-center">
-                <Ionicons name="shield-checkmark" size={24} color={colors.surface} />
+              <View className="flex-row items-center justify-between">
+                <View>
+                  <Text className="text-[#BBD5C5] text-[11px] font-extrabold tracking-wider">VERIFIED BALANCE</Text>
+                  <Text className="text-surface text-4xl font-black tracking-tight mt-1">
+                    {balance.verified.toFixed(2)}
+                  </Text>
+                  <Text className="text-[#DCEADF] text-xs font-semibold mt-0.5">Green Credits</Text>
+                </View>
+                <View className="w-12 h-12 rounded-2xl bg-leaf items-center justify-center">
+                  <Ionicons name="shield-checkmark" size={24} color={colors.surface} />
+                </View>
               </View>
-              <Text className="text-[#BBD5C5] text-[11px] font-extrabold tracking-wider">VERIFIED BALANCE</Text>
-              <Text className="text-surface text-4xl font-black tracking-tight mt-1">
-                {balance.verified.toFixed(2)}
-              </Text>
-              <Text className="text-[#DCEADF] text-xs font-semibold mt-0.5">Green Credits</Text>
+
+              {onOpenRedemption && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cash out Green Credits via MFS"
+                  className="mt-4 min-h-[44px] rounded-2xl bg-surface flex-row items-center justify-center gap-2 active:opacity-80"
+                  onPress={onOpenRedemption}
+                >
+                  <Ionicons name="cash-outline" size={18} color={colors.leafDark} />
+                  <Text className="text-leaf-dark text-sm font-black">Cash Out (MFS Payout)</Text>
+                </Pressable>
+              )}
             </View>
 
             {/* Pending credits card */}

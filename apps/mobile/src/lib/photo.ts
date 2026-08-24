@@ -93,3 +93,23 @@ export async function pickAndCompressPhoto(): Promise<PreparedPhoto | null> {
 
   return compressPhoto(result.assets[0]);
 }
+
+// Request camera permission, capture a photo, then compress it.
+export async function takeAndCompressPhoto(): Promise<PreparedPhoto | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    throw new Error('Camera access is needed to capture a photo. You can enable it in device settings.');
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: false,
+    quality: 1,
+  });
+
+  if (result.canceled || !result.assets || result.assets.length === 0) {
+    return null;
+  }
+
+  return compressPhoto(result.assets[0]);
+}
+

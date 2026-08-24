@@ -1,3 +1,6 @@
+# Docker Compose for Chokro monorepo
+# Configured for both local development and Remote-SSH host environments.
+
 name: chokro
 
 services:
@@ -9,11 +12,14 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
     ports:
-      - "5432:5432"
+      - "0.0.0.0:5433:5432"
+    extra_hosts:
+      # Enables host device resolution on Linux / Remote-SSH
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -d chokro" ]
-      interval: 3s
-      timeout: 3s
+      interval: 2s
+      timeout: 2s
       retries: 10
     deploy:
       resources:
@@ -23,19 +29,47 @@ services:
     volumes:
       - chokro-postgres:/var/lib/postgresql/data
 
-  api:
+  db-setup:
     build:
       context: .
+      target: builder
     depends_on:
       postgres:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
+    command: sh -c "pnpm run db:setup"
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      target: runner
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    extra_hosts:
+      # Resolves host machine services when developing over Remote-SSH
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
       JWT_SECRET: dev_jwt_secret
       QR_SECRET: dev_qr_secret
       NODE_OPTIONS: "--max-old-space-size=512"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MAPBOX_TOKEN: ${MAPBOX_TOKEN:-}
+      PUSHER_APP_ID: ${PUSHER_APP_ID:-}
+      PUSHER_KEY: ${PUSHER_KEY:-}
+      PUSHER_SECRET: ${PUSHER_SECRET:-}
+      PUSHER_CLUSTER: ${PUSHER_CLUSTER:-}
     ports:
-      - "3000:3000"
+      # Bound to 0.0.0.0 so VS Code Remote-SSH and SSH port forwards can connect directly
+      - "0.0.0.0:3000:3000"
     deploy:
       resources:
         limits:
@@ -50,6 +84,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
       NOTIFY_TRANSPORT: ${NOTIFY_TRANSPORT:-json}
@@ -71,19 +109,5 @@ services:
           cpus: '0.5'
     restart: unless-stopped
 
-  db-setup:
-    build:
-      context: .
-      target: builder
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
-    profiles:
-      - setup
-    command: sh -c "pnpm db:push && pnpm db:migrate && pnpm db:seed"
-
 volumes:
   chokro-postgres:
-

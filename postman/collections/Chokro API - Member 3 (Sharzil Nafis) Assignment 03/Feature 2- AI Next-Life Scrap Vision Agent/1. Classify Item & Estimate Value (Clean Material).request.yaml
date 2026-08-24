@@ -1,0 +1,26 @@
+$kind: http-request
+description: Accepts scrap photo or contextual description, runs vision classification, prices with DB rate card, and produces next-life path rationale.
+url: "{{baseUrl}}/api/v1/valuation/classify-and-estimate"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+  Authorization: Bearer {{authToken}}
+body:
+  type: text
+  content: |-
+    {
+      "promptNotes": "discarded plastic bottles, beverage containers, and HDPE jugs in good condition",
+      "categoryHint": "PLASTICS",
+      "conditionHint": "GOOD",
+      "declaredQuantity": 12.5
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      var jsonData = pm.response.json();
+      if (jsonData.data && jsonData.data.scan_id) {
+          pm.collectionVariables.set('scanId', jsonData.data.scan_id);
+      }
+    language: text/javascript
+order: 1000

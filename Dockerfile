@@ -12,10 +12,9 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
-FROM base AS builder
+FROM deps AS builder
 WORKDIR /app
 COPY . .
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm turbo run build --filter=@chokro/api
 
 FROM base AS runner
@@ -32,3 +31,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/api/.next/static ./apps/api/
 USER nextjs
 EXPOSE 3000
 CMD ["node", "apps/api/server.js"]
+

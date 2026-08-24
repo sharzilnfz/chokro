@@ -1,0 +1,18 @@
+$kind: http-request
+name: 3. Classify Appliance (Enforces Resell/Repair Path)
+description: Demonstrates reasoned next-life recommendation (RESELL path) when residual utility is high.
+url: "{{baseUrl}}/api/v1/valuation/classify-and-estimate"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: text
+  content: |-
+    {
+      "promptNotes": "used microwave oven, heating element works fine with minor cosmetic scratch",
+      "categoryHint": "APPLIANCES",
+      "conditionHint": "GOOD",
+      "declaredQuantity": 1
+    }
+order: 3000

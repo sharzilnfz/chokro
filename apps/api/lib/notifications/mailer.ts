@@ -11,8 +11,28 @@ export interface MailerHandle {
   previewUrl(info: SentMessageInfo): string | null;
 }
 
+// The one from-address for every outbound mail (domain notifications + digest).
+export const EMAIL_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@chokro.dev';
+
+// Test seam: a handle set here is returned by getTransporter instead of building one.
+let overrideHandle: MailerHandle | null = null;
+
+/** Inject a MailerHandle (tests pass a spy transport); null restores env-driven selection. */
+export function setMailerHandle(handle: MailerHandle | null): void {
+  overrideHandle = handle;
+}
+
+/** True while an injected handle is active (tests use this to bypass env fallbacks). */
+export function hasMailerOverride(): boolean {
+  return overrideHandle !== null;
+}
+
+// Transport selection is deterministic per env, so build it once.
+let cachedHandle: MailerHandle | null = null;
+
 /**
- * Resolves the nodemailer transport for the notification job.
+ * Resolves the nodemailer transport for the whole notification stack
+ * (domain notify() + digest job) — the single transport config surface.
  *
  * NOTIFY_TRANSPORT:
  *   - "smtp"     (default) deliver over a real SMTP server. Requires SMTP_HOST,
@@ -22,6 +42,12 @@ export interface MailerHandle {
  *   - "json"     offline dev mode: prints the assembled message to the console.
  */
 export async function getTransporter(): Promise<MailerHandle> {
+  if (overrideHandle) return overrideHandle;
+  if (!cachedHandle) cachedHandle = await buildTransporter();
+  return cachedHandle;
+}
+
+async function buildTransporter(): Promise<MailerHandle> {
   const mode = (process.env.NOTIFY_TRANSPORT || 'smtp').toLowerCase() as MailTransport;
 
   if (mode === 'ethereal') {

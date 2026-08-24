@@ -1,0 +1,16 @@
+$kind: http-request
+description: "Tests the safety invariant: E-waste/hazardous items are strictly forced to RECYCLE path and unit piece, regardless of condition."
+url: "{{baseUrl}}/api/v1/valuation/classify-and-estimate"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: text
+  content: |-
+    {
+      "promptNotes": "old cracked smartphone motherboard and lithium-ion battery",
+      "categoryHint": "E_WASTE",
+      "declaredQuantity": 2
+    }
+order: 2000

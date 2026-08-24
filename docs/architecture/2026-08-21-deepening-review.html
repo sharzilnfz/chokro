@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review — chokro-m3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .chip { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .fade { opacity: 0.45; }
+      .modlabel { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; }
+      pre.mermaid { display:flex; justify-content:center; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ============ HEADER ============ -->
+      <header class="space-y-4">
+        <h1 class="font-serif text-4xl tracking-tight">Architecture review — <span class="text-emerald-700">chokro-m3</span></h1>
+        <p class="text-sm text-slate-500">Sprint 3 · branch <span class="font-mono">Sprint3</span> · Aug 2026 · hot spots: wallet / trust-gate / handover / escrow corridor, seed engine, admin console</p>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600 border-y border-stone-200 py-3">
+          <span class="flex items-center gap-1.5"><span class="inline-block w-4 h-3 border border-slate-400 bg-white"></span> module</span>
+          <span class="flex items-center gap-1.5"><svg width="20" height="6"><line x1="0" y1="3" x2="20" y2="3" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/></svg> seam</span>
+          <span class="flex items-center gap-1.5"><svg width="20" height="6"><line x1="0" y1="3" x2="20" y2="3" stroke="#dc2626" stroke-width="2"/></svg> leakage</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-4 h-3 deep rounded-sm"></span> deep module</span>
+          <span class="flex items-center gap-3 ml-auto">
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">Strong</span>
+            <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Worth exploring</span>
+            <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-medium">Speculative</span>
+          </span>
+        </div>
+        <p class="text-xs text-slate-500">No ADRs recorded yet (<span class="font-mono">docs/adr/</span> is empty) — nothing below re-litigates a prior decision. Deep modules worth keeping as-is: <span class="font-mono">withDb</span> (repos/seam.ts), <span class="font-mono">safeRoute</span> (http.ts), <span class="font-mono">TrustGateDomain.evaluate</span> pure core, <span class="font-mono">atomicCreateRedemption</span> (settlement.ts), the v1 route re-export strategy, mobile <span class="font-mono">services/api.ts</span>.</p>
+      </header>
+
+      <section id="candidates" class="space-y-10">
+
+      <!-- ============ CANDIDATE 1 ============ -->
+      <article id="c1" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">1 · One owner for the pending → verified Credit Transaction flip</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/domain/TrustGateDomain.ts:498-511 · lib/domain/HandoverDomain.ts:272-293, 374-392 · lib/domain/SettlementDomain.ts:260-263, 407-410<br/>
+          lib/domain/DepositDomain.ts:163-170 (mints <span class="text-red-600">raw UUID</span> ref) vs HandoverDomain.ts:288 (searches <span class="text-red-600">CUSTODY-DEP-…</span>)<br/>
+          app/api/v1/trust-gate/evaluate/route.ts · packages/shared/src/dto/trustGate.ts:97-136
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- BEFORE -->
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">Before — four flip sites, no owner</p>
+            <div class="space-y-2">
+              <div class="border border-red-300 bg-red-50 rounded px-3 py-2">
+                <p class="chip font-semibold text-red-700">TrustGateDomain · auto-clear</p>
+                <p class="text-[11px] text-slate-600">flips by creditTxnId / custodyRef</p>
+              </div>
+              <div class="border border-red-300 bg-red-50 rounded px-3 py-2">
+                <p class="chip font-semibold text-red-700">HandoverDomain · VERIFY</p>
+                <p class="text-[11px] text-slate-600">fallback ref <span class="font-mono">CUSTODY-DEP-{id}</span> — nothing writes it</p>
+              </div>
+              <div class="border border-red-300 bg-red-50 rounded px-3 py-2">
+                <p class="chip font-semibold text-red-700">HandoverDomain · REJECT</p>
+                <p class="text-[11px] text-slate-600">raw <span class="font-mono">db.update(creditTxns)</span></p>
+              </div>
+              <div class="border border-red-300 bg-red-50 rounded px-3 py-2">
+                <p class="chip font-semibold text-red-700">SettlementDomain · REDEEM</p>
+                <p class="text-[11px] text-slate-600">ref <span class="font-mono">REDEMPTION-{id}</span>, 7 more constructions</p>
+              </div>
+              <div class="border-2 border-dashed border-red-400 bg-white rounded px-3 py-2 text-center">
+                <p class="chip font-semibold text-red-600">Client calls POST /trust-gate/evaluate</p>
+                <p class="text-[11px] text-slate-600">posts its own <span class="font-mono">signals</span> + fraud counts → gate trusts them</p>
+              </div>
+              <svg viewBox="0 0 300 24" class="w-full h-6"><path d="M150 0 L150 24" stroke="#dc2626" stroke-width="2"/><path d="M145 18 L150 24 L155 18" fill="none" stroke="#dc2626" stroke-width="2"/></svg>
+              <div class="border border-slate-400 bg-white rounded px-3 py-2 text-center">
+                <p class="chip font-semibold text-slate-700">credit_txns (append-only ledger)</p>
+                <p class="text-[11px] text-slate-500">dispute-pause check re-implemented in 2 places · impact/streak tail duplicated in 2 places</p>
+              </div>
+            </div>
+          </div>
+          <!-- AFTER -->
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">After — one deep module at one seam</p>
+            <div class="space-y-2">
+              <div class="deep rounded-lg p-4 text-white">
+                <p class="chip font-semibold text-emerald-300 mb-2">CreditVerification module</p>
+                <div class="flex gap-1.5 flex-wrap mb-3">
+                  <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">mintPending</span>
+                  <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">verify</span>
+                  <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">reject</span>
+                  <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">compensate</span>
+                </div>
+                <div class="fade space-y-1 text-[11px] text-slate-300">
+                  <p>· typed custody-ref codec (one format, parsed not concatenated)</p>
+                  <p>· dispute-pause invariant — checked once</p>
+                  <p>· impact + streak/badge tail — fired once</p>
+                  <p>· signals assembled from server-side facts only</p>
+                </div>
+              </div>
+              <svg viewBox="0 0 300 24" class="w-full h-6"><path d="M150 0 L150 24" stroke="#334155" stroke-width="2"/><path d="M145 18 L150 24 L155 18" fill="none" stroke="#334155" stroke-width="2"/></svg>
+              <div class="border border-slate-400 bg-white rounded px-3 py-2 text-center">
+                <p class="chip font-semibold text-slate-700">credit_txns (append-only ledger)</p>
+              </div>
+              <div class="border border-emerald-300 bg-emerald-50 rounded px-3 py-2 text-center">
+                <p class="chip font-semibold text-emerald-700">HTTP route shrinks to subject reference</p>
+                <p class="text-[11px] text-slate-600">no caller-supplied signals cross the seam</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — the system's most safety-critical transition has no owning module: four files re-derive how to find and flip the txn, their custody-ref formats actively disagree (escalated deposits silently match nothing), the dispute-pause check and impact tail are duplicated, and the HTTP seam lets any Individual post all-passing signals to verify their own credits.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — deepen a single CreditVerification module that owns minting, verifying, rejecting and compensating ledger rows, generates and parses custody refs internally, and assembles gate signals from server-side facts; deposit, handover and redemption flows call it instead of re-assembling the flip.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>locality: ledger state machine in one module</li>
+          <li>kills the CUSTODY-DEP- ref mismatch by construction</li>
+          <li>closes the client-side trust-bypass hole</li>
+          <li>tests stop hand-seeding creditTxns + trustDecisions</li>
+          <li>interface: 4 verbs replaces ~25 optional fields</li>
+          <li>leverage: 3 custody flows, 1 interface</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 2 ============ -->
+      <article id="c2" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">2 · Close the repo seam — domains punch through to raw tables</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/domain/HandoverDomain.ts:3, 356-363, 374-392, 418-425 (imports <span class="text-red-600">db, creditTxns, trustDecisions</span> directly)<br/>
+          lib/repos/disputes.ts (no addEvidence) → lib/domain/DisputeDomain.ts:101-122 · lib/repos/wallet.ts:148-192 (skips withDb)
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">Before — seam bypassed</p>
+            <pre class="mermaid">
+flowchart TB
+  HD["HandoverDomain"] -. "raw db.update" .-> TBL[("trustDecisions / creditTxns")]
+  DD["DisputeDomain.addEvidence"] -. "no-op write, merge never persisted" .-> TBL2[("disputes.evidence_urls")]
+  WR["wallet.ts create/compensate"] -. "skips withDb" .-> PG[("postgres")]
+  SEAM["withDb seam — error mapping 23505→409, 23514→400"]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class HD,DD,WR,TBL,TBL2 leak
+  style SEAM stroke-dasharray:4 4,fill:#f8fafc
+            </pre>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">After — everything crosses the seam</p>
+            <pre class="mermaid">
+flowchart TB
+  D["Domain modules"] --> R["Repos: updateDecisionNotes · rejectCreditTransaction · addEvidence"]
+  R --> W["withDb"]
+  W --> PG[("postgres")]
+  style D fill:#0f172a,color:#fff
+  style W stroke-dasharray:4 4
+            </pre>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — the repos' interfaces are as narrow as "create / find / updateStatus", so the moment a domain needs anything richer it reaches around the seam into raw Drizzle tables, skipping <span class="font-mono">withDb</span>'s driver-error mapping — and where no repo verb existed at all (<span class="font-mono">addEvidence</span>), the domain faked it with a same-status write and returned an in-memory merge that is never persisted: evidence is silently lost.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — add the three missing verbs to the repos (or fold them into the CreditVerification module of candidate 1, which turns four shallow verbs into one rich operation), and forbid direct table imports in domain modules.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>fixes a live data-loss bug (dispute evidence)</li>
+          <li>uniform 409/400/503 error mapping restored</li>
+          <li>locality: ledger writable from one place</li>
+          <li>deletes the raw-SQL island reviewers special-case</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 3 ============ -->
+      <article id="c3" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">3 · One LedgerMath — the balance invariant lives once</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/domain/WalletDomain.ts:12-38 (calculateBalance) vs lib/repos/settlement.ts:350-379 (inline re-implementation, full-table scan at :352)<br/>
+          settlement.ts:297-321 ≈ :324-347 (twin monthly sums) · settlement.ts:20, 417 (repo imports domain — layering inversion)
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- mass diagram -->
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">Before — the rule in two implementations</p>
+            <div class="flex gap-6 justify-center items-end h-56">
+              <div class="flex flex-col items-center gap-1">
+                <div class="w-24 border-2 border-slate-400 bg-white rounded-t px-2 py-1 text-center">
+                  <p class="chip text-slate-700">WalletDomain</p>
+                  <div class="mt-2 h-20 bg-emerald-200 border border-emerald-400 rounded-sm flex items-center justify-center"><span class="text-[10px] text-emerald-900 font-semibold text-center leading-tight">sum rules<br/>(clamps, rounds)</span></div>
+                </div>
+                <p class="text-[10px] text-slate-500">domain</p>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <div class="w-24 border-2 border-red-400 bg-white rounded-t px-2 py-1 text-center">
+                  <p class="chip text-red-700">settlement repo</p>
+                  <div class="mt-2 h-20 bg-red-200 border border-red-400 rounded-sm flex items-center justify-center"><span class="text-[10px] text-red-900 font-semibold text-center leading-tight">sum rules<br/>(no clamp, drifts)</span></div>
+                  <div class="mt-1 h-8 bg-amber-100 border border-amber-300 rounded-sm flex items-center justify-center"><span class="text-[9px] text-amber-800">imports WalletDomain ↑</span></div>
+                </div>
+                <p class="text-[10px] text-slate-500">repo</p>
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-500 text-center mt-2">plus twin monthly-sum queries differing by one WHERE clause</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">After — one classifier, two entry points</p>
+            <div class="flex flex-col items-center gap-2 h-56 justify-center">
+              <div class="flex gap-3">
+                <div class="border border-slate-400 bg-white rounded px-3 py-1.5"><p class="chip text-slate-700">sumUser(txns)</p></div>
+                <div class="border border-slate-400 bg-white rounded px-3 py-1.5"><p class="chip text-slate-700">sumPlatform(txns)</p></div>
+              </div>
+              <svg viewBox="0 0 200 20" class="h-5"><path d="M60 0 L60 20 M140 0 L140 20" stroke="#334155" stroke-width="2"/><path d="M55 14 L60 20 L65 14 M135 14 L140 20 L145 14" fill="none" stroke="#334155" stroke-width="2"/></svg>
+              <div class="deep rounded-lg px-6 py-4 text-center text-white w-64">
+                <p class="chip font-semibold text-emerald-300">LedgerMath (pure)</p>
+                <p class="text-[11px] text-slate-300 mt-1 fade">one row-classifier: kind × status → signed contribution</p>
+              </div>
+              <p class="text-[11px] text-slate-500">platform metrics aggregate in SQL (GROUP BY kind, status) — no full-table scan</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — "what a row contributes to Verified Balance" is the core rule of the Credit Transaction ledger, but it exists twice with already-drifted behaviour (one clamps and rounds, one doesn't), the repo imports the domain to reach it, and platform liability scans the entire ledger into JS per admin read.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — promote the row-classifier into one pure LedgerMath module with <span class="font-mono">sumUser</span> / <span class="font-mono">sumPlatform</span> entry points; push platform aggregation into SQL and merge the twin monthly sums into one parameterized query.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>one invariant, one truth-table test (domain.test.ts)</li>
+          <li>new ledger kind = one-file change</li>
+          <li>removes repo→domain layering inversion</li>
+          <li>liability read stops scanning whole ledger</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 4 ============ -->
+      <article id="c4" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">4 · Notification seam never resolves the recipient — 14 call sites dead-letter</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">ports &amp; adapters</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/notify.ts:141-166 (dispatches only on contact fields; console fallback at :163-166)<br/>
+          all 14 domain call sites pass only recipientUserId (EscrowDomain ×7, DisputeDomain ×4, HandoverDomain ×3)<br/>
+          second stack: lib/notifications/notificationService.ts + mailer.ts + scripts/notifications.ts (separate SMTP config)
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">Before — interface implies resolution it doesn't do</p>
+            <pre class="mermaid">
+sequenceDiagram
+  participant D as EscrowDomain
+  participant S as NotificationSeam
+  participant U as users repo
+  D->>S: notify({ recipientUserId, … })
+  Note over S: needs phone / email / chatId —<br/>none provided
+  S->>S: results empty → console fallback
+  Note over D,S: escrow, dispute & handover<br/>notifications are no-ops
+            </pre>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">After — resolver adapter behind the same seam</p>
+            <pre class="mermaid">
+sequenceDiagram
+  participant D as Domain
+  participant S as NotificationSeam
+  participant R as ContactResolver (injected)
+  participant C as telegram / sms / email
+  D->>S: notify({ recipientUserId, … })
+  S->>R: resolve(userId)
+  R-->>S: contacts
+  S->>C: dispatch per channel
+            </pre>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — the seam's interface implies recipient resolution it never performs: every domain passes only <span class="font-mono">recipientUserId</span>, so all escrow, dispute and handover notifications fall through to a console log, while a second, parallel mailer stack duplicates transport and env config.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — teach the seam to resolve <span class="font-mono">recipientUserId</span> through an injected contact-resolver adapter (fake in tests), and route the digest mailer through the same transport selection.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>fixes silent notification loss (correctness)</li>
+          <li>two adapters justify the seam: real + fake</li>
+          <li>tests fake the resolver, not console spies</li>
+          <li>one transport config surface</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 5 ============ -->
+      <article id="c5" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">5 · One DomainRuleError — retire four clones and 22 catch blocks</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/database.ts:39-53 (routeError — the good seam) · NegotiationDomain.ts:15-24 · DisputeDomain.ts:8 · AuctionDomain.ts:19 · EscrowDomain.ts:17<br/>
+          22 route files with manual try/catch, e.g. app/api/v1/negotiations/[id]/accept/route.ts:12-20
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">Before — routes know the domain's error taxonomy</p>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="border border-red-300 bg-red-50 rounded px-2 py-1.5 text-center"><p class="chip text-red-700 font-semibold">NegotiationRuleError</p></div>
+              <div class="border border-red-300 bg-red-50 rounded px-2 py-1.5 text-center"><p class="chip text-red-700 font-semibold">DisputeRuleError</p></div>
+              <div class="border border-red-300 bg-red-50 rounded px-2 py-1.5 text-center"><p class="chip text-red-700 font-semibold">AuctionRuleError</p></div>
+              <div class="border border-red-300 bg-red-50 rounded px-2 py-1.5 text-center"><p class="chip text-red-700 font-semibold">EscrowRuleError</p></div>
+            </div>
+            <div class="mt-3 space-y-1">
+              <div class="border border-slate-300 bg-white rounded px-2 py-1 text-center text-[11px] text-slate-600">route: try { … } catch → instanceof? → apiError</div>
+              <div class="border border-slate-300 bg-white rounded px-2 py-1 text-center text-[11px] text-slate-600">× 22 route files (one catches two RuleErrors)</div>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2 text-center">a new domain that forgets its catch → raw 500</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">After — the error seam absorbs it</p>
+            <div class="flex flex-col items-center gap-2 h-56 justify-center">
+              <div class="flex gap-2 flex-wrap justify-center">
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-700">Negotiation domain</span>
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-700">Dispute domain</span>
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-700">Auction domain</span>
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-700">Escrow domain</span>
+              </div>
+              <svg viewBox="0 0 300 20" class="w-3/4 h-5"><path d="M40 0 L150 20 M110 0 L150 20 M190 0 L150 20 M260 0 L150 20" stroke="#334155" stroke-width="1.5"/></svg>
+              <div class="deep rounded-lg px-6 py-3 text-center text-white">
+                <p class="chip font-semibold text-emerald-300">DomainRuleError(message, status)</p>
+              </div>
+              <svg viewBox="0 0 300 20" class="w-3/4 h-5"><path d="M150 0 L150 20" stroke="#334155" stroke-width="2"/></svg>
+              <div class="border-2 border-dashed border-slate-400 bg-white rounded px-4 py-2 text-center">
+                <p class="chip text-slate-700 font-semibold">safeRoute → routeError maps once</p>
+                <p class="text-[11px] text-slate-500">22 catch blocks deleted; routes back to ~10 lines</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — four structurally identical error classes duplicate the same message+status shape, and 22 route handlers re-declare catch-and-map ceremony because domain rule violations bypass the <span class="font-mono">routeError</span> seam — a leaked seam where every route knows the domain's error taxonomy.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — collapse the four classes into one <span class="font-mono">DomainRuleError</span>, teach <span class="font-mono">routeError</span> to map it, and delete the per-route try/catch blocks.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>deletes ~150-200 lines of ceremony</li>
+          <li>new domains get HTTP mapping for free</li>
+          <li>error behaviour testable at one seam</li>
+          <li>leverage: 1 interface, 22 call sites</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 6 ============ -->
+      <article id="c6" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">6 · Generate the DDL — schema knowledge lives in three hand-synced copies</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">build-time</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          packages/db/src/schema.ts (674 lines, 47 tables — the source of truth)<br/>
+          packages/db/src/seed.ts:60-607 (TABLE_DDLS, ~547 lines of hand-written SQL) · seed() spans :749-2972 (~2,220 lines)<br/>
+          apps/api/tests/test-utils.ts:8-556 (a second near-identical TABLE_DDLS) + :569-574 (hand-ordered 47-table TRUNCATE)
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">Before — three copies, synced by hand</p>
+            <div class="flex items-center justify-center gap-4 h-56">
+              <div class="space-y-2 w-48">
+                <div class="border-2 border-slate-500 bg-white rounded px-3 py-2"><p class="chip font-semibold text-slate-800">schema.ts (Drizzle)</p><p class="text-[10px] text-slate-500">47 pgTable defs</p></div>
+                <div class="border border-red-400 bg-red-50 rounded px-3 py-2"><p class="chip font-semibold text-red-700">seed.ts TABLE_DDLS</p><p class="text-[10px] text-slate-600">47 CREATE TABLE IF NOT EXISTS</p></div>
+                <div class="border border-red-400 bg-red-50 rounded px-3 py-2"><p class="chip font-semibold text-red-700">test-utils.ts TABLE_DDLS</p><p class="text-[10px] text-slate-600">~548 lines + TRUNCATE order</p></div>
+              </div>
+              <svg viewBox="0 0 60 200" class="h-52 w-14">
+                <path d="M0 30 C30 30 30 100 60 100" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <path d="M0 170 C30 170 30 100 60 100" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3"/>
+                <text x="4" y="98" font-size="9" fill="#dc2626">hand-synced</text>
+              </svg>
+            </div>
+            <p class="text-[11px] text-slate-500 text-center">one column = three edits, nothing checks agreement</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">After — schema is the only copy</p>
+            <div class="flex flex-col items-center gap-2 h-56 justify-center">
+              <div class="deep rounded-lg px-6 py-3 text-center text-white w-64">
+                <p class="chip font-semibold text-emerald-300">schema.ts (Drizzle)</p>
+              </div>
+              <svg viewBox="0 0 300 20" class="w-3/4 h-5"><path d="M150 0 L60 20 M150 0 L240 20" stroke="#334155" stroke-width="2"/></svg>
+              <div class="flex gap-3">
+                <div class="border border-slate-400 bg-white rounded px-3 py-2 text-center w-32"><p class="chip text-slate-700">seed (PGlite)</p><p class="text-[10px] text-slate-500">generated / migrated</p></div>
+                <div class="border border-slate-400 bg-white rounded px-3 py-2 text-center w-32"><p class="chip text-slate-700">tests (PGlite)</p><p class="text-[10px] text-slate-500">same DDL path</p></div>
+              </div>
+              <p class="text-[11px] text-slate-500 text-center">seed() split into per-scenario modules with a tiny registry</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — ~1,100 lines of hand-written CREATE TABLE SQL shadow the Drizzle schema in two places that nothing keeps honest, so every schema edit is a three-file change whose drift only surfaces as runtime seed/test failures — and the seed engine itself is one 2,220-line function.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — generate (or migrate) the PGlite DDL from the Drizzle schema, delete both TABLE_DDLS arrays, and split <span class="font-mono">seed()</span> into per-scenario modules under a small registry.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>schema edit becomes a one-file change</li>
+          <li>seeds can never disagree with schema</li>
+          <li>~1,100 dead-weight lines deleted</li>
+          <li>scenario seeds runnable and testable alone</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 7 ============ -->
+      <article id="c7" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">7 · Response DTOs in @chokro/shared — stop hand-mirroring the server</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">cross-package</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          packages/shared/src/dto/* (23 files — request schemas only)<br/>
+          apps/mobile/src/hooks/useFeed.ts:11-30 · useWallet.ts:7-23 · useCreateListing.ts:7-15 (re-declares a payload the Zod schema already defines)<br/>
+          app/admin/hooks/useAdminRateCards.ts:11-18, 38-39 · services/adminApi.ts:90 (<span class="text-red-600">casts as T</span>)
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">Before — every client re-mirrors by hand</p>
+            <pre class="mermaid">
+flowchart LR
+  SRV["API responses"] --> M1["useFeed — hand-declared Listing + FeedResponse"]
+  SRV --> M2["useWallet — hand-declared CreditTransaction"]
+  SRV --> A1["12 admin hooks — hand-declared envelopes"]
+  A1 -. "as T cast: drift invisible" .-> SRV
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class M1,M2,A1 leak
+            </pre>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">After — one contract, three consumers</p>
+            <pre class="mermaid">
+flowchart LR
+  DTO["@chokro/shared response schemas"] --> API["api routes (parse in tests)"]
+  DTO --> MOB["mobile hooks (inferred types)"]
+  DTO --> ADM["admin hooks (inferred types)"]
+  style DTO fill:#0f172a,color:#fff
+            </pre>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — the shared package contracts requests but nothing of responses, so 20+ mobile and admin hooks hand-declare server shapes with <span class="font-mono">as T</span> casts hiding drift: adding a field means editing route, domain, repo, and every mirror — none of which fail loudly when missed.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — add response Zod schemas to <span class="font-mono">@chokro/shared</span>, have routes parse responses through them (at least in tests), and let mobile/admin hooks import the inferred types.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>compile-time drift detection across apps</li>
+          <li>superRefine rules reused client-side</li>
+          <li>field addition: one file + type-guided fixes</li>
+          <li>locality: contract lives in one package</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 8 ============ -->
+      <article id="c8" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">8 · Escrow — pull side effects out of getters, put authorization back in</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/domain/EscrowDomain.ts:117-128 (getters run the mutating sweep :46-70) · :153-156 (<span class="text-red-600">empty if-block</span> where the auth rule should live)<br/>
+          app/api/v1/escrow/[id]/release/route.ts:7-8 (requireAuth only — no party/admin check) · transition table :9-15 bypassed by early returns :143-145
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">Before — reads mutate; release is unguarded</p>
+            <pre class="mermaid">
+flowchart TB
+  GET["GET lot detail"] --> GH["getHoldByLotId"]
+  GH --> SW["evaluateAndReleaseExpiredHolds"]
+  SW -. "mutates status + sends notifications<br/>inside a read" .-> LEDGER[("escrow holds")]
+  POST["POST /escrow/:id/release<br/>(any authenticated user)"] --> RS["releaseToSeller"]
+  RS --> EMPTY["if (outsider) { /* empty */ }"]
+  EMPTY --> LEDGER
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class SW,POST,EMPTY leak
+            </pre>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">After — explicit sweep, rule inside the module</p>
+            <pre class="mermaid">
+flowchart TB
+  CALLER["lot-close read / cron"] --> SWP["sweepExpiredHolds() → result"]
+  REQ["release request"] --> REL["releaseToSeller(actor)"]
+  REL --> CHK{"actor is buyer,<br/>seller or admin?"}
+  CHK -- "no" --> ERR["EscrowRuleError 403"]
+  CHK -- "yes" --> AT["assertTransition (one table)"]
+  AT --> LEDGER[("escrow holds")]
+  style REL fill:#0f172a,color:#fff
+            </pre>
+          </div>
+        </div>
+
+        <p class="font-serif text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">Security note: the authorization hole (any authenticated user can release anyone's escrow by ID) is a Strong fix on its own; the getter-side-effect restructure is the Worth-exploring part.</p>
+        <p class="text-sm"><span class="font-semibold">Problem</span> — escrow state changes hide inside read getters (a lot-detail query silently releases funds and fires notifications), the transition table is bypassed by early returns, and the authorization rule exists only as a comment inside an empty if-block — the route never checks party or admin.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — move expiry evaluation into an explicit sweep entry point, pass the actor into release/return and enforce buyer/seller/admin inside the module, and route every mutation through <span class="font-mono">assertTransition</span>.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>closes a privilege-escalation hole</li>
+          <li>escrow state changes explicit and ordered</li>
+          <li>one transition table governs all paths</li>
+          <li>state machine testable in isolation</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 9 ============ -->
+      <article id="c9" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">9 · Redemption saga — commit to the transaction seam or delete it</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/repos/settlement.ts — 13 methods take <span class="text-red-600">dbOrTx: any = db</span>; no caller ever passes a transaction<br/>
+          lib/domain/SettlementDomain.ts:205-314 (6 autocommit steps) · compensating entries duplicated ×5 (:281-287 … :467-473)<br/>
+          lib/repos/wallet.ts:148-192 (the only repo methods skipping withDb) · the good template: atomicCreateRedemption :382-461
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">Before — six autocommits, fake seam</p>
+            <pre class="mermaid">
+sequenceDiagram
+  participant SD as SettlementDomain
+  participant DB as postgres (autocommit)
+  SD->>DB: 1 atomicCreateRedemption
+  SD->>DB: 2 evaluateAndApply
+  SD->>DB: 3 status = AUTO_APPROVED
+  SD->>DB: 4 executePayout (MFS call)
+  Note over SD,DB: crash window: payout recorded,<br/>redemption still PENDING
+  SD->>DB: 5 status = PAID
+  SD->>DB: 6 verifyCreditTransaction
+            </pre>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <p class="modlabel text-slate-400 mb-2">After — one transactional unit, external call outside</p>
+            <pre class="mermaid">
+sequenceDiagram
+  participant SD as SettlementDomain
+  participant TX as db.transaction
+  participant MFS as MFS gateway
+  SD->>MFS: executePayout
+  MFS-->>SD: result
+  SD->>TX: status flip + ledger verify<br/>+ payout record (atomic)
+  Note over SD,TX: failure → one reverseRedemption()<br/>owns all REVERSAL-* refs
+            </pre>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — 13 repo signatures carry a dead, <span class="font-mono">any</span>-typed <span class="font-mono">dbOrTx</span> parameter that signals transactional intent nobody wired, while the real saga runs six autocommit steps with a crash window between the MFS payout and its ledger/status flips, and the compensating-entry pattern is copy-pasted five times with hand-built ref strings.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — delete the decorative parameters, wrap payout settlement in one transaction (external MFS call stays outside, following the <span class="font-mono">atomicCreateRedemption</span> template), and route all compensating entries through a single <span class="font-mono">reverseRedemption</span> that owns the REVERSAL ref vocabulary.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>crash-consistent money flow</li>
+          <li>13 dead params deleted from interfaces</li>
+          <li>compensating rules checkable in one place</li>
+          <li>wallet.ts rejoins the withDb seam</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 10 ============ -->
+      <article id="c10" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">10 · Admin console — one page module instead of 13 clones</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">in-process</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          app/admin/*/page.tsx × 13 — all declare <span class="font-mono">type Notice</span>, the same try/catch mutate, the same loading/error/empty triad (e.g. campuses/page.tsx:62-141, 269-285); kyc-queue runs 515 lines<br/>
+          app/admin/hooks/useAdmin*.ts × 12 — one template differing only in URL/unwrap/type
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">Before — 13 pages, each ~40-50% identical choreography</p>
+            <div class="space-y-1">
+              <div class="flex h-7 rounded overflow-hidden border border-slate-300"><div class="w-1/3 bg-red-100 border-r border-red-300 flex items-center justify-center"><span class="text-[9px] text-red-800">notice</span></div><div class="w-1/3 bg-red-100 border-r border-red-300 flex items-center justify-center"><span class="text-[9px] text-red-800">triad</span></div><div class="w-1/3 bg-white flex items-center justify-center"><span class="text-[9px] text-slate-600">genuine UI</span></div></div>
+              <div class="flex h-7 rounded overflow-hidden border border-slate-300"><div class="w-1/3 bg-red-100 border-r border-red-300"></div><div class="w-1/3 bg-red-100 border-r border-red-300"></div><div class="w-1/3 bg-white"></div></div>
+              <div class="flex h-7 rounded overflow-hidden border border-slate-300"><div class="w-1/3 bg-red-100 border-r border-red-300"></div><div class="w-1/3 bg-red-100 border-r border-red-300"></div><div class="w-1/3 bg-white"></div></div>
+              <p class="text-[10px] text-slate-500 text-center pt-1">…× 13 pages (campuses, partners, rate-card, drop-zones, kyc-queue, disputes, redemptions, thresholds, trust-gate, zone-capacity, certificates, liability, leaderboard)</p>
+            </div>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">After — choreography absorbed into one module</p>
+            <div class="flex flex-col items-center gap-2 h-56 justify-center">
+              <div class="deep rounded-lg px-5 py-3 text-center text-white w-72">
+                <p class="chip font-semibold text-emerald-300">AdminResourcePage + useAdminResource</p>
+                <p class="text-[11px] text-slate-300 mt-1 fade">notice lifecycle · loading/error/empty triad · table scaffold · query+mutation+invalidation</p>
+              </div>
+              <svg viewBox="0 0 300 20" class="w-3/4 h-5"><path d="M150 0 L30 20 M150 0 L150 20 M150 0 L270 20" stroke="#334155" stroke-width="1.5"/></svg>
+              <div class="flex gap-1.5">
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-600">columns</span>
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-600">form fields</span>
+                <span class="chip border border-slate-400 bg-white rounded px-2 py-1 text-slate-600">row actions</span>
+              </div>
+              <p class="text-[11px] text-slate-500 text-center">pages shrink to genuine UI (~100 lines)</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — the UI kit underneath is deep, but the page-orchestration layer above it is copy-paste: every page re-declares the same Notice type, mutation ceremony, and loading/error/empty triad, and every hook re-declares the query template plus the response envelope — a 14th resource means cloning ~300 lines.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — extract a <span class="font-mono">useAdminResource</span> factory and an <span class="font-mono">AdminResourcePage</span> module owning notice lifecycle and the triad; pages keep only columns, form fields, and row actions.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>notice/error behaviour fixed once</li>
+          <li>new admin page = genuine UI only</li>
+          <li>envelope types centralize (feeds candidate 7)</li>
+          <li>~1,500 lines of choreography collapse</li>
+        </ul>
+      </article>
+
+      <!-- ============ CANDIDATE 11 ============ -->
+      <article id="c11" class="bg-white rounded-xl border border-stone-200 shadow-sm p-8 space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="font-serif text-2xl">11 · Quick wins — delete the pass-through facades, thin the transport-parsing routes</h2>
+          <div class="flex gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs">deletion</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-slate-500 leading-relaxed">
+          lib/services/walletService.ts (26 lines, 3 one-line delegations — balance route calls it, transactions route calls WalletDomain directly)<br/>
+          lib/services/listingService.ts:9-44 (same shape) · app/api/v1/media/upload/route.ts:12-59 (47 of 72 lines parse multipart/JSON/binary)<br/>
+          app/api/v1/feed/route.ts:13-43 (~30 lines of query coercion) · app/api/v1/admin/rate-card/route.ts:20-26 (inline case-mapping)
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- cross-section -->
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">Before — route cross-section (media upload)</p>
+            <div class="space-y-1">
+              <div class="h-10 border-l-4 border-red-400 bg-red-100 rounded-r flex items-center px-3"><span class="text-[10px] text-red-800 font-medium">47 lines — parse multipart / data-URIs / binary</span></div>
+              <div class="h-6 border-l-4 border-slate-400 bg-white rounded-r flex items-center px-3"><span class="text-[10px] text-slate-600">auth + call MediaDomain</span></div>
+              <div class="h-6 border-l-4 border-slate-400 bg-white rounded-r flex items-center px-3"><span class="text-[10px] text-slate-600">respond</span></div>
+            </div>
+            <div class="mt-4 space-y-1">
+              <div class="h-8 border border-slate-300 bg-white rounded flex items-center px-3"><span class="text-[10px] text-slate-600">walletService → WalletDomain (one-line delegations)</span><span class="ml-auto text-[10px] text-red-600 font-semibold">deletion test: fails</span></div>
+            </div>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+            <p class="modlabel text-slate-400 mb-3">After — transport knowledge behind the module interface</p>
+            <div class="space-y-1">
+              <div class="h-6 border-l-4 border-slate-400 bg-white rounded-r flex items-center px-3"><span class="text-[10px] text-slate-600">route: auth + delegate (~15 lines)</span></div>
+              <div class="deep rounded-lg px-4 py-3 text-white">
+                <p class="chip font-semibold text-emerald-300">MediaDomain.parseUploadRequest(req)</p>
+                <p class="text-[11px] text-slate-300 fade mt-1">multipart / data-URI / binary — unit-testable without HTTP</p>
+              </div>
+            </div>
+            <div class="mt-4">
+              <div class="h-8 border border-emerald-300 bg-emerald-50 rounded flex items-center px-3"><span class="text-[10px] text-emerald-800 font-medium">walletService deleted — routes call WalletDomain (the corridor convention)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm"><span class="font-semibold">Problem</span> — two service facades fail the deletion test (delete them, re-point imports, nothing lost) and sit beside routes that call domains directly, so the indirection convention is ambiguous — while media and feed routes spend most of their lines parsing transport formats that belong behind a module interface.</p>
+        <p class="text-sm"><span class="font-semibold">Solution</span> — delete both facades, give MediaDomain a request-parsing interface and FeedDomain a query-parsing interface, and standardize route → domain → repo as the one convention.</p>
+        <ul class="text-sm grid md:grid-cols-2 gap-x-6 gap-y-1 list-disc list-inside text-slate-700">
+          <li>upload/feed logic testable without Requests</li>
+          <li>routes become uniform thin adapters</li>
+          <li>one indirection convention, zero ambiguity</li>
+          <li>~70 lines of zero-information indirection gone</li>
+        </ul>
+      </article>
+
+      </section>
+
+      <!-- ============ TOP RECOMMENDATION ============ -->
+      <section id="top-recommendation" class="deep rounded-xl p-8 text-white space-y-3">
+        <p class="chip text-emerald-300 font-semibold">Top recommendation</p>
+        <h2 class="font-serif text-3xl"><a href="#c1" class="underline decoration-emerald-400/50 underline-offset-4 hover:decoration-emerald-400">Candidate 1 — one owner for the pending → verified Credit Transaction flip</a></h2>
+        <p class="text-sm text-slate-300 max-w-3xl">It concentrates the system's most safety-critical invariant behind a four-verb interface, fixes a live bug (disagreeing custody-ref formats), closes a trust-bypass hole, and deletes duplicated dispute-pause and impact tails. Candidates 2 and 3 fold into it naturally — the same seam, deepened once, pays back across deposits, pickups, redemptions, adjudication, and every test that currently hand-seeds ledger rows.</p>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">locality: ledger transitions in one module</span>
+          <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">leverage: 3 custody flows, 1 interface</span>
+          <span class="chip bg-white/10 border border-white/20 rounded px-2 py-1">interface is the test surface</span>
+        </div>
+      </section>
+
+      <footer class="text-xs text-slate-400 pb-8">
+        Generated from Sprint-3 hot spots (git log) · evidence verified against source · vocabulary per codebase-design glossary · no existing ADRs contradicted
+      </footer>
+    </main>
+  </body>
+</html>

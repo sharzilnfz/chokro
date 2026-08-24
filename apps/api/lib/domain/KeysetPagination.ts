@@ -2,7 +2,7 @@
 // scroll-style pagination over timestamp-ordered rows.
 //
 // Drizzle comparison operators assembling the cursor WHERE clause.
-import { lt, eq, and, or } from '@chokro/db';
+import { lt, eq, and, or } from 'drizzle-orm';
 
 // Decoded cursor position: createdAt drives ordering, id de-ties equal timestamps.
 export interface KeysetCursor {

@@ -4,6 +4,9 @@ import { KeysetPagination } from '../lib/domain/KeysetPagination';
 import { ListingDomain } from '../lib/domain/ListingDomain';
 import { PartnerDomain } from '../lib/domain/PartnerDomain';
 import { WalletDomain } from '../lib/domain/WalletDomain';
+import { LedgerMath } from '../lib/LedgerMath';
+import { settlementRepo } from '../lib/repos/settlement';
+import { walletRepo } from '../lib/repos/wallet';
 import { resetTestStore } from './test-utils';
 
 // All domain modules: pure rules exercised directly, plus DB-backed flows.
@@ -120,15 +123,38 @@ describe('Domain Modules Unit & Integration Tests', () => {
 
   // Wallet balance math and adjustment creation.
   describe('WalletDomain', () => {
-    // Balance ignores unparseable amounts and splits verified vs pending.
-    it('calculates balance ignoring invalid amounts', () => {
+    // Truth table for the single ledger row-classifier (LedgerMath): every
+    // kind × status combination and its effect on verified/pending balance.
+    it('classifies every ledger row kind × status into the balance truth table', () => {
       const txns = [
-        { amount: '100.50', status: 'VERIFIED' },
-        { amount: '50.25', status: 'PENDING' },
-        { amount: 'invalid', status: 'VERIFIED' },
+        // EARN: VERIFIED adds to verified, PENDING adds to pending, others ignored.
+        { amount: '100.50', status: 'VERIFIED', kind: 'EARN' },
+        { amount: '50.25', status: 'PENDING', kind: 'EARN' },
+        { amount: '999', status: 'REJECTED', kind: 'EARN' },
+        // ADJUST: same treatment as EARN.
+        { amount: '20', status: 'VERIFIED', kind: 'ADJUST' },
+        { amount: '10', status: 'PENDING', kind: 'ADJUST' },
+        { amount: '999', status: 'REJECTED', kind: 'ADJUST' },
+        // REDEEM: PENDING (held) and VERIFIED (paid) both subtract from verified.
+        { amount: '30', status: 'VERIFIED', kind: 'REDEEM' },
+        { amount: '-15', status: 'PENDING', kind: 'REDEEM' },
+        { amount: '999', status: 'REJECTED', kind: 'REDEEM' },
+        // Unknown kinds default to EARN; unparseable amounts are ignored.
+        { amount: '5', status: 'VERIFIED' },
+        { amount: 'invalid', status: 'VERIFIED', kind: 'EARN' },
       ];
       const summary = WalletDomain.calculateBalance(txns);
-      expect(summary).toEqual({ verified: 100.5, pending: 50.25 });
+      // verified = 100.50 + 20 - 30 - 15 + 5 = 80.50; pending = 50.25 + 10 = 60.25
+      expect(summary).toEqual({ verified: 80.5, pending: 60.25 });
+    });
+
+    // Negative balances clamp to zero at both entry points.
+    it('clamps negative verified and pending balances to zero', () => {
+      const clampedUser = WalletDomain.calculateBalance([
+        { amount: '10', status: 'VERIFIED', kind: 'EARN' },
+        { amount: '40', status: 'PENDING', kind: 'REDEEM' },
+      ]);
+      expect(clampedUser).toEqual({ verified: 0, pending: 0 });
     });
 
     // Adjustments accept numeric or string amounts and map onto ledger fields.
@@ -147,6 +173,106 @@ describe('Domain Modules Unit & Integration Tests', () => {
       expect(txn).toBeDefined();
       expect(txn.user_id).toBe(userSession.user.id);
       expect(Number(txn.amount)).toBe(250.0);
+    });
+  });
+
+  // Platform liability math over the append-only ledger (single LedgerMath classifier).
+  describe('LedgerMath platform sums', () => {
+    // Platform liability: EARN/ADJUST VERIFIED rows earn, REDEEM rows (any live status) subtract.
+    it('sums platform liability from grouped ledger aggregates', () => {
+      const liability = LedgerMath.sumPlatform([
+        { kind: 'EARN', status: 'VERIFIED', amount: '500.00' },
+        { kind: 'ADJUST', status: 'VERIFIED', amount: '100.00' },
+        { kind: 'EARN', status: 'PENDING', amount: '999.00' }, // pending earnings are not liability
+        { kind: 'REDEEM', status: 'PENDING', amount: '200.00' },
+        { kind: 'REDEEM', status: 'VERIFIED', amount: '-50.00' }, // abs() applied
+        { kind: 'REDEEM', status: 'REJECTED', amount: '999.00' },
+      ]);
+      // earned = 500 + 100; redeemed = 200 + 50; outstanding = 600 - 250
+      expect(liability).toEqual({
+        totalEarnedVerifiedCredits: 600,
+        totalRedeemedCredits: 250,
+        outstandingLiabilityBdt: 350,
+      });
+    });
+
+    // Liability read goes through the repo's GROUP BY kind/status — no full-ledger load.
+    it('derives platform liability metrics from SQL grouping', async () => {
+      const userSession = await AuthDomain.register({
+        email: 'liability-user@test.chokro.org',
+        password: 'password123',
+      });
+
+      await walletRepo.createAdjustmentTransaction({ userId: userSession.user.id, amount: 500 });
+      await walletRepo.createEarnTransaction({ userId: userSession.user.id, amount: 75, custodyRef: 'LIAB-1' });
+      await walletRepo.createRedeemTransaction({
+        userId: userSession.user.id,
+        amount: 200,
+        status: 'PENDING',
+      });
+      // Paid redeems (VERIFIED) subtract from liability exactly like held ones (PENDING).
+      await walletRepo.createRedeemTransaction({
+        userId: userSession.user.id,
+        amount: 50,
+        status: 'VERIFIED',
+      });
+
+      const metrics = await settlementRepo.getPlatformLiabilityMetrics();
+      // The pending EARN (75) is not yet liability; redeems = 200 + 50.
+      expect(metrics).toEqual({
+        totalEarnedVerifiedCredits: 500,
+        totalRedeemedCredits: 250,
+        outstandingLiabilityBdt: 250,
+      });
+    });
+
+    // The twin monthly sums are one parameterized function: user-scoped ⊆ platform-scoped.
+    it('scopes monthly redeemed sums by user and platform', async () => {
+      const userA = await AuthDomain.register({
+        email: 'monthly-a@test.chokro.org',
+        password: 'password123',
+      });
+      const userB = await AuthDomain.register({
+        email: 'monthly-b@test.chokro.org',
+        password: 'password123',
+      });
+
+      await settlementRepo.createRedemptionRequest({
+        userId: userA.user.id,
+        amountCredits: 100,
+        payoutChannel: 'BKASH',
+        accountNumber: '01711223344',
+        grossAmountBdt: 100,
+        feeBdt: 0,
+        netAmountBdt: 100,
+        status: 'PAID',
+      });
+      await settlementRepo.createRedemptionRequest({
+        userId: userB.user.id,
+        amountCredits: 50,
+        payoutChannel: 'BKASH',
+        accountNumber: '01711223344',
+        grossAmountBdt: 50,
+        feeBdt: 0,
+        netAmountBdt: 50,
+        status: 'REQUESTED',
+      });
+      // REJECTED rows never count toward the monthly caps.
+      await settlementRepo.createRedemptionRequest({
+        userId: userA.user.id,
+        amountCredits: 999,
+        payoutChannel: 'BKASH',
+        accountNumber: '01711223344',
+        grossAmountBdt: 999,
+        feeBdt: 0,
+        netAmountBdt: 999,
+        status: 'REJECTED',
+      });
+
+      const userATotal = await settlementRepo.getUserMonthlyRedeemedBdt(userA.user.id);
+      const platformTotal = await settlementRepo.getPlatformMonthlyRedeemedBdt();
+      expect(userATotal).toBe(100);
+      expect(platformTotal).toBe(150); // userA 100 + userB 50, REJECTED excluded
     });
   });
 });

@@ -1,0 +1,7 @@
+$kind: http-request
+description: Retrieves the full list of tracked global commodity benchmarks stored in the database.
+url: "{{baseUrl}}/api/v1/rate-card/benchmarks"
+method: GET
+headers:
+  Accept: application/json
+order: 4000

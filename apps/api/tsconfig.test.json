@@ -5,6 +5,7 @@
     "noEmit": true,
     "isolatedModules": true,
     "types": ["node", "jest"],
+    "jsx": "react-jsx",
     "paths": {
       "@chokro/db": ["../../packages/db/src"],
       "@chokro/shared": ["../../packages/shared/src"],

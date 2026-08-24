@@ -1,8 +1,6 @@
 // AppShell is the root navigator: it restores any saved session, shows the
-// login/signup flow when signed out, and otherwise hosts the tab shell plus sub-screens.
-//
-// Imports: UI primitives, icon + status bar, auth context, and all core & sub-screens.
-import React, { useEffect, useState } from 'react';
+// login/signup flow when signed out, and hosts the role-based tab shell plus sub-screens.
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -16,13 +14,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
-import { usePartner } from '@/hooks/usePartner';
+import { usePartnerMe } from '@/hooks/usePartnerMe';
 import { useProfile } from '@/hooks/useProfile';
+import { getPersonaLabel, getVisibleTabs, type PersonaLabel, type Tab } from '@/navigation/roleTabs';
+import type { ListingPrefill } from '@/types';
 import { FeedScreen } from '@/screens/FeedScreen';
 import { CreateListingScreen } from '@/screens/CreateListingScreen';
 import { WalletScreen } from '@/screens/WalletScreen';
 import { QRScannerScreen } from '@/screens/QRScannerScreen';
 import { RateCardScreen } from '@/screens/RateCardScreen';
+import { VisionScanScreen } from '@/screens/VisionScanScreen';
+import { PickupScreen } from '@/screens/PickupScreen';
+import { AuctionsScreen } from '@/screens/AuctionsScreen';
 import { MessagesScreen, type MessagesTarget } from '@/screens/MessagesScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
@@ -32,32 +35,77 @@ import { BecomePartnerScreen } from '@/screens/BecomePartnerScreen';
 import { PartnerStatusScreen } from '@/screens/PartnerStatusScreen';
 import { PartnerConsoleScreen } from '@/screens/PartnerConsoleScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { RedemptionRequestScreen } from '@/screens/RedemptionRequestScreen';
+import { DepositFlowScreen } from '@/screens/DepositFlowScreen';
 import { CATEGORIES } from '@chokro/shared';
 import type { FeedFilter } from '@/hooks/useFeed';
+import type { DropZone } from '@/components/DropZoneResultCard';
 
-// The destinations the bottom tab bar can select.
-// 'messages' is the buyer-seller chat tab; 'console' is a verified-partner-only tab.
-type Tab = 'browse' | 'list' | 'rates' | 'wallet' | 'scan' | 'messages' | 'console';
+const TAB_META: Record<
+  Tab,
+  {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    activeIcon: keyof typeof Ionicons.glyphMap;
+  }
+> = {
+  browse: { label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
+  list: { label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
+  messages: { label: 'Chat', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses' },
+  pickup: { label: 'Pickup', icon: 'navigate-outline', activeIcon: 'navigate' },
+  auctions: { label: 'Auctions', icon: 'hammer-outline', activeIcon: 'hammer' },
+  vision: { label: 'AI Scan', icon: 'sparkles-outline', activeIcon: 'sparkles' },
+  rates: { label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
+  wallet: { label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
+  scan: { label: 'Scan', icon: 'scan-outline', activeIcon: 'scan' },
+  console: { label: 'Console', icon: 'shield-checkmark-outline', activeIcon: 'shield-checkmark' },
+};
 
-// Modal or sub-screen overlays
-type SubView = 'leaderboard' | 'badges' | 'partner_status' | 'become_partner' | 'partner_console' | 'profile' | null;
+const PERSONA_CHIPS: Record<PersonaLabel, { chipClass: string; textClass: string }> = {
+  Collector: { chipClass: 'bg-leaf-soft', textClass: 'text-leaf-dark' },
+  Recycler: { chipClass: 'bg-amber-soft', textClass: 'text-amber' },
+  Partner: { chipClass: 'bg-surface-muted', textClass: 'text-muted' },
+  Admin: { chipClass: 'bg-surface-muted', textClass: 'text-muted' },
+  Individual: { chipClass: 'bg-surface-muted', textClass: 'text-muted' },
+};
+
+type SubView =
+  | 'leaderboard'
+  | 'badges'
+  | 'partner_status'
+  | 'become_partner'
+  | 'partner_console'
+  | 'profile'
+  | 'redemption'
+  | 'deposit_flow'
+  | null;
 
 export function AppShell() {
-  // Auth session state plus the shell's currently selected tab and active subview.
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
-
-  const { data: partnerData } = usePartner(Boolean(session));
-  const { data: profileData } = useProfile(Boolean(session));
-  const partner = partnerData?.partner;
-  const isVerifiedPartner = partner?.status === 'VERIFIED';
-  const campusTag = profileData?.user.campusName ?? profileData?.user.institutionId ?? null;
-
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [subView, setSubView] = useState<SubView>(null);
+  const [listingPrefill, setListingPrefill] = useState<ListingPrefill | null>(null);
   const [messagesTarget, setMessagesTarget] = useState<MessagesTarget | null>(null);
   const [browseCategory, setBrowseCategory] = useState<FeedFilter | null>(null);
+  const [depositZone, setDepositZone] = useState<DropZone | null>(null);
+  const [depositQrToken, setDepositQrToken] = useState<string>('');
 
-  // Restore a feed filtered from a deep link (e.g. exp://.../browse?category=PLASTICS).
+  const partnerQuery = usePartnerMe();
+  const { data: profileData } = useProfile(Boolean(session));
+
+  const role = session?.user.role ?? 'INDIVIDUAL';
+  const partnerTypes = role === 'PARTNER' && partnerQuery.data ? partnerQuery.data.types : null;
+  const isVerifiedPartner = Boolean(partnerQuery.data && partnerQuery.data.status === 'VERIFIED');
+  const visibleTabs = useMemo(() => getVisibleTabs(role, partnerTypes), [role, partnerTypes]);
+  const personaLabel = getPersonaLabel(role, partnerTypes);
+  const campusTag = profileData?.user.campusName ?? profileData?.user.institutionId ?? null;
+
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [visibleTabs, activeTab]);
+
   useEffect(() => {
     const handleUrl = (url: string | null) => {
       if (!url) return;
@@ -68,6 +116,7 @@ export function AppShell() {
         const cat = parsed.searchParams.get('category');
         if (cat && (cat === 'ALL' || (CATEGORIES as readonly string[]).includes(cat))) {
           setBrowseCategory(cat as FeedFilter);
+          setSubView(null);
           setActiveTab('browse');
         }
       } catch {
@@ -80,45 +129,25 @@ export function AppShell() {
     return () => subscription.remove();
   }, []);
 
-  // Open the Messages tab targeting an existing listing conversation.
+  const selectTab = (tab: Tab) => {
+    const next = visibleTabs.includes(tab) ? tab : visibleTabs[0];
+    if (next !== 'list') setListingPrefill(null);
+    setSubView(null);
+    setActiveTab(next);
+  };
+
   const openChatWithListing = (target: MessagesTarget) => {
     setMessagesTarget(target);
+    setSubView(null);
     setActiveTab('messages');
   };
 
-  // Sync the chosen feed category into the web URL so it is shareable.
   const syncBrowseUrl = (category: FeedFilter) => {
     if (Platform.OS !== 'web' || typeof history === 'undefined') return;
     const path = category === 'ALL' ? '/browse' : `/browse?category=${encodeURIComponent(category)}`;
     history.replaceState(null, '', path);
   };
 
-  // Dynamic tabs: verified partners get the dedicated "Console" tab in the bottom bar.
-  const visibleTabs: Array<{
-    key: Tab;
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    activeIcon: keyof typeof Ionicons.glyphMap;
-  }> = [
-    { key: 'browse', label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
-    { key: 'list', label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
-    { key: 'messages', label: 'Messages', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses' },
-    ...(isVerifiedPartner
-      ? [
-          {
-            key: 'console' as Tab,
-            label: 'Console',
-            icon: 'shield-checkmark-outline' as keyof typeof Ionicons.glyphMap,
-            activeIcon: 'shield-checkmark' as keyof typeof Ionicons.glyphMap,
-          },
-        ]
-      : []),
-    { key: 'rates', label: 'Rates', icon: 'pricetag-outline', activeIcon: 'pricetag' },
-    { key: 'wallet', label: 'Wallet', icon: 'wallet-outline', activeIcon: 'wallet' },
-    { key: 'scan', label: 'Scan', icon: 'scan-outline', activeIcon: 'scan' },
-  ];
-
-  // Full-screen brand splash while the persisted session is being restored.
   if (restoreState === 'loading') {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
@@ -133,7 +162,6 @@ export function AppShell() {
     );
   }
 
-  // Restore failed: offer to retry or drop the saved session for another account.
   if (restoreState === 'error') {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
@@ -163,7 +191,6 @@ export function AppShell() {
     );
   }
 
-  // No session: show login or signup depending on which mode was last chosen.
   if (!session) {
     return authMode === 'login' ? (
       <LoginScreen onShowSignup={() => setAuthMode('signup')} />
@@ -173,9 +200,8 @@ export function AppShell() {
   }
 
   return (
-    // Signed-in layout: app header, active tab screen or subview, then the bottom tab bar.
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header bar: brand + signed-in email + partner role badge, with a sign-out action. */}
+      {/* Header bar */}
       <View className="min-h-[66px] flex-row items-center justify-between px-[18px] border-b border-border bg-background">
         <View className="flex-1 flex-row items-center gap-2.5">
           <View className="w-9 h-9 rounded-xl bg-leaf items-center justify-center" accessibilityElementsHidden>
@@ -184,12 +210,15 @@ export function AppShell() {
           <View>
             <View className="flex-row items-center gap-1.5">
               <Text className="text-ink text-lg font-extrabold tracking-tight">Chokro</Text>
-              {isVerifiedPartner ? (
-                <View className="px-2 py-0.5 rounded-md bg-leaf flex-row items-center gap-1">
-                  <Ionicons name="shield-checkmark" size={10} color={colors.surface} />
-                  <Text className="text-surface text-[9px] font-black tracking-wide">PARTNER</Text>
-                </View>
-              ) : null}
+              <View
+                accessible
+                accessibilityLabel={`Account type: ${personaLabel}`}
+                className={`rounded-full px-2 py-[2px] ${PERSONA_CHIPS[personaLabel]?.chipClass ?? 'bg-surface-muted'}`}
+              >
+                <Text className={`text-[10px] font-bold ${PERSONA_CHIPS[personaLabel]?.textClass ?? 'text-muted'}`}>
+                  {personaLabel}
+                </Text>
+              </View>
             </View>
             <Pressable
               accessibilityRole="button"
@@ -222,7 +251,7 @@ export function AppShell() {
         </Pressable>
       </View>
 
-      {/* Screen container: renders active sub-view if set, or active tab */}
+      {/* Screen container */}
       <View className="flex-1">
         {subView === 'profile' ? (
           <ProfileScreen onBack={() => setSubView(null)} />
@@ -252,63 +281,120 @@ export function AppShell() {
             onBack={() => setSubView(null)}
             onOpenScanner={() => {
               setSubView(null);
-              setActiveTab('scan');
+              selectTab('scan');
             }}
             onOpenStatus={() => setSubView('partner_status')}
           />
-        ) : (
+        ) : subView === 'redemption' ? (
+          <RedemptionRequestScreen
+            onBack={() => setSubView(null)}
+            onSuccess={() => setSubView(null)}
+          />
+        ) : subView === 'deposit_flow' ? depositZone ? (
+          <DepositFlowScreen
+            zoneId={depositZone.id}
+            zoneName={depositZone.name}
+            acceptedCategories={depositZone.acceptedCategories}
+            qrToken={depositQrToken}
+            onComplete={() => {
+              setSubView(null);
+              setDepositZone(null);
+              setDepositQrToken('');
+            }}
+            onCancel={() => {
+              setSubView(null);
+              setDepositZone(null);
+              setDepositQrToken('');
+            }}
+          />
+        ) : null : (
           <>
-            {activeTab === 'browse' && <FeedScreen onContactSeller={openChatWithListing} deepLinkCategory={browseCategory} onCategoryChange={syncBrowseUrl} />}
-            {activeTab === 'list' && (
-              <CreateListingScreen onCreated={() => setActiveTab('browse')} />
-            )}
-            {activeTab === 'messages' && (
-              <MessagesScreen target={messagesTarget} onTargetHandled={() => setMessagesTarget(null)} />
-            )}
-            {activeTab === 'console' && (
-              <PartnerConsoleScreen
-                onOpenScanner={() => {
-                  setSubView(null);
-                  setActiveTab('scan');
-                }}
-                onOpenStatus={() => setSubView('partner_status')}
+            {activeTab === 'browse' && (
+              <FeedScreen
+                onContactSeller={openChatWithListing}
+                deepLinkCategory={browseCategory}
+                onCategoryChange={syncBrowseUrl}
               />
             )}
+            {activeTab === 'list' && (
+              <CreateListingScreen
+                key={listingPrefill ? `prefill-${listingPrefill.seededAt}` : 'blank'}
+                prefill={listingPrefill}
+                onCreated={() => {
+                  setListingPrefill(null);
+                  setActiveTab('browse');
+                }}
+              />
+            )}
+            {activeTab === 'messages' && (
+              <MessagesScreen
+                target={messagesTarget}
+                onTargetHandled={() => setMessagesTarget(null)}
+              />
+            )}
+            {activeTab === 'pickup' && <PickupScreen />}
+            {activeTab === 'auctions' && <AuctionsScreen />}
             {activeTab === 'rates' && <RateCardScreen />}
             {activeTab === 'wallet' && (
               <WalletScreen
                 onOpenLeaderboard={() => setSubView('leaderboard')}
                 onOpenBadges={() => setSubView('badges')}
                 onOpenPartner={() => setSubView(isVerifiedPartner ? 'partner_console' : 'partner_status')}
+                onOpenRedemption={() => setSubView('redemption')}
               />
             )}
-            {activeTab === 'scan' && <QRScannerScreen />}
+
+            {activeTab === 'vision' && (
+              <VisionScanScreen
+                onListScrap={(prefill) => {
+                  setListingPrefill(prefill);
+                  selectTab('list');
+                }}
+              />
+            )}
+            {activeTab === 'scan' && (
+              <QRScannerScreen
+                onZoneConfirmed={(zone, qrToken) => {
+                  setDepositZone(zone);
+                  setDepositQrToken(qrToken);
+                  setSubView('deposit_flow');
+                }}
+              />
+            )}
+            {activeTab === 'console' && (
+              <PartnerConsoleScreen
+                onOpenScanner={() => {
+                  setSubView(null);
+                  selectTab('scan');
+                }}
+                onOpenStatus={() => setSubView('partner_status')}
+              />
+            )}
           </>
         )}
       </View>
 
-      {/* Bottom tab bar mapping destinations, highlighting active one */}
+      {/* Bottom tab bar */}
       <View className="min-h-[72px] flex-row px-2 pt-1.5 pb-1 bg-surface border-t border-border" accessibilityRole="tablist">
-        {visibleTabs.map((tab) => {
-          const active = activeTab === tab.key && subView === null;
+        {visibleTabs.map((key) => {
+          const tab = TAB_META[key];
+          if (!tab) return null;
+          const active = activeTab === key && subView === null;
           return (
             <Pressable
-              key={tab.key}
+              key={key}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
               className={`flex-1 min-h-[56px] items-center justify-center rounded-2xl gap-[2px] active:opacity-[0.72] ${active ? 'bg-leaf-soft' : ''}`}
-              onPress={() => {
-                setSubView(null);
-                setActiveTab(tab.key);
-              }}
+              onPress={() => selectTab(key)}
             >
               <Ionicons
                 name={active ? tab.activeIcon : tab.icon}
-                size={23}
+                size={22}
                 color={active ? colors.leafDark : colors.muted}
               />
-              <Text className={`text-[11px] font-bold ${active ? 'text-leaf-dark' : 'text-muted'}`}>{tab.label}</Text>
+              <Text className={`text-[10px] font-bold ${active ? 'text-leaf-dark' : 'text-muted'}`}>{tab.label}</Text>
             </Pressable>
           );
         })}

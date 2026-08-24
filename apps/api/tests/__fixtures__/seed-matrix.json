@@ -1,0 +1,2660 @@
+{
+  "auction_bids": [
+    {
+      "id": "#1",
+      "lot_id": "#2",
+      "bidder_user_id": "#3",
+      "amount_bdt": "285000.00",
+      "bid_number": 1,
+      "received_at": -385
+    },
+    {
+      "id": "#11",
+      "lot_id": "#10",
+      "bidder_user_id": "#5",
+      "amount_bdt": "13000.00",
+      "bid_number": 2,
+      "received_at": -1800
+    },
+    {
+      "id": "#12",
+      "lot_id": "#10",
+      "bidder_user_id": "#3",
+      "amount_bdt": "15100.00",
+      "bid_number": 3,
+      "received_at": -490
+    },
+    {
+      "id": "#13",
+      "lot_id": "#14",
+      "bidder_user_id": "#5",
+      "amount_bdt": "8050.00",
+      "bid_number": 1,
+      "received_at": -1980
+    },
+    {
+      "id": "#4",
+      "lot_id": "#2",
+      "bidder_user_id": "#5",
+      "amount_bdt": "295000.00",
+      "bid_number": 2,
+      "received_at": -380
+    },
+    {
+      "id": "#6",
+      "lot_id": "#2",
+      "bidder_user_id": "#7",
+      "amount_bdt": "310000.00",
+      "bid_number": 3,
+      "received_at": -370
+    },
+    {
+      "id": "#8",
+      "lot_id": "#2",
+      "bidder_user_id": "#3",
+      "amount_bdt": "325000.00",
+      "bid_number": 4,
+      "received_at": -363
+    },
+    {
+      "id": "#9",
+      "lot_id": "#10",
+      "bidder_user_id": "#3",
+      "amount_bdt": "12050.00",
+      "bid_number": 1,
+      "received_at": -1860
+    }
+  ],
+  "auction_lots": [
+    {
+      "id": "#10",
+      "title": "Lot #098: 1200kg Cullet Glass - Bottling Plant Line Purge",
+      "description": "Crushed flint and amber cullet from a beverage line changeover, contamination screened.",
+      "category": "GLASS",
+      "quantity_kg": "1200.00",
+      "starting_price_bdt": "12000.00",
+      "reserve_price_bdt": "15000.00",
+      "origin_label": "Gazipur beverage plant",
+      "status": "ENDED",
+      "opens_at": -1920,
+      "closes_at": -480,
+      "winning_bid_id": "#12",
+      "created_by": "#15",
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#14",
+      "title": "Lot #095: 950kg Cardboard Bales - Retail Chain Backrooms",
+      "description": "OCC bales collected across six retail backrooms. Some tape residue.",
+      "category": "PAPER",
+      "quantity_kg": "950.00",
+      "starting_price_bdt": "8000.00",
+      "reserve_price_bdt": "10500.00",
+      "origin_label": "Banani retail strip",
+      "status": "ENDED",
+      "opens_at": -3360,
+      "closes_at": -1920,
+      "winning_bid_id": null,
+      "created_by": "#15",
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#16",
+      "title": "Lot #102: 800kg Mixed Ferrous Scrap & Steel Offcuts",
+      "description": "Compressed MSAL offcuts, gates and shelving from a full floor clear-out. Sorted, dry, under cover.",
+      "category": "METAL",
+      "quantity_kg": "800.00",
+      "starting_price_bdt": "40000.00",
+      "reserve_price_bdt": "52345.00",
+      "origin_label": "Narayanganj EPZ",
+      "status": "LIVE",
+      "opens_at": -385,
+      "closes_at": -355,
+      "winning_bid_id": null,
+      "created_by": "#15",
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#2",
+      "title": "Lot #101: 500kg Mixed Copper Cables",
+      "description": "Industrial grade mixed copper cables stripped and sorted from telecommunications upgrade. High purity electrolytic copper content.",
+      "category": "METAL",
+      "quantity_kg": "500.00",
+      "starting_price_bdt": "280000.00",
+      "reserve_price_bdt": "320000.00",
+      "origin_label": "Tejgaon Industrial Area, Dhaka",
+      "status": "LIVE",
+      "opens_at": -390,
+      "closes_at": -345,
+      "winning_bid_id": null,
+      "created_by": "#15",
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    }
+  ],
+  "badge_awards": [
+    {
+      "id": "#17",
+      "user_id": "#18",
+      "badge_type": "FIRST_VERIFIED_DEPOSIT",
+      "award_points": "50.00",
+      "meta": {
+        "note": "First verified drop zone deposit",
+        "campus": "BRACU"
+      },
+      "awarded_at": "NOW",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#19",
+      "user_id": "#18",
+      "badge_type": "WASTE_10KG",
+      "award_points": "100.00",
+      "meta": {
+        "note": "Diverted 10kg from landfills",
+        "campus": "BRACU"
+      },
+      "awarded_at": "NOW",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#20",
+      "user_id": "#21",
+      "badge_type": "FIRST_VERIFIED_DEPOSIT",
+      "award_points": "50.00",
+      "meta": {
+        "note": "First verified recycling deposit",
+        "campus": "DU"
+      },
+      "awarded_at": "NOW",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#22",
+      "user_id": "#21",
+      "badge_type": "STREAK_7",
+      "award_points": "150.00",
+      "meta": {
+        "note": "7-day active recycling streak",
+        "campus": "DU"
+      },
+      "awarded_at": "NOW",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#23",
+      "user_id": "#24",
+      "badge_type": "E_WASTE_STEWARD",
+      "award_points": "500.00",
+      "meta": {
+        "note": "DoE Licensed E-Waste Recycler Champion"
+      },
+      "awarded_at": "NOW",
+      "created_at": "NOW"
+    }
+  ],
+  "buyer_demands": [
+    {
+      "id": "#25",
+      "buyer_id": "#24",
+      "category": "METAL",
+      "min_quantity": "500.00",
+      "max_quantity": "1000.00",
+      "unit": "kg",
+      "max_price_per_unit_bdt": "750.00",
+      "target_thana": "Tejgaon",
+      "target_lat": 23.76,
+      "target_lng": 90.39,
+      "max_radius_km": 15,
+      "status": "ACTIVE",
+      "expires_at": 42840,
+      "created_at": "NOW"
+    }
+  ],
+  "campus_leaderboards": [
+    {
+      "id": "#26",
+      "period": "WEEKLY",
+      "campus_id": "BRACU",
+      "total_points": "1420.00",
+      "member_count": 32,
+      "top_scorer_user_id": "#18",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#27",
+      "period": "WEEKLY",
+      "campus_id": "DU",
+      "total_points": "980.00",
+      "member_count": 24,
+      "top_scorer_user_id": "#21",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#28",
+      "period": "WEEKLY",
+      "campus_id": "BUET",
+      "total_points": "750.00",
+      "member_count": 18,
+      "top_scorer_user_id": null,
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#29",
+      "period": "WEEKLY",
+      "campus_id": "NSU",
+      "total_points": "620.00",
+      "member_count": 15,
+      "top_scorer_user_id": "#30",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#31",
+      "period": "MONTHLY",
+      "campus_id": "BRACU",
+      "total_points": "5680.00",
+      "member_count": 85,
+      "top_scorer_user_id": "#18",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#32",
+      "period": "MONTHLY",
+      "campus_id": "DU",
+      "total_points": "4120.00",
+      "member_count": 62,
+      "top_scorer_user_id": "#21",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#33",
+      "period": "MONTHLY",
+      "campus_id": "BUET",
+      "total_points": "3200.00",
+      "member_count": 45,
+      "top_scorer_user_id": null,
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#34",
+      "period": "MONTHLY",
+      "campus_id": "NSU",
+      "total_points": "2800.00",
+      "member_count": 38,
+      "top_scorer_user_id": "#30",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#35",
+      "period": "ALL_TIME",
+      "campus_id": "BRACU",
+      "total_points": "18400.00",
+      "member_count": 140,
+      "top_scorer_user_id": "#18",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#36",
+      "period": "ALL_TIME",
+      "campus_id": "DU",
+      "total_points": "12900.00",
+      "member_count": 110,
+      "top_scorer_user_id": "#21",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#37",
+      "period": "ALL_TIME",
+      "campus_id": "BUET",
+      "total_points": "9500.00",
+      "member_count": 80,
+      "top_scorer_user_id": null,
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#38",
+      "period": "ALL_TIME",
+      "campus_id": "NSU",
+      "total_points": "8100.00",
+      "member_count": 75,
+      "top_scorer_user_id": "#30",
+      "snapshot_date": "TODAY",
+      "created_at": "NOW"
+    }
+  ],
+  "campuses": [
+    {
+      "id": "#39",
+      "slug": "BRACU",
+      "name": "BRAC University",
+      "division": "DHAKA",
+      "zilla": "Dhaka",
+      "upazilla": "Merul Badda",
+      "status": "VERIFIED",
+      "reason": null,
+      "created_by": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#40",
+      "slug": "DU",
+      "name": "University of Dhaka",
+      "division": "DHAKA",
+      "zilla": "Dhaka",
+      "upazilla": "Shahbag",
+      "status": "VERIFIED",
+      "reason": null,
+      "created_by": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#41",
+      "slug": "BUET",
+      "name": "Bangladesh University of Engineering and Technology",
+      "division": "DHAKA",
+      "zilla": "Dhaka",
+      "upazilla": "Palashi",
+      "status": "VERIFIED",
+      "reason": null,
+      "created_by": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#42",
+      "slug": "NSU",
+      "name": "North South University",
+      "division": "DHAKA",
+      "zilla": "Dhaka",
+      "upazilla": "Bashundhara R/A",
+      "status": "VERIFIED",
+      "reason": null,
+      "created_by": null,
+      "created_at": "NOW"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "#43",
+      "listing_id": "#44",
+      "buyer_id": "#7",
+      "seller_id": "#18",
+      "last_message_body": "I have countered with ৳740/kg. Let me know if that works.",
+      "last_message_at": -390,
+      "created_at": "NOW"
+    }
+  ],
+  "credit_txns": [
+    {
+      "id": "#45",
+      "user_id": "#18",
+      "amount": "450.00",
+      "kind": "EARN",
+      "status": "VERIFIED",
+      "source_id": "DEPOSIT",
+      "custody_ref": "#46",
+      "rate_card_entry_id": null,
+      "trust_decision_id": "#47",
+      "reason": "Verified drop zone deposit (10kg Plastics)",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#48",
+      "user_id": "#18",
+      "amount": "189.00",
+      "kind": "EARN",
+      "status": "PENDING",
+      "source_id": "DEPOSIT",
+      "custody_ref": "#49",
+      "rate_card_entry_id": null,
+      "trust_decision_id": null,
+      "reason": "Drop zone deposit pending collector scale confirmation (4.2kg PET bottles)",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#50",
+      "user_id": "#21",
+      "amount": "850.00",
+      "kind": "EARN",
+      "status": "VERIFIED",
+      "source_id": "PICKUP",
+      "custody_ref": "#51",
+      "rate_card_entry_id": null,
+      "trust_decision_id": "#52",
+      "reason": "Verified pickup collection (5kg Copper Cables)",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#53",
+      "user_id": "#18",
+      "amount": "120.00",
+      "kind": "EARN",
+      "status": "PENDING",
+      "source_id": "DEPOSIT",
+      "custody_ref": "DEP-PENDING-EXTRA-01",
+      "rate_card_entry_id": null,
+      "trust_decision_id": null,
+      "reason": "Awaiting Trust Gate verification",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#54",
+      "user_id": "#21",
+      "amount": "500.00",
+      "kind": "REDEEM",
+      "status": "VERIFIED",
+      "source_id": "REDEMPTION",
+      "custody_ref": "RED-BKASH-001",
+      "rate_card_entry_id": null,
+      "trust_decision_id": null,
+      "reason": "bKash cash-out settlement",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#55",
+      "user_id": "#18",
+      "amount": "50.00",
+      "kind": "ADJUST",
+      "status": "VERIFIED",
+      "source_id": "SYSTEM",
+      "custody_ref": "ADJUST-BONUS-001",
+      "rate_card_entry_id": null,
+      "trust_decision_id": null,
+      "reason": "First deposit welcome bonus",
+      "created_at": "NOW"
+    }
+  ],
+  "custody_handovers": [
+    {
+      "id": "#56",
+      "task_id": "#57",
+      "otp_code_hash": "0ee958b54428f5871ebf06810e17309dd6ef44b64d3f9ceb33b4d8999e1da494",
+      "giver_user_id": "#58",
+      "collector_partner_id": "#59",
+      "status": "PENDING",
+      "expires_at": -345,
+      "confirmed_at": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#60",
+      "task_id": "#51",
+      "otp_code_hash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      "giver_user_id": "#21",
+      "collector_partner_id": "#61",
+      "status": "CONFIRMED",
+      "expires_at": -600,
+      "confirmed_at": -600,
+      "created_at": "NOW"
+    }
+  ],
+  "decision_contests": [
+    {
+      "id": "#62",
+      "decision_id": "#63",
+      "user_id": "#58",
+      "reason": "The paper was sorted white office paper; photograph was taken at the bin location.",
+      "status": "PENDING",
+      "reviewed_by": null,
+      "reviewed_at": null,
+      "created_at": "NOW"
+    }
+  ],
+  "demand_matches": [
+    {
+      "id": "#64",
+      "demand_id": "#25",
+      "listing_id": "#44",
+      "match_score": "0.95",
+      "distance_km": "1.20",
+      "notification_sent": true,
+      "status": "UNNOTICED",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#65",
+      "demand_id": "#25",
+      "listing_id": "#66",
+      "match_score": "0.98",
+      "distance_km": "0.80",
+      "notification_sent": true,
+      "status": "VIEWED",
+      "created_at": "NOW"
+    }
+  ],
+  "deposit_records": [
+    {
+      "id": "#46",
+      "session_id": "#77",
+      "zone_id": "#68",
+      "user_id": "#18",
+      "category": "PLASTICS",
+      "unit": "kg",
+      "declared_quantity": "10.00",
+      "verified_quantity": "10.00",
+      "evidence_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "rate_card_entry_id": "#69",
+      "estimated_bdt": "450.00",
+      "verified_bdt": "450.00",
+      "status": "VERIFIED",
+      "divergence_ratio": "0.000",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#49",
+      "session_id": "#67",
+      "zone_id": "#68",
+      "user_id": "#18",
+      "category": "PLASTICS",
+      "unit": "kg",
+      "declared_quantity": "4.20",
+      "verified_quantity": null,
+      "evidence_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "rate_card_entry_id": "#69",
+      "estimated_bdt": "189.00",
+      "verified_bdt": null,
+      "status": "RECORDED",
+      "divergence_ratio": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#70",
+      "session_id": "#71",
+      "zone_id": "#72",
+      "user_id": "#21",
+      "category": "E_WASTE",
+      "unit": "piece",
+      "declared_quantity": "1.00",
+      "verified_quantity": null,
+      "evidence_url": "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80",
+      "rate_card_entry_id": "#73",
+      "estimated_bdt": "250.00",
+      "verified_bdt": null,
+      "status": "ESCALATED",
+      "divergence_ratio": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#74",
+      "session_id": "#75",
+      "zone_id": "#68",
+      "user_id": "#58",
+      "category": "PAPER",
+      "unit": "kg",
+      "declared_quantity": "15.00",
+      "verified_quantity": null,
+      "evidence_url": "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80",
+      "rate_card_entry_id": "#76",
+      "estimated_bdt": "375.00",
+      "verified_bdt": null,
+      "status": "ESCALATED",
+      "divergence_ratio": null,
+      "created_at": "NOW"
+    }
+  ],
+  "dispatch_assignments": [
+    {
+      "id": "#78",
+      "order_id": "#57",
+      "collector_partner_id": "#59",
+      "stop_sequence": 1,
+      "distance_km": "0.20",
+      "eta_minutes": 1,
+      "assigned_at": "NOW"
+    }
+  ],
+  "disputes": [
+    {
+      "id": "#79",
+      "source_type": "AUCTION_LOT",
+      "source_id": "#10",
+      "opened_by": "#3",
+      "against_user_id": "#15",
+      "reason": "Contaminated scrap received: Lot was graded as clean cullet glass, but contained ~15% ceramic and stone debris.",
+      "evidence_urls": [
+        "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "OPEN",
+      "resolution": null,
+      "resolution_notes": null,
+      "resolved_by": null,
+      "resolved_at": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#80",
+      "source_type": "DEPOSIT",
+      "source_id": "#70",
+      "opened_by": "#18",
+      "against_user_id": "#30",
+      "reason": "Scale reading at BUET bin differed from declared weight.",
+      "evidence_urls": [
+        "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "RESOLVED",
+      "resolution": "UPHELD",
+      "resolution_notes": "Collector scale photo verified 10.0kg accurate.",
+      "resolved_by": "#30",
+      "resolved_at": -1800,
+      "created_at": "NOW"
+    }
+  ],
+  "drop_sessions": [
+    {
+      "id": "#67",
+      "zone_id": "#68",
+      "user_id": "#18",
+      "session_secret": "sec-bracu-pending-02",
+      "short_code": "4815",
+      "status": "CONSUMED",
+      "expires_at": -390,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#71",
+      "zone_id": "#72",
+      "user_id": "#21",
+      "session_secret": "sec-buet-ewaste-03",
+      "short_code": "8910",
+      "status": "CONSUMED",
+      "expires_at": -420,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#75",
+      "zone_id": "#68",
+      "user_id": "#58",
+      "session_secret": "sec-bracu-phash-04",
+      "short_code": "4021",
+      "status": "CONSUMED",
+      "expires_at": -450,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#77",
+      "zone_id": "#68",
+      "user_id": "#18",
+      "session_secret": "sec-bracu-verified-05",
+      "short_code": "1001",
+      "status": "CONSUMED",
+      "expires_at": -480,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#81",
+      "zone_id": "#68",
+      "user_id": "#18",
+      "session_secret": "sec-bracu-open-01",
+      "short_code": "7392",
+      "status": "OPEN",
+      "expires_at": -348,
+      "created_at": "NOW"
+    }
+  ],
+  "drop_zones": [
+    {
+      "id": "#68",
+      "institution_id": "BRACU",
+      "name": "BRACU Building 1 Cafeteria Bin",
+      "geo_location": {
+        "lat": 23.774,
+        "lng": 90.425,
+        "address": "Kha-224, Bir Uttam Rafiqul Islam Ave, Merul Badda, Dhaka"
+      },
+      "qr_token": "ZONE-BRACU-01",
+      "accepted_categories": [
+        "PLASTICS",
+        "PAPER",
+        "METAL"
+      ],
+      "status": "ACTIVE",
+      "max_capacity_kg": "100.00",
+      "current_fill_kg": "45.00",
+      "last_emptied_at": null,
+      "contracted_partner_id": "#61",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#72",
+      "institution_id": "BUET",
+      "name": "BUET Civil Dept Green Hub",
+      "geo_location": {
+        "lat": 23.726,
+        "lng": 90.392,
+        "address": "Civil Dept Ground Floor, BUET Campus, Palashi, Dhaka"
+      },
+      "qr_token": "ZONE-BUET-02",
+      "accepted_categories": [
+        "PLASTICS",
+        "E_WASTE",
+        "PAPER"
+      ],
+      "status": "ACTIVE",
+      "max_capacity_kg": "150.00",
+      "current_fill_kg": "68.00",
+      "last_emptied_at": null,
+      "contracted_partner_id": "#82",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#83",
+      "institution_id": "NSU",
+      "name": "NSU Student Lounge Drop Point",
+      "geo_location": {
+        "lat": 23.815,
+        "lng": 90.427,
+        "address": "Level 3 Student Lounge, NSU Campus, Bashundhara, Dhaka"
+      },
+      "qr_token": "ZONE-NSU-03",
+      "accepted_categories": [
+        "PLASTICS",
+        "BOOKS",
+        "CLOTHES"
+      ],
+      "status": "ACTIVE",
+      "max_capacity_kg": "80.00",
+      "current_fill_kg": "70.40",
+      "last_emptied_at": null,
+      "contracted_partner_id": "#59",
+      "created_at": "NOW"
+    }
+  ],
+  "emission_factors": [
+    {
+      "id": "#84",
+      "category": "PLASTICS",
+      "next_life_path": "RECYCLE",
+      "factor_co2e_per_kg": "1.4500",
+      "range_low": "1.2000",
+      "range_high": "1.7000",
+      "source": "ISO 14044 / DEFRA 2024",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#85",
+      "category": "PAPER",
+      "next_life_path": "RECYCLE",
+      "factor_co2e_per_kg": "0.9500",
+      "range_low": "0.8000",
+      "range_high": "1.1000",
+      "source": "ISO 14044 / EPA WARM v15",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#86",
+      "category": "METAL",
+      "next_life_path": "RECYCLE",
+      "factor_co2e_per_kg": "2.8500",
+      "range_low": "2.4000",
+      "range_high": "3.3000",
+      "source": "Birkenhead Life-Cycle / WorldSteel",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#87",
+      "category": "GLASS",
+      "next_life_path": "RECYCLE",
+      "factor_co2e_per_kg": "0.3150",
+      "range_low": "0.2500",
+      "range_high": "0.3800",
+      "source": "FEVE European Container Glass",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#88",
+      "category": "E_WASTE",
+      "next_life_path": "RECYCLE",
+      "factor_co2e_per_kg": "8.2000",
+      "range_low": "6.5000",
+      "range_high": "10.0000",
+      "source": "UNEP Global E-Waste Monitor",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#89",
+      "category": "CLOTHES",
+      "next_life_path": "REUSE",
+      "factor_co2e_per_kg": "3.2000",
+      "range_low": "2.8000",
+      "range_high": "3.6000",
+      "source": "WRAP UK Textile Reuse Index",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#90",
+      "category": "BOOKS",
+      "next_life_path": "REUSE",
+      "factor_co2e_per_kg": "1.1000",
+      "range_low": "0.9000",
+      "range_high": "1.3000",
+      "source": "EPA Paper & Pulp Reuse Model",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#91",
+      "category": "FURNITURE",
+      "next_life_path": "REPAIR",
+      "factor_co2e_per_kg": "2.1000",
+      "range_low": "1.8000",
+      "range_high": "2.5000",
+      "source": "Circular Economy Timber Model",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#92",
+      "category": "APPLIANCES",
+      "next_life_path": "RESELL",
+      "factor_co2e_per_kg": "15.5000",
+      "range_low": "12.0000",
+      "range_high": "19.0000",
+      "source": "IEA Domestic Appliance Lifecycle",
+      "version": "v2026.1",
+      "effective_from": -43560,
+      "created_at": "NOW"
+    }
+  ],
+  "escrow_holds": [
+    {
+      "id": "#93",
+      "lot_id": "#10",
+      "buyer_id": "#3",
+      "seller_id": "#15",
+      "amount_bdt": "48000.00",
+      "status": "HELD",
+      "inspection_expires_at": 2520,
+      "created_at": "NOW"
+    }
+  ],
+  "evidence_hashes": [
+    {
+      "id": "#94",
+      "evidence_url": "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80",
+      "phash_hex": "0f0f0f0f0f0f0f0f",
+      "uploader_id": "#58",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#95",
+      "evidence_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "phash_hex": "ffff0000ffff0000",
+      "uploader_id": "#18",
+      "created_at": "NOW"
+    }
+  ],
+  "evidence_records": [
+    {
+      "id": "#96",
+      "uploader_id": "#18",
+      "storage_path": "/uploads/evidence/bracu-deposit-4-2kg.jpg",
+      "url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "mime_type": "image/jpeg",
+      "byte_size": 245000,
+      "created_at": "NOW"
+    }
+  ],
+  "fraud_flags": [
+    {
+      "id": "#97",
+      "entity_type": "USER",
+      "entity_id": "#58",
+      "flag_type": "PHASH_DUPLICATE_IMAGE",
+      "reason": "Duplicate photo detected across multiple deposit submissions (pHash distance 0)",
+      "severity": "HIGH",
+      "is_cleared": false,
+      "cleared_by": null,
+      "cleared_at": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#98",
+      "entity_type": "PARTNER",
+      "entity_id": "#99",
+      "flag_type": "SUSPICIOUS_VELOCITY",
+      "reason": "Unusual pickup confirmation frequency during off-hours",
+      "severity": "LOW",
+      "is_cleared": false,
+      "cleared_by": null,
+      "cleared_at": null,
+      "created_at": "NOW"
+    }
+  ],
+  "impact_records": [
+    {
+      "id": "#100",
+      "custody_type": "DEPOSIT",
+      "custody_id": "#46",
+      "trust_decision_id": "#47",
+      "user_id": "#18",
+      "institution_id": "#39",
+      "category": "PLASTICS",
+      "next_life_path": "RECYCLE",
+      "mass_kg": "520.00",
+      "avoided_co2e_kg": "754.000",
+      "factor_version": "v2026.1",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#101",
+      "custody_type": "DEPOSIT",
+      "custody_id": "CUST-BRACU-IMP-02",
+      "trust_decision_id": "#47",
+      "user_id": "#18",
+      "institution_id": "#39",
+      "category": "PAPER",
+      "next_life_path": "RECYCLE",
+      "mass_kg": "450.00",
+      "avoided_co2e_kg": "427.500",
+      "factor_version": "v2026.1",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#102",
+      "custody_type": "PICKUP",
+      "custody_id": "CUST-BRACU-IMP-03",
+      "trust_decision_id": "#47",
+      "user_id": "#18",
+      "institution_id": "#39",
+      "category": "METAL",
+      "next_life_path": "RECYCLE",
+      "mass_kg": "300.00",
+      "avoided_co2e_kg": "855.000",
+      "factor_version": "v2026.1",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#103",
+      "custody_type": "DEPOSIT",
+      "custody_id": "CUST-BRACU-IMP-04",
+      "trust_decision_id": "#47",
+      "user_id": "#18",
+      "institution_id": "#39",
+      "category": "E_WASTE",
+      "next_life_path": "RECYCLE",
+      "mass_kg": "150.00",
+      "avoided_co2e_kg": "413.500",
+      "factor_version": "v2026.1",
+      "created_at": "NOW"
+    }
+  ],
+  "institution_accounts": [
+    {
+      "id": "#104",
+      "campus_id": "#39",
+      "invite_code": "BRACU2026",
+      "contact_email": "sustainability@bracu.ac.bd",
+      "total_diverted_kg": "1420.00",
+      "created_at": "NOW"
+    }
+  ],
+  "kyc_extractions": [
+    {
+      "id": "#105",
+      "partner_id": "#106",
+      "document_url": "https://documents.chokro.org/kyc/bengal-doe-permit-2026.pdf",
+      "document_type": "DOE_EWASTE_PERMIT",
+      "ocr_provider": "GOOGLE_VISION",
+      "raw_extracted_text": "GOVERNMENT OF THE PEOPLE'S REPUBLIC OF BANGLADESH\nDEPARTMENT OF ENVIRONMENT\nE-WASTE MANAGEMENT PERMIT\nCertificate No: DOE/E-WASTE/2026/0418\nHolder: Bengal Recyclers Ltd\nIssue Date: 15-JAN-2026\nExpiry Date: 14-JAN-2028\nAuthorized Facility: Plot 44, Tejgaon I/A, Dhaka",
+      "extracted_org_name": "Bengal Recyclers Ltd",
+      "extracted_license_number": "DOE/E-WASTE/2026/0418",
+      "extracted_expiry_date": 719640,
+      "confidence_score": "0.98",
+      "match_status": "EXACT_MATCH",
+      "mismatched_fields": [],
+      "is_expired": false,
+      "adjudicated_by": null,
+      "adjudicated_at": null,
+      "adjudication_notes": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#107",
+      "partner_id": "#108",
+      "document_url": "https://documents.chokro.org/kyc/savar-trade-license.pdf",
+      "document_type": "TRADE_LICENSE",
+      "ocr_provider": "GOOGLE_VISION",
+      "raw_extracted_text": "DHAKA NORTH CITY CORPORATION\nTRADE LICENSE\nLicense No: TRAD/DNCC/092144/2024\nBusiness: Savar Cargo Logistics",
+      "extracted_org_name": "Savar Cargo Logistics",
+      "extracted_license_number": "TRAD/DNCC/092144/2024",
+      "extracted_expiry_date": 258840,
+      "confidence_score": "0.74",
+      "match_status": "MISMATCH",
+      "mismatched_fields": [
+        "extracted_license_number"
+      ],
+      "is_expired": false,
+      "adjudicated_by": null,
+      "adjudicated_at": null,
+      "adjudication_notes": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#109",
+      "partner_id": "#82",
+      "document_url": "https://documents.chokro.org/kyc/dhaka-green-doe.pdf",
+      "document_type": "DOE_EWASTE_PERMIT",
+      "ocr_provider": "GOOGLE_VISION",
+      "raw_extracted_text": null,
+      "extracted_org_name": "Dhaka Green Recyclers",
+      "extracted_license_number": "DOE/E-WASTE/2024/091",
+      "extracted_expiry_date": 431640,
+      "confidence_score": "0.99",
+      "match_status": "EXACT_MATCH",
+      "mismatched_fields": [],
+      "is_expired": false,
+      "adjudicated_by": "#30",
+      "adjudicated_at": -10440,
+      "adjudication_notes": "Verified valid DoE hazardous scrap processing permit #DOE/E-WASTE/2024/091",
+      "created_at": "NOW"
+    }
+  ],
+  "liability_caps": [
+    {
+      "id": "#110",
+      "monthly_platform_cap_bdt": "500000.00",
+      "monthly_user_cap_bdt": "25000.00",
+      "min_redemption_bdt": "300.00",
+      "fee_percentage": "1.85",
+      "effective_from": -43560,
+      "updated_by": "#30",
+      "created_at": "NOW"
+    }
+  ],
+  "listing_media": [
+    {
+      "id": "#111",
+      "listing_id": "#44",
+      "uploader_id": "#18",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-metal.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#112",
+      "listing_id": "#66",
+      "uploader_id": "#21",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-metal.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#113",
+      "listing_id": "#114",
+      "uploader_id": "#58",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-plastics.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#115",
+      "listing_id": "#116",
+      "uploader_id": "#58",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-paper.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#117",
+      "listing_id": "#118",
+      "uploader_id": "#18",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-appliances.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#119",
+      "listing_id": "#120",
+      "uploader_id": "#21",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-e_waste.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#121",
+      "listing_id": "#122",
+      "uploader_id": "#18",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-books.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#123",
+      "listing_id": "#124",
+      "uploader_id": "#58",
+      "storage_provider": "CLOUDINARY",
+      "public_url": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
+      "thumbnail_url": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
+      "original_filename": "scrap-clothes.webp",
+      "mime_type": "image/webp",
+      "byte_size": 142000,
+      "width": null,
+      "height": null,
+      "exif_gps_extracted": false,
+      "extracted_lat": null,
+      "extracted_lng": null,
+      "is_privacy_stripped": true,
+      "created_at": "NOW"
+    }
+  ],
+  "listings": [
+    {
+      "id": "#114",
+      "owner_id": "#58",
+      "category": "PLASTICS",
+      "unit": "kg",
+      "declared_weight": "12.50",
+      "piece_count": null,
+      "declared_condition": "GOOD",
+      "price_bdt": "562.50",
+      "photos": [
+        "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.782,
+      "lng": 90.4205,
+      "thana": "Dhanmondi",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#116",
+      "owner_id": "#58",
+      "category": "PAPER",
+      "unit": "kg",
+      "declared_weight": "120.00",
+      "piece_count": null,
+      "declared_condition": "FAIR",
+      "price_bdt": "2160.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.805,
+      "lng": 90.368,
+      "thana": "Mirpur",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#118",
+      "owner_id": "#18",
+      "category": "APPLIANCES",
+      "unit": "piece",
+      "declared_weight": null,
+      "piece_count": 1,
+      "declared_condition": "FAIR",
+      "price_bdt": "1400.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.7465,
+      "lng": 90.376,
+      "thana": "Dhanmondi",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#120",
+      "owner_id": "#21",
+      "category": "E_WASTE",
+      "unit": "piece",
+      "declared_weight": null,
+      "piece_count": 8,
+      "declared_condition": "GOOD",
+      "price_bdt": "3200.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.7925,
+      "lng": 90.4078,
+      "thana": "Gulshan",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#122",
+      "owner_id": "#18",
+      "category": "BOOKS",
+      "unit": "kg",
+      "declared_weight": "15.00",
+      "piece_count": null,
+      "declared_condition": "EXCELLENT",
+      "price_bdt": "750.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.774,
+      "lng": 90.425,
+      "thana": "Badda",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#124",
+      "owner_id": "#58",
+      "category": "CLOTHES",
+      "unit": "kg",
+      "declared_weight": "20.00",
+      "piece_count": null,
+      "declared_condition": "GOOD",
+      "price_bdt": "600.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.734,
+      "lng": 90.3928,
+      "thana": "Shahbag",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#44",
+      "owner_id": "#18",
+      "category": "METAL",
+      "unit": "kg",
+      "declared_weight": "40.00",
+      "piece_count": null,
+      "declared_condition": "GOOD",
+      "price_bdt": "28800.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.761,
+      "lng": 90.391,
+      "thana": "Tejgaon",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#66",
+      "owner_id": "#21",
+      "category": "METAL",
+      "unit": "kg",
+      "declared_weight": "500.00",
+      "piece_count": null,
+      "declared_condition": "EXCELLENT",
+      "price_bdt": "370000.00",
+      "photos": [
+        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=600&q=80"
+      ],
+      "status": "ACTIVE",
+      "lat": 23.762,
+      "lng": 90.392,
+      "thana": "Tejgaon",
+      "zilla": "Dhaka",
+      "created_at": "NOW"
+    }
+  ],
+  "messages": [
+    {
+      "id": "#125",
+      "conversation_id": "#43",
+      "sender_id": "#7",
+      "body": "Salam, is the copper wire sorted and stripped?",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#126",
+      "conversation_id": "#43",
+      "sender_id": "#18",
+      "body": "Yes, 100% stripped electrolytic grade.",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#127",
+      "conversation_id": "#43",
+      "sender_id": "#18",
+      "body": "I have countered with ৳740/kg. Let me know if that works.",
+      "created_at": "NOW"
+    }
+  ],
+  "negotiation_offers": [
+    {
+      "id": "#128",
+      "thread_id": "#129",
+      "offered_by_user_id": "#7",
+      "offer_amount_bdt": "28000.00",
+      "offered_quantity": "40.00",
+      "unit": "kg",
+      "proposed_pickup_at": null,
+      "notes": "Can pick up tomorrow morning from Tejgaon warehouse.",
+      "status": "SUPERSEDED",
+      "expires_at": 960,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#130",
+      "thread_id": "#129",
+      "offered_by_user_id": "#18",
+      "offer_amount_bdt": "29600.00",
+      "offered_quantity": "40.00",
+      "unit": "kg",
+      "proposed_pickup_at": null,
+      "notes": "High purity wire, ৳740 is my final price.",
+      "status": "PENDING",
+      "expires_at": 720,
+      "created_at": "NOW"
+    }
+  ],
+  "negotiation_threads": [
+    {
+      "id": "#129",
+      "listing_id": "#44",
+      "buyer_id": "#7",
+      "seller_id": "#18",
+      "status": "OPEN",
+      "last_offer_id": "#130",
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    }
+  ],
+  "partner_compliance_audits": [
+    {
+      "id": "#131",
+      "partner_id": "#82",
+      "extraction_id": "#109",
+      "previous_status": "APPLIED",
+      "new_status": "VERIFIED",
+      "granted_capabilities": {
+        "buys": true,
+        "collects": true,
+        "e_waste_licensed": true
+      },
+      "actor_id": "#30",
+      "reason": "Verified valid DoE hazardous scrap processing permit #DOE/E-WASTE/2024/091",
+      "created_at": "NOW"
+    }
+  ],
+  "partners": [
+    {
+      "id": "#106",
+      "user_id": "#139",
+      "org_name": "Bengal Recyclers Ltd",
+      "types": [
+        "RECYCLER"
+      ],
+      "e_waste_licensed": false,
+      "status": "APPLIED",
+      "doe_license_doc": "DOE-CERT-BENGAL-2026.pdf",
+      "vehicle_label": null,
+      "vehicle_capacity_kg": null,
+      "base_lat": null,
+      "base_lng": null,
+      "service_radius_km": 10,
+      "reason": null,
+      "capability_flags": {},
+      "created_at": "NOW"
+    },
+    {
+      "id": "#108",
+      "user_id": "#99",
+      "org_name": "Savar Cargo Trikes",
+      "types": [
+        "COLLECTOR"
+      ],
+      "e_waste_licensed": false,
+      "status": "VERIFIED",
+      "doe_license_doc": null,
+      "vehicle_label": "Cargo trike",
+      "vehicle_capacity_kg": "150.00",
+      "base_lat": 23.7481,
+      "base_lng": 90.3765,
+      "service_radius_km": 10,
+      "reason": null,
+      "capability_flags": {
+        "buys": false,
+        "repairs": false,
+        "collects": true,
+        "accepts_donations": false
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#132",
+      "user_id": "#15",
+      "org_name": "BanglaBin Recycling Ltd",
+      "types": [
+        "RECYCLER",
+        "COLLECTOR"
+      ],
+      "e_waste_licensed": true,
+      "status": "VERIFIED",
+      "doe_license_doc": "DOE-LICENSE-2026-9912.pdf",
+      "vehicle_label": "Collection Van",
+      "vehicle_capacity_kg": "800.00",
+      "base_lat": 23.77,
+      "base_lng": 90.41,
+      "service_radius_km": 15,
+      "reason": null,
+      "capability_flags": {
+        "buys": true,
+        "repairs": false,
+        "collects": true,
+        "accepts_donations": true
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#135",
+      "user_id": "#3",
+      "org_name": "Dhaka Steel Recyclers",
+      "types": [
+        "RECYCLER"
+      ],
+      "e_waste_licensed": false,
+      "status": "VERIFIED",
+      "doe_license_doc": null,
+      "vehicle_label": null,
+      "vehicle_capacity_kg": null,
+      "base_lat": null,
+      "base_lng": null,
+      "service_radius_km": 10,
+      "reason": null,
+      "capability_flags": {
+        "buys": true,
+        "repairs": false,
+        "collects": false,
+        "accepts_donations": false
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#136",
+      "user_id": "#5",
+      "org_name": "Narayanganj Metal Works",
+      "types": [
+        "RECYCLER"
+      ],
+      "e_waste_licensed": false,
+      "status": "VERIFIED",
+      "doe_license_doc": null,
+      "vehicle_label": null,
+      "vehicle_capacity_kg": null,
+      "base_lat": null,
+      "base_lng": null,
+      "service_radius_km": 10,
+      "reason": null,
+      "capability_flags": {
+        "buys": true,
+        "repairs": false,
+        "collects": false,
+        "accepts_donations": false
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#137",
+      "user_id": "#138",
+      "org_name": "ElectroFix Workshop",
+      "types": [
+        "REPAIR_SHOP"
+      ],
+      "e_waste_licensed": false,
+      "status": "VERIFIED",
+      "doe_license_doc": null,
+      "vehicle_label": null,
+      "vehicle_capacity_kg": null,
+      "base_lat": null,
+      "base_lng": null,
+      "service_radius_km": 10,
+      "reason": null,
+      "capability_flags": {
+        "buys": true,
+        "repairs": true,
+        "collects": false,
+        "accepts_donations": true
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#59",
+      "user_id": "#134",
+      "org_name": "Dhanmondi Eco Vans",
+      "types": [
+        "COLLECTOR"
+      ],
+      "e_waste_licensed": true,
+      "status": "VERIFIED",
+      "doe_license_doc": "DOE-LICENSE-2026-4417.pdf",
+      "vehicle_label": "Pickup van",
+      "vehicle_capacity_kg": "500.00",
+      "base_lat": 23.7806,
+      "base_lng": 90.4192,
+      "service_radius_km": 12,
+      "reason": null,
+      "capability_flags": {
+        "buys": false,
+        "repairs": false,
+        "collects": true,
+        "accepts_donations": true
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#61",
+      "user_id": "#133",
+      "org_name": "Bengal Circular Logistics",
+      "types": [
+        "COLLECTOR"
+      ],
+      "e_waste_licensed": true,
+      "status": "VERIFIED",
+      "doe_license_doc": "DOE-LICENSE-2026-9912.pdf",
+      "vehicle_label": "800kg Van",
+      "vehicle_capacity_kg": "800.00",
+      "base_lat": 23.7806,
+      "base_lng": 90.4192,
+      "service_radius_km": 12,
+      "reason": null,
+      "capability_flags": {
+        "buys": true,
+        "repairs": false,
+        "collects": true,
+        "accepts_donations": true
+      },
+      "created_at": "NOW"
+    },
+    {
+      "id": "#82",
+      "user_id": "#24",
+      "org_name": "Dhaka Green Recyclers",
+      "types": [
+        "RECYCLER",
+        "COLLECTOR"
+      ],
+      "e_waste_licensed": true,
+      "status": "VERIFIED",
+      "doe_license_doc": "DOE/E-WASTE/2024/091.pdf",
+      "vehicle_label": "Heavy E-Waste Carrier",
+      "vehicle_capacity_kg": "2500.00",
+      "base_lat": 23.76,
+      "base_lng": 90.39,
+      "service_radius_km": 25,
+      "reason": null,
+      "capability_flags": {
+        "buys": true,
+        "repairs": false,
+        "collects": true,
+        "accepts_donations": false
+      },
+      "created_at": "NOW"
+    }
+  ],
+  "payout_records": [
+    {
+      "id": "#140",
+      "redemption_id": "#141",
+      "gateway_ref": "MFS-BKASH-TXN-984210",
+      "gateway_provider": "SSLCOMMERZ_MFS",
+      "status": "SUCCESS",
+      "payload": {
+        "amount": 490.75,
+        "msisdn": "01722222222",
+        "provider": "bKash",
+        "settled_at": "NOW"
+      },
+      "created_at": "NOW"
+    }
+  ],
+  "pickup_orders": [
+    {
+      "id": "#142",
+      "listing_id": "#116",
+      "customer_id": "#58",
+      "collector_partner_id": null,
+      "status": "REQUESTED",
+      "source_type": "LISTING",
+      "zone_id": null,
+      "address": "Flat 4B, House 27, Ring Road, Shyamoli, Dhaka",
+      "lat": 23.7495,
+      "lng": 90.378,
+      "scheduled_for": 1200,
+      "notes": null,
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#51",
+      "listing_id": "#124",
+      "customer_id": "#21",
+      "collector_partner_id": "#61",
+      "status": "COLLECTED",
+      "source_type": "LISTING",
+      "zone_id": null,
+      "address": "Shahbagh Campus Gate 2, Dhaka",
+      "lat": 23.734,
+      "lng": 90.3928,
+      "scheduled_for": -600,
+      "notes": null,
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#57",
+      "listing_id": "#114",
+      "customer_id": "#58",
+      "collector_partner_id": "#59",
+      "status": "ASSIGNED",
+      "source_type": "LISTING",
+      "zone_id": null,
+      "address": "House 12, Road 5, Dhanmondi, Dhaka",
+      "lat": 23.782,
+      "lng": 90.4205,
+      "scheduled_for": -240,
+      "notes": "Ring the bell twice, gate is on Road 5",
+      "created_at": "NOW",
+      "updated_at": "NOW"
+    }
+  ],
+  "rate_benchmarks": [
+    {
+      "id": "#143",
+      "category": "METAL",
+      "commodity_symbol": "LME-SCRAP-METAL",
+      "global_price_usd": "0.95",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "116.38",
+      "source": "LME Scrap Metal Composite",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#144",
+      "category": "PLASTICS",
+      "commodity_symbol": "PET-PLASTIC-IDX",
+      "global_price_usd": "0.38",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "46.55",
+      "source": "Global Polyethylene/PET Index",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#145",
+      "category": "PAPER",
+      "commodity_symbol": "PULP-PAPER-IDX",
+      "global_price_usd": "0.22",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "26.95",
+      "source": "Global Recovered Paper Index",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#146",
+      "category": "GLASS",
+      "commodity_symbol": "CULLET-GLASS-IDX",
+      "global_price_usd": "0.15",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "18.38",
+      "source": "Cullet Glass Composite",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#147",
+      "category": "E_WASTE",
+      "commodity_symbol": "EWASTE-PCB-METALS",
+      "global_price_usd": "2.10",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "257.25",
+      "source": "Precious E-Waste Scrap Index",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#148",
+      "category": "CLOTHES",
+      "commodity_symbol": "TEXTILE-RECYCLE",
+      "global_price_usd": "0.28",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "34.30",
+      "source": "Global Recycled Textile Feed",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#149",
+      "category": "BOOKS",
+      "commodity_symbol": "PRINT-PAPER-PULP",
+      "global_price_usd": "0.25",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "30.63",
+      "source": "Recovered Print Pulp Feed",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#150",
+      "category": "FURNITURE",
+      "commodity_symbol": "WOOD-COMPOSITE",
+      "global_price_usd": "0.80",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "98.00",
+      "source": "Reclaimed Timber & Furniture Index",
+      "updated_at": "NOW"
+    },
+    {
+      "id": "#151",
+      "category": "APPLIANCES",
+      "commodity_symbol": "APPLIANCE-SCRAP",
+      "global_price_usd": "4.50",
+      "fx_rate_usd_bdt": "122.50",
+      "benchmark_bdt": "551.25",
+      "source": "Major Appliance Recovery Feed",
+      "updated_at": "NOW"
+    }
+  ],
+  "rate_card_entries": [
+    {
+      "id": "#152",
+      "category": "PLASTICS",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "55.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#153",
+      "category": "PLASTICS",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "35.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#154",
+      "category": "PLASTICS",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "20.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#155",
+      "category": "METAL",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "140.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#156",
+      "category": "METAL",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "110.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#157",
+      "category": "METAL",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "80.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#158",
+      "category": "METAL",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "50.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#159",
+      "category": "PAPER",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "32.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#160",
+      "category": "PAPER",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "18.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#161",
+      "category": "PAPER",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "10.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#162",
+      "category": "GLASS",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "24.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#163",
+      "category": "GLASS",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "18.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#164",
+      "category": "GLASS",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "12.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#165",
+      "category": "GLASS",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "6.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#166",
+      "category": "E_WASTE",
+      "condition_band": "EXCELLENT",
+      "unit": "piece",
+      "price_bdt": "350.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#167",
+      "category": "E_WASTE",
+      "condition_band": "FAIR",
+      "unit": "piece",
+      "price_bdt": "150.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#168",
+      "category": "E_WASTE",
+      "condition_band": "POOR",
+      "unit": "piece",
+      "price_bdt": "75.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#169",
+      "category": "CLOTHES",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "45.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#170",
+      "category": "CLOTHES",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "30.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#171",
+      "category": "CLOTHES",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "20.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#172",
+      "category": "CLOTHES",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "10.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#173",
+      "category": "BOOKS",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "50.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#174",
+      "category": "BOOKS",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "35.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#175",
+      "category": "BOOKS",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "22.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#176",
+      "category": "BOOKS",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "12.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#177",
+      "category": "FURNITURE",
+      "condition_band": "EXCELLENT",
+      "unit": "kg",
+      "price_bdt": "130.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#178",
+      "category": "FURNITURE",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "95.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#179",
+      "category": "FURNITURE",
+      "condition_band": "FAIR",
+      "unit": "kg",
+      "price_bdt": "60.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#180",
+      "category": "FURNITURE",
+      "condition_band": "POOR",
+      "unit": "kg",
+      "price_bdt": "30.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#181",
+      "category": "APPLIANCES",
+      "condition_band": "EXCELLENT",
+      "unit": "piece",
+      "price_bdt": "750.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#182",
+      "category": "APPLIANCES",
+      "condition_band": "GOOD",
+      "unit": "piece",
+      "price_bdt": "500.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#183",
+      "category": "APPLIANCES",
+      "condition_band": "FAIR",
+      "unit": "piece",
+      "price_bdt": "300.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#184",
+      "category": "APPLIANCES",
+      "condition_band": "POOR",
+      "unit": "piece",
+      "price_bdt": "150.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#69",
+      "category": "PLASTICS",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "45.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#73",
+      "category": "E_WASTE",
+      "condition_band": "GOOD",
+      "unit": "piece",
+      "price_bdt": "250.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    },
+    {
+      "id": "#76",
+      "category": "PAPER",
+      "condition_band": "GOOD",
+      "unit": "kg",
+      "price_bdt": "25.00",
+      "effective_from": -420,
+      "updated_by": "#30"
+    }
+  ],
+  "redemption_requests": [
+    {
+      "id": "#141",
+      "user_id": "#21",
+      "amount_credits": "500.00",
+      "payout_channel": "BKASH",
+      "account_number": "01722222222",
+      "gross_amount_bdt": "500.00",
+      "fee_bdt": "9.25",
+      "net_amount_bdt": "490.75",
+      "status": "PAID",
+      "trust_decision_id": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#185",
+      "user_id": "#18",
+      "amount_credits": "350.00",
+      "payout_channel": "BKASH",
+      "account_number": "01711111112",
+      "gross_amount_bdt": "350.00",
+      "fee_bdt": "6.48",
+      "net_amount_bdt": "343.52",
+      "status": "REQUESTED",
+      "trust_decision_id": null,
+      "created_at": "NOW"
+    }
+  ],
+  "saved_listings": [
+    {
+      "id": "#186",
+      "user_id": "#7",
+      "listing_id": "#44",
+      "created_at": "NOW"
+    }
+  ],
+  "sponsorship_pools": [
+    {
+      "id": "#187",
+      "institution_id": "#39",
+      "total_budget_bdt": "100000.00",
+      "remaining_budget_bdt": "76500.00",
+      "monthly_draw_cap_bdt": "25000.00",
+      "created_at": "NOW"
+    }
+  ],
+  "sustainability_certificates": [
+    {
+      "id": "#188",
+      "institution_id": "#39",
+      "certificate_ref": "CERT-BRACU-2026-Q1",
+      "period_start": -129960,
+      "period_end": -360,
+      "total_mass_kg": "1420.00",
+      "total_co2e_kg": "2450.000",
+      "covered_record_ids": [
+        "#100",
+        "#101",
+        "#102",
+        "#103"
+      ],
+      "signature_hash": "a7f93b58c42e19d6e4b901fc88e912ab564c78d910ef2356bc0147823f99a812",
+      "issued_at": -3240
+    }
+  ],
+  "trust_decisions": [
+    {
+      "id": "#189",
+      "subject_type": "DEPOSIT",
+      "subject_id": "#70",
+      "decision": "ESCALATE",
+      "failing_signals": [
+        "e_waste_mandatory_review"
+      ],
+      "evaluated_signals": {
+        "is_ewaste": true,
+        "category_match": true,
+        "in_app_capture": true,
+        "location_verified": true
+      },
+      "threshold_config_id": null,
+      "decided_by": "SYSTEM",
+      "decided_at": "NOW",
+      "notes": "Item E-891: Broken UPS Battery - E-Waste mandatory human review",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#47",
+      "subject_type": "DEPOSIT",
+      "subject_id": "#46",
+      "decision": "AUTO_CLEAR",
+      "failing_signals": [],
+      "evaluated_signals": {
+        "hash_unique": true,
+        "category_match": true,
+        "in_app_capture": true,
+        "location_verified": true,
+        "quantity_within_band": true
+      },
+      "threshold_config_id": null,
+      "decided_by": "SYSTEM",
+      "decided_at": "NOW",
+      "notes": "Auto-cleared clean deposit",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#52",
+      "subject_type": "PICKUP",
+      "subject_id": "#51",
+      "decision": "AUTO_CLEAR",
+      "failing_signals": [],
+      "evaluated_signals": {
+        "in_app_capture": true,
+        "handover_confirmed": true,
+        "quantity_within_band": true
+      },
+      "threshold_config_id": null,
+      "decided_by": "SYSTEM",
+      "decided_at": "NOW",
+      "notes": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#63",
+      "subject_type": "DEPOSIT",
+      "subject_id": "#74",
+      "decision": "ESCALATE",
+      "failing_signals": [
+        "phash_duplicate_image"
+      ],
+      "evaluated_signals": {
+        "phash_match": true,
+        "hamming_distance": 0,
+        "prior_deposit_ref": "DEP-PREV-091"
+      },
+      "threshold_config_id": null,
+      "decided_by": "SYSTEM",
+      "decided_at": "NOW",
+      "notes": "Item D-402: Paper deposit flagged: [PHASH_DUPLICATE_IMAGE_DETECTED]",
+      "created_at": "NOW"
+    }
+  ],
+  "trust_threshold_configs": [
+    {
+      "id": "#190",
+      "config_json": {
+        "geofence_radius_meters": 500,
+        "young_account_max_claim_bdt": 1000,
+        "audit_sample_rate_percentage": 10,
+        "young_account_days_threshold": 7,
+        "flag_threshold_for_suspension": 3,
+        "user_daily_credit_velocity_bdt": 5000,
+        "user_daily_deposit_velocity_cap": 10,
+        "phash_hamming_distance_threshold": 5,
+        "max_consecutive_identical_pairings": 5,
+        "quantity_divergence_tolerance_ratio": 0.2,
+        "partner_daily_confirmation_velocity_cap": 50
+      },
+      "effective_from": -43560,
+      "updated_by": "#30",
+      "created_at": "NOW"
+    }
+  ],
+  "user_streaks": [
+    {
+      "id": "#191",
+      "user_id": "#18",
+      "current_streak_days": 6,
+      "longest_streak_days": 6,
+      "last_active_at": -360,
+      "streak_multiplier": "1.50",
+      "leaderboard_opt_out": false,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#192",
+      "user_id": "#21",
+      "current_streak_days": 14,
+      "longest_streak_days": 14,
+      "last_active_at": -360,
+      "streak_multiplier": "2.00",
+      "leaderboard_opt_out": false,
+      "created_at": "NOW"
+    }
+  ],
+  "users": [
+    {
+      "id": "#133",
+      "email": "collector_korim@bengalrecycle.com",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": "BRACU",
+      "full_name": "Korim Ahmed",
+      "phone": "+8801733333334",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#134",
+      "email": "collector1@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "Dhanmondi Eco Fleet",
+      "phone": "+8801766666666",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#138",
+      "email": "electrofix@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "ElectroFix Workshop",
+      "phone": "+8801799999999",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#139",
+      "email": "applicant_partner@bengalrecycle.com",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "Bengal Recyclers Applicant",
+      "phone": "+8801811111111",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#15",
+      "email": "partner@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": "DU",
+      "full_name": "BanglaBin Recycling",
+      "phone": "+8801733333333",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#18",
+      "email": "student1@bracu.ac.bd",
+      "password_hash": "BCRYPT_HASH",
+      "role": "INDIVIDUAL",
+      "institution_id": "BRACU",
+      "full_name": "Tanvir Hossain",
+      "phone": "+8801711111112",
+      "student_id_doc": "BRACU-2023-ST-8812.pdf",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#193",
+      "email": "admin@chokro.com",
+      "password_hash": "BCRYPT_HASH",
+      "role": "ADMIN",
+      "institution_id": "NSU",
+      "full_name": "Super Admin",
+      "phone": "+8801700000000",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#21",
+      "email": "student2@du.ac.bd",
+      "password_hash": "BCRYPT_HASH",
+      "role": "INDIVIDUAL",
+      "institution_id": "DU",
+      "full_name": "Sadia Rahman",
+      "phone": "+8801722222222",
+      "student_id_doc": "DU-2024-ST-4419.pdf",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#24",
+      "email": "recycler_rahim@dhakascrap.com",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "Rahim Khan",
+      "phone": "+8801744444444",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#3",
+      "email": "recycler1@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "Dhaka Steel Recyclers",
+      "phone": "+8801755555551",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#30",
+      "email": "admin@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "ADMIN",
+      "institution_id": "NSU",
+      "full_name": "Platform Administrator",
+      "phone": "+8801700000001",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#5",
+      "email": "recycler2@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "Narayanganj Metal Works",
+      "phone": "+8801788888888",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#58",
+      "email": "user@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "INDIVIDUAL",
+      "institution_id": "BRACU",
+      "full_name": "Demo Student",
+      "phone": "+8801711111111",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#7",
+      "email": "buyer_faruk@metals.com",
+      "password_hash": "BCRYPT_HASH",
+      "role": "INDIVIDUAL",
+      "institution_id": null,
+      "full_name": "Faruk Metals",
+      "phone": "+8801755555555",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    },
+    {
+      "id": "#99",
+      "email": "collector2@chokro.org",
+      "password_hash": "BCRYPT_HASH",
+      "role": "PARTNER",
+      "institution_id": null,
+      "full_name": "Savar Trike Fleet",
+      "phone": "+8801777777777",
+      "student_id_doc": null,
+      "created_at": "NOW"
+    }
+  ],
+  "valuation_scans": [
+    {
+      "id": "#194",
+      "user_id": "#18",
+      "image_url": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+      "detected_category": "METAL",
+      "detected_condition": "GOOD",
+      "estimated_quantity": "40.00",
+      "unit": "kg",
+      "next_life_path": "RECYCLE",
+      "is_ewaste_hazard": false,
+      "confidence": "0.96",
+      "estimated_value_bdt": "28800.00",
+      "reasoning_rationale": "Pure sorted copper cables stripped from telecommunications wiring.",
+      "suggested_action": "List on Chokro Marketplace or arrange bulk B2B auction.",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#195",
+      "user_id": "#18",
+      "image_url": "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&w=600&q=80",
+      "detected_category": "APPLIANCES",
+      "detected_condition": "FAIR",
+      "estimated_quantity": "1.00",
+      "unit": "piece",
+      "next_life_path": "REPAIR",
+      "is_ewaste_hazard": false,
+      "confidence": "0.94",
+      "estimated_value_bdt": "1400.00",
+      "reasoning_rationale": "Microwave oven with functional casing and repairable magnetron.",
+      "suggested_action": "List in repair section or drop off at ElectroFix partner hub.",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#196",
+      "user_id": "#58",
+      "image_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "detected_category": "PLASTICS",
+      "detected_condition": "GOOD",
+      "estimated_quantity": "12.50",
+      "unit": "kg",
+      "next_life_path": "RECYCLE",
+      "is_ewaste_hazard": false,
+      "confidence": "0.95",
+      "estimated_value_bdt": "562.50",
+      "reasoning_rationale": "Clean sorted PET bottles suitable for bottle-to-bottle pelletizing.",
+      "suggested_action": "Drop off at BRACU Building 1 Cafeteria Smart Bin.",
+      "created_at": "NOW"
+    },
+    {
+      "id": "#197",
+      "user_id": "#21",
+      "image_url": "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80",
+      "detected_category": "E_WASTE",
+      "detected_condition": "GOOD",
+      "estimated_quantity": "8.00",
+      "unit": "piece",
+      "next_life_path": "RECYCLE",
+      "is_ewaste_hazard": true,
+      "confidence": "0.98",
+      "estimated_value_bdt": "3200.00",
+      "reasoning_rationale": "Precious metal circuit boards requiring authorized DoE recycling.",
+      "suggested_action": "Schedule licensed hazardous scrap pickup with Dhaka Green Recyclers.",
+      "created_at": "NOW"
+    }
+  ],
+  "zone_capacity_logs": [
+    {
+      "id": "#198",
+      "zone_id": "#68",
+      "recorded_fill_kg": "45.00",
+      "capacity_percentage": 45,
+      "status": "NORMAL",
+      "trigger_reason": "DEPOSIT_ACCUMULATION",
+      "logged_at": -420
+    },
+    {
+      "id": "#199",
+      "zone_id": "#68",
+      "recorded_fill_kg": "25.00",
+      "capacity_percentage": 25,
+      "status": "NORMAL",
+      "trigger_reason": "COLLECTOR_EMPTYING",
+      "logged_at": -420
+    },
+    {
+      "id": "#200",
+      "zone_id": "#72",
+      "recorded_fill_kg": "68.00",
+      "capacity_percentage": 45,
+      "status": "NORMAL",
+      "trigger_reason": "DEPOSIT_ACCUMULATION",
+      "logged_at": -420
+    },
+    {
+      "id": "#201",
+      "zone_id": "#72",
+      "recorded_fill_kg": "102.00",
+      "capacity_percentage": 68,
+      "status": "NORMAL",
+      "trigger_reason": "SENSOR_TELEMETRY",
+      "logged_at": -420
+    },
+    {
+      "id": "#202",
+      "zone_id": "#83",
+      "recorded_fill_kg": "50.00",
+      "capacity_percentage": 62,
+      "status": "NORMAL",
+      "trigger_reason": "DEPOSIT_ACCUMULATION",
+      "logged_at": -420
+    },
+    {
+      "id": "#203",
+      "zone_id": "#83",
+      "recorded_fill_kg": "70.40",
+      "capacity_percentage": 88,
+      "status": "OVERFLOW_ALARM",
+      "trigger_reason": "SENSOR_TELEMETRY",
+      "logged_at": -420
+    }
+  ],
+  "zone_emptying_records": [
+    {
+      "id": "#204",
+      "zone_id": "#68",
+      "collector_partner_id": "#61",
+      "scale_readings_json": {
+        "PAPER": 20,
+        "PLASTICS": 45
+      },
+      "evidence_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=600&q=80",
+      "total_mass_kg": "65.00",
+      "emptied_at": -4680,
+      "created_at": "NOW"
+    }
+  ]
+}

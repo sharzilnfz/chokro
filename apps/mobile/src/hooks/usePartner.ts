@@ -76,3 +76,35 @@ export function useUpdatePartnerCapabilities() {
     },
   });
 }
+
+export function useExtractPartnerKyc() {
+  return useMutation<
+    {
+      extractionId: string;
+      matchStatus: string;
+      confidenceScore: number;
+      extractedFields: any;
+      isExpired: boolean;
+      degradedMode: boolean;
+      mismatchedFields: string[];
+    },
+    Error,
+    {
+      partnerId: string;
+      documentUrl: string;
+      documentType: string;
+      submittedLicenseNumber?: string;
+      submittedOrgName?: string;
+      rawDocumentText?: string;
+    }
+  >({
+    mutationFn: async (payload) => {
+      return apiRequest('/api/v1/partners/kyc/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    },
+  });
+}
+

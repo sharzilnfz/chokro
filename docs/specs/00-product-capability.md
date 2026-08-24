@@ -1,8 +1,9 @@
 # SPEC 00 — Product Capability Manifest
 
-**Status:** ratified baseline for all capability specs (01–04) and the sprint plan
-**Method:** product-capability lane (PRD → implementation constraints). Derived from [`../archive/chokro-IDEAS.txt`](../archive/chokro-IDEAS.txt) + amendments A1–A10 ([`../product/prd-review.md`](../product/prd-review.md)).
+**Status:** ratified baseline for capability specs (01–04)
+**Method:** product-capability lane (PRD → implementation constraints).
 **Rule for the team:** when specs 01–04 disagree with this file, this file wins. Open decisions (OD-x) are listed in §10 — do not improvise answers to them in code.
+
 
 ---
 
@@ -187,5 +188,6 @@ adjust         → admin-only, reason required, appears in ledger
 
 - **Ready for implementation** against specs 01–04. OD-1 and OD-2 were ratified for Sprint 1 on 2026-08-06.
 - Spec ownership: **Member A → spec 01** (Identity & Trust) · **Member B → spec 02** (Marketplace) · **Member C → spec 03** (Intelligence & Engagement) · **Member D → spec 04** (Collections & Wallet).
-- Execution order + tickets: [`../planning/sprint-plan.md`](../planning/sprint-plan.md).
-- During build: use `tdd-workflow` per ticket; run `verification-loop` before every merge; V&V gates per sprint are defined in the sprint plan §6.
+- Execution order + tickets: [`../planning/feature-slate.md`](../planning/feature-slate.md).
+- During build: use `tdd-workflow` per ticket; run `verification-loop` before every merge.
+

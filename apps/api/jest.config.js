@@ -3,6 +3,7 @@ module.exports = {
   testMatch: ['**/tests/**/*.test.ts'],
   testTimeout: 20000,
   maxWorkers: 2,
+  setupFilesAfterEnv: ['<rootDir>/tests/teardown.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },

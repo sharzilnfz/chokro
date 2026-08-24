@@ -9,6 +9,7 @@ export {
   type Condition,
   type ListingStatus,
   type Unit,
+  type Path,
   CATEGORIES,
   CONDITIONS,
   LISTING_STATUSES,
@@ -16,6 +17,18 @@ export {
   getCategoryUnit,
   formatQuantityWithUnit,
 } from '@chokro/shared';
+
+import type { Category, Condition, Unit } from '@chokro/shared';
+import type { PreparedPhoto } from '@/lib/photo';
+
+export type ListingPrefill = {
+  category: Category;
+  condition: Condition;
+  quantity: number;
+  unit: Unit;
+  photo: PreparedPhoto | null;
+  seededAt: number;
+};
 
 // Authenticated app user with role and optional institution/profile link.
 export type User = {

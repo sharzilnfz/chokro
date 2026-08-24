@@ -1,0 +1,4 @@
+$kind: collection
+name: "Feature 1: Market-Benchmarked Valuation & Rate Card Engine"
+description: "Feature F1: Real-time scrap item valuation, effective-dated rate cards, and global commodity benchmark drift analysis."
+order: 1000

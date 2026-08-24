@@ -1,4 +1,8 @@
-// Covers admin web UI formatters and the API client's auth/error plumbing.
+// Covers admin web UI formatters, the API client's auth/error plumbing, and a render
+// smoke pass over every admin console page.
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   formatDate,
   formatLabel,
@@ -13,6 +17,22 @@ import {
   setAdminTokenProvider,
   setAdminUnauthorizedHandler,
 } from '../app/admin/services/adminApi';
+import { AdminAuthProvider } from '../app/admin/context/AdminAuthContext';
+
+import AdminDashboardPage from '../app/admin/page';
+import AdminCampusesPage from '../app/admin/campuses/page';
+import AdminCertificatesPage from '../app/admin/certificates/page';
+import AdminDisputesPage from '../app/admin/disputes/page';
+import AdminDropZonesPage from '../app/admin/drop-zones/page';
+import AdminKycQueuePage from '../app/admin/kyc-queue/page';
+import AdminLeaderboardPage from '../app/admin/leaderboard/page';
+import AdminLiabilityPage from '../app/admin/liability/page';
+import AdminPartnersPage from '../app/admin/partners/page';
+import AdminRateCardPage from '../app/admin/rate-card/page';
+import AdminRedemptionsPage from '../app/admin/redemptions/page';
+import AdminThresholdsPage from '../app/admin/thresholds/page';
+import AdminTrustGatePage from '../app/admin/trust-gate/page';
+import AdminZoneCapacityPage from '../app/admin/zone-capacity/page';
 
 // Pure-presentation helpers with no I/O involved.
 describe('Admin UI Architecture & Formatters', () => {
@@ -178,5 +198,58 @@ describe('Admin API Client & Error Handling', () => {
       await expect(adminApiRequest('/api/admin-only')).rejects.toThrow('Admin access required');
       expect(onForbidden).toHaveBeenCalledWith('Admin access required');
     });
+  });
+});
+
+// Render smoke pass: every admin page must produce its initial (loading-state) markup
+// inside the standard provider tree, with no network access required.
+describe('Admin Console Page Renders', () => {
+  const originalFetch = global.fetch;
+
+  beforeAll(() => {
+    // Queries are disabled while the session is loading; a hanging fetch guards against surprises.
+    global.fetch = jest.fn(() => new Promise<Response>(() => {}));
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  function renderAdminPage(Page: React.ComponentType): string {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    return renderToStaticMarkup(
+      React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        React.createElement(AdminAuthProvider, null, React.createElement(Page)),
+      ),
+    );
+  }
+
+  const pages: Array<[string, React.ComponentType]> = [
+    ['dashboard', AdminDashboardPage],
+    ['campuses', AdminCampusesPage],
+    ['certificates', AdminCertificatesPage],
+    ['disputes', AdminDisputesPage],
+    ['drop-zones', AdminDropZonesPage],
+    ['kyc-queue', AdminKycQueuePage],
+    ['leaderboard', AdminLeaderboardPage],
+    ['liability', AdminLiabilityPage],
+    ['partners', AdminPartnersPage],
+    ['rate-card', AdminRateCardPage],
+    ['redemptions', AdminRedemptionsPage],
+    ['thresholds', AdminThresholdsPage],
+    ['trust-gate', AdminTrustGatePage],
+    ['zone-capacity', AdminZoneCapacityPage],
+  ];
+
+  test.each(pages)('renders the %s page markup', (name, Page) => {
+    const html = renderAdminPage(Page);
+
+    expect(html.length).toBeGreaterThan(0);
+    // Every admin page emits the shared console styling hooks.
+    expect(html).toContain('admin-');
   });
 });

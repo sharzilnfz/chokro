@@ -1,84 +1,71 @@
-// RateCardScreen shows "Today's rates": the current published per-unit rate for
-// each category, with pull-to-refresh and empty/error states.
+import React, { useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { RateCardEstimator } from '@/components/ratecard/RateCardEstimator';
+import { RateCardBrowser } from '@/components/ratecard/RateCardBrowser';
 
-// React Native list primitives plus internal rate-card and UI imports.
-import React, { useCallback } from 'react';
-import {
-  FlatList,
-  Platform,
-  RefreshControl,
-  Text,
-  View,
-} from 'react-native';
-import { getErrorMessage } from '@/services/api';
-import { RateCardRow } from '@/components/RateCardRow';
-import { StateView } from '@/components/ui/StateView';
-import { colors } from '@/theme';
-import { useRateCard, type RowRate } from '@/hooks/useRateCard';
+type RateMode = 'estimate' | 'browse';
+
+const MODES: { key: RateMode; label: string }[] = [
+  { key: 'estimate', label: 'Estimate' },
+  { key: 'browse', label: 'Browse rates' },
+];
 
 export function RateCardScreen() {
-  // Rate card query, falling back to an empty list so renderers stay simple.
-  const { data: rows = [], isLoading, error, refetch, isRefetching } = useRateCard();
-  const errorMessage = error ? getErrorMessage(error, 'Could not load the current rate card.') : '';
-
-  // Each row renders via the shared RateCardRow for a category.
-  const renderItem = useCallback(({ item }: { item: RowRate }) => <RateCardRow item={item} />, []);
+  const [mode, setMode] = useState<RateMode>('estimate');
 
   return (
-    // Full-screen state wrapper: overlays loading/error, then renders the list.
-    <StateView
-      fullScreen
-      isLoading={isLoading}
-      loadingTitle="Loading current rates"
-      loadingSubtitle="Only the currently effective published rate is shown per category."
-      error={rows.length === 0 ? error : null}
-      errorTitle="Rate card unavailable"
-      errorMessage={errorMessage}
-      onRetry={() => void refetch()}
-      retryLabel="Try again"
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
     >
-      {/* Rate rows with the explanatory header and a bespoke empty state. */}
-      <FlatList
-        className="flex-1 bg-background"
-        contentContainerStyle={{ padding: 20, paddingBottom: 36 }}
-        data={rows}
-        keyExtractor={(item) => item.category}
-        renderItem={renderItem}
-        removeClippedSubviews={Platform.OS !== 'web'}
-        initialNumToRender={6}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => void refetch()}
-            colors={[colors.leaf]}
-            tintColor={colors.leaf}
-          />
-        }
-        ListHeaderComponent={
-          // Title copy and unit explanation, plus an inline fetch error strip.
-          <View>
-            <Text className="text-leaf text-[11px] font-extrabold tracking-tight">PUBLISHED MARKET RATES</Text>
-            <Text accessibilityRole="header" className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]">Today&apos;s rates</Text>
-            <Text className="text-muted text-[14px] leading-[21px] mt-[6px] mb-[18px]">
-              Values are per unit — by piece for appliances and e-waste, by kilogram for everything else. The final
-              condition and value are confirmed by a person before a listing is matched.
-            </Text>
-            {errorMessage ? <Text accessibilityRole="alert" className="text-danger bg-danger-soft p-[12px] rounded-[10px] my-[12px] text-[13px] leading-[19px]">{errorMessage}</Text> : null}
-          </View>
-        }
-        ListEmptyComponent={
-          // Shown only while an admin has not yet published any rate.
-          <StateView
-            isEmpty
-            emptyIcon="pricetags-outline"
-            emptyTitle="No published rates yet"
-            emptyMessage="An admin will publish rates once the network is live."
-            containerClassName="border border-border rounded-md bg-surface"
-          />
-        }
-      />
-    </StateView>
+      {/* Header */}
+      <View className="mb-[18px]">
+        <Text className="text-leaf text-[11px] font-extrabold tracking-[1.3px]">
+          MARKET-BENCHMARKED RATES
+        </Text>
+        <Text
+          accessibilityRole="header"
+          className="text-ink text-[31px] leading-[37px] font-extrabold tracking-tight mt-[4px]"
+        >
+          {mode === 'estimate' ? "What's it worth?" : 'Official rate card'}
+        </Text>
+        <Text className="text-muted text-[14px] leading-[21px] mt-[6px]">
+          {mode === 'estimate'
+            ? 'Pick a category and condition, enter your quantity, and see the live value benchmarked against commodity indices.'
+            : 'Published rates in BDT per category and condition band, updated continuously with global market sync.'}
+        </Text>
+      </View>
+
+      {/* Mode Switcher */}
+      <View
+        className="flex-row bg-surface-muted border border-border rounded-pill p-[4px] mb-[20px]"
+        accessibilityRole="tablist"
+        accessibilityLabel="Rate Card Mode"
+      >
+        {MODES.map(({ key, label }) => {
+          const selected = mode === key;
+          return (
+            <Pressable
+              key={key}
+              accessibilityRole="tab"
+              accessibilityLabel={label}
+              accessibilityState={{ selected }}
+              className={`flex-1 min-h-[44px] rounded-pill items-center justify-center ${
+                selected ? 'bg-surface shadow-card' : ''
+              }`}
+              onPress={() => setMode(key)}
+            >
+              <Text className={`text-[13px] font-bold ${selected ? 'text-ink' : 'text-muted'}`}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Explicit Variant View */}
+      {mode === 'estimate' ? <RateCardEstimator /> : <RateCardBrowser />}
+    </ScrollView>
   );
 }
