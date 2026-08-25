@@ -6,6 +6,7 @@ name: chokro
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     command: [ "postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=50" ]
     environment:
       POSTGRES_DB: chokro
@@ -18,14 +19,17 @@ services:
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -d chokro" ]
-      interval: 2s
-      timeout: 2s
+      interval: 3s
+      timeout: 3s
       retries: 10
+      start_period: 5s
     deploy:
       resources:
         limits:
           memory: 384M
           cpus: '1.0'
+        reservations:
+          memory: 128M
     volumes:
       - chokro-postgres:/var/lib/postgresql/data
 
@@ -42,11 +46,17 @@ services:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/chokro
     command: sh -c "pnpm run db:setup"
     restart: "no"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
 
   api:
     build:
       context: .
       target: runner
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,17 +80,25 @@ services:
     ports:
       # Bound to 0.0.0.0 so VS Code Remote-SSH and SSH port forwards can connect directly
       - "0.0.0.0:3000:3000"
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
           memory: 512M
           cpus: '1.5'
-    restart: unless-stopped
+        reservations:
+          memory: 256M
 
   notifications:
     build:
       context: .
       target: builder
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,7 +125,8 @@ services:
         limits:
           memory: 256M
           cpus: '0.5'
-    restart: unless-stopped
+        reservations:
+          memory: 128M
 
 volumes:
   chokro-postgres:

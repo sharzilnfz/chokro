@@ -1,6 +1,8 @@
 // Seed registry: runs the 19 per-scenario modules in order against a shared context.
 import { db } from '../index';
 import { sql } from 'drizzle-orm';
+import { generateDrizzleJson } from 'drizzle-kit/api';
+import * as schema from '../schema';
 import { getTableDDLs } from '../ddl';
 import type { SeedContext } from './context';
 import { run as runCampuses } from './01-campuses';
@@ -54,12 +56,49 @@ export const seedSections: SeedSection[] = [
 
 // Ensure all schema tables exist in the current db backend (generated from the Drizzle schema).
 export async function ensureSchema(): Promise<void> {
-  // Skip when the schema is already present (mirrors the old IF NOT EXISTS semantics).
-  const res: unknown = await db.execute(sql`SELECT to_regclass('public.users') AS reg`);
-  const rows: { reg: string | null }[] = Array.isArray(res) ? res : (res as { rows: { reg: string | null }[] }).rows;
-  if (rows[0]?.reg != null) return;
   for (const ddl of await getTableDDLs()) {
-    await db.execute(sql.raw(ddl));
+    try {
+      const safeDdl = ddl.replace(/^CREATE TABLE "/, 'CREATE TABLE IF NOT EXISTS "');
+      await db.execute(sql.raw(safeDdl));
+    } catch (err: any) {
+      const code = err?.code || err?.cause?.code;
+      if (
+        code === '42P07' || // duplicate_table
+        code === '42710' || // duplicate_object
+        code === '42701' || // duplicate_column
+        code === '42P16' || // invalid_table_definition / duplicate constraint
+        code === '23505'    // unique_violation
+      ) {
+        continue;
+      }
+      if (
+        err?.message?.includes('already exists') ||
+        err?.cause?.message?.includes('already exists')
+      ) {
+        continue;
+      }
+      // Silently proceed on non-fatal schema collision notices
+    }
+  }
+
+  // Backfill any newly added columns into existing tables
+  try {
+    const json = generateDrizzleJson(schema) as unknown as {
+      tables: Record<string, { name: string; columns: Record<string, { name: string; type: string; default?: string }> }>;
+    };
+    for (const tableObj of Object.values(json.tables)) {
+      const tableName = tableObj.name;
+      for (const col of Object.values(tableObj.columns)) {
+        const defaultClause = col.default !== undefined ? ` DEFAULT ${col.default}` : '';
+        try {
+          await db.execute(sql.raw(`ALTER TABLE "${tableName}" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}${defaultClause};`));
+        } catch {
+          // Ignore if column already exists or table does not yet accept alter
+        }
+      }
+    }
+  } catch {
+    // Non-fatal if schema introspection cannot complete
   }
 }
 

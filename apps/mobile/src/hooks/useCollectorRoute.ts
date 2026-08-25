@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/services/api';
+import { apiRequest, getAuthToken } from '@/services/api';
 import type { PartnerProfile } from './usePartnerMe';
 import type { PickupStatus } from './usePickups';
 import type { Category, Condition } from '@/types';
@@ -34,9 +34,10 @@ export type CollectorRoute = {
 };
 
 export function useCollectorRoute(enabled: boolean) {
+  const token = getAuthToken();
   return useQuery<CollectorRoute>({
-    queryKey: ['collector-route'],
-    enabled,
+    queryKey: ['collector-route', token],
+    enabled: enabled && Boolean(token),
     refetchInterval: 30_000,
     queryFn: () => apiRequest<CollectorRoute>('/api/v1/pickups/collector-route'),
   });

@@ -1,21 +1,82 @@
+# Dependency directories & caches
+node_modules
 **/node_modules
+.pnpm-store
+.npm
+.yarn
+
+# Build outputs & caches
+.next
 **/.next
-**/.expo
+.turbo
 **/.turbo
-.git
-.worktrees
+.nx
+**/.nx
+.expo
+**/.expo
+dist
+**/dist
+build
+**/build
+out
+**/out
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Test & coverage results
+coverage
+**/coverage
+.nyc_output
+__snapshots__
+**/__snapshots__
+
+# Environment variables & secrets
 .env
-*.log
+.env.*
+.env*.local
+!.env.example
+
+# Git and version control
+.git
+.gitignore
+.gitattributes
+.worktrees
+
+# CI / CD configuration
+.github
+.gitlab
+
+# IDE and OS metadata
+.vscode
+.idea
+*.swp
+*.swo
 .DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# AI agents, documentation, and tooling
 .agents
 .claude
 .codebase-memory
-.nx
+.codebase-ignore
 .scratch
 .postman
 postman
 docs
 specs
 demo
+*.md
+*.pdf
 
-
+# Local file uploads
+apps/api/public/uploads/*
+!apps/api/public/uploads/.gitkeep

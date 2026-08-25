@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest, ApiError } from '@/services/api';
+import { apiRequest, ApiError, getAuthToken } from '@/services/api';
 
 export type PartnerProfile = {
   id: string;
@@ -19,9 +19,11 @@ export function isCollectorPartner(partner: PartnerProfile | null | undefined): 
   return Array.isArray(partner?.types) && partner.types.includes('COLLECTOR');
 }
 
-export function usePartnerMe() {
+export function usePartnerMe(enabled = true) {
+  const token = getAuthToken();
   return useQuery<PartnerProfile | null>({
-    queryKey: ['partner-me'],
+    queryKey: ['partner-me', token],
+    enabled: enabled && Boolean(token),
     queryFn: async () => {
       try {
         const data = await apiRequest<{ partner: PartnerProfile | null }>('/api/v1/partners/me');

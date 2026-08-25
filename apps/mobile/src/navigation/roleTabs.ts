@@ -4,6 +4,7 @@ export type Tab =
   | 'browse'
   | 'list'
   | 'messages'
+  | 'demands'
   | 'pickup'
   | 'auctions'
   | 'vision'
@@ -14,12 +15,12 @@ export type Tab =
 
 export type PersonaLabel = 'Collector' | 'Recycler' | 'Partner' | 'Admin' | 'Individual';
 
-const INDIVIDUAL_TABS: Tab[] = ['browse', 'list', 'messages', 'vision', 'pickup', 'rates', 'wallet', 'scan'];
-const COLLECTOR_TABS: Tab[] = ['pickup', 'browse', 'messages', 'rates', 'wallet', 'scan'];
-const RECYCLER_TABS: Tab[] = ['auctions', 'pickup', 'browse', 'messages', 'rates', 'wallet'];
+const INDIVIDUAL_TABS: Tab[] = ['browse', 'list', 'demands', 'messages', 'vision', 'pickup', 'rates', 'wallet', 'scan'];
+const COLLECTOR_TABS: Tab[] = ['pickup', 'browse', 'demands', 'messages', 'rates', 'wallet', 'scan'];
+const RECYCLER_TABS: Tab[] = ['demands', 'auctions', 'pickup', 'browse', 'messages', 'rates', 'wallet'];
 // Superset of the single-type sets; used when partner types are still loading or unknown.
-const PARTNER_ALL_TABS: Tab[] = ['auctions', 'pickup', 'browse', 'messages', 'rates', 'wallet', 'scan'];
-const ADMIN_TABS: Tab[] = ['browse', 'rates', 'wallet'];
+const PARTNER_ALL_TABS: Tab[] = ['demands', 'auctions', 'pickup', 'browse', 'messages', 'rates', 'wallet', 'scan'];
+const ADMIN_TABS: Tab[] = ['browse', 'demands', 'rates', 'wallet'];
 
 export function getVisibleTabs(role: User['role'], partnerTypes: string[] | null): Tab[] {
   if (role === 'ADMIN') return ADMIN_TABS;

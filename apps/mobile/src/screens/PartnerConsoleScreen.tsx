@@ -30,6 +30,7 @@ interface PartnerConsoleScreenProps {
   onBack?: () => void;
   onOpenScanner?: () => void;
   onOpenStatus?: () => void;
+  onOpenDemands?: () => void;
 }
 
 const PARTNER_FEED_CATEGORIES: FeedFilter[] = ['ALL', ...CATEGORIES];
@@ -38,6 +39,7 @@ export function PartnerConsoleScreen({
   onBack,
   onOpenScanner,
   onOpenStatus,
+  onOpenDemands,
 }: PartnerConsoleScreenProps) {
   const { data: partnerData, isLoading: partnerLoading, refetch: refetchPartner, isRefetching: partnerRefetching } = usePartner();
   const partner = partnerData?.partner;
@@ -200,17 +202,31 @@ export function PartnerConsoleScreen({
             </Text>
           </View>
 
-          {onOpenScanner ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Scan Handover QR"
-              className="px-3.5 py-2.5 rounded-xl bg-surface items-center justify-center flex-row gap-1.5 shadow-sm active:opacity-[0.8]"
-              onPress={onOpenScanner}
-            >
-              <Ionicons name="scan" size={18} color={colors.leafDark} />
-              <Text className="text-leaf-dark text-xs font-extrabold">Scan QR</Text>
-            </Pressable>
-          ) : null}
+          <View className="flex-row items-center gap-2">
+            {onOpenDemands ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Reverse Demands Board"
+                className="px-3 py-2.5 rounded-xl bg-surface/20 items-center justify-center flex-row gap-1.5 active:opacity-[0.8]"
+                onPress={onOpenDemands}
+              >
+                <Ionicons name="layers-outline" size={16} color={colors.surface} />
+                <Text className="text-surface text-xs font-extrabold">Demands</Text>
+              </Pressable>
+            ) : null}
+
+            {onOpenScanner ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Scan Handover QR"
+                className="px-3.5 py-2.5 rounded-xl bg-surface items-center justify-center flex-row gap-1.5 shadow-sm active:opacity-[0.8]"
+                onPress={onOpenScanner}
+              >
+                <Ionicons name="scan" size={18} color={colors.leafDark} />
+                <Text className="text-leaf-dark text-xs font-extrabold">Scan QR</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       </View>
 

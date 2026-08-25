@@ -1,8 +1,12 @@
 // Applies database-level invariants that Drizzle schema migrations cannot express.
 import { sql } from 'drizzle-orm';
 import { db } from './index';
+import { ensureSchema } from './seed/index';
 
 async function migrate() {
+  // Ensure all base tables and indexes from the Drizzle schema exist
+  await ensureSchema();
+
   // Backfill the piece_count column added to listings
   await db.execute(sql`alter table listings add column if not exists piece_count integer`);
 

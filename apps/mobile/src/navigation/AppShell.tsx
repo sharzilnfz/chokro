@@ -26,6 +26,8 @@ import { RateCardScreen } from '@/screens/RateCardScreen';
 import { VisionScanScreen } from '@/screens/VisionScanScreen';
 import { PickupScreen } from '@/screens/PickupScreen';
 import { AuctionsScreen } from '@/screens/AuctionsScreen';
+import { DemandsScreen } from '@/screens/DemandsScreen';
+import { NegotiationThreadScreen } from '@/screens/NegotiationThreadScreen';
 import { MessagesScreen, type MessagesTarget } from '@/screens/MessagesScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SignupScreen } from '@/screens/SignupScreen';
@@ -36,10 +38,9 @@ import { PartnerStatusScreen } from '@/screens/PartnerStatusScreen';
 import { PartnerConsoleScreen } from '@/screens/PartnerConsoleScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { RedemptionRequestScreen } from '@/screens/RedemptionRequestScreen';
-import { DepositFlowScreen } from '@/screens/DepositFlowScreen';
 import { CATEGORIES } from '@chokro/shared';
 import type { FeedFilter } from '@/hooks/useFeed';
-import type { DropZone } from '@/components/DropZoneResultCard';
+import { ScrollView } from 'react-native';
 
 const TAB_META: Record<
   Tab,
@@ -52,6 +53,7 @@ const TAB_META: Record<
   browse: { label: 'Browse', icon: 'compass-outline', activeIcon: 'compass' },
   list: { label: 'List', icon: 'add-circle-outline', activeIcon: 'add-circle' },
   messages: { label: 'Chat', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses' },
+  demands: { label: 'Demands', icon: 'layers-outline', activeIcon: 'layers' },
   pickup: { label: 'Pickup', icon: 'navigate-outline', activeIcon: 'navigate' },
   auctions: { label: 'Auctions', icon: 'hammer-outline', activeIcon: 'hammer' },
   vision: { label: 'AI Scan', icon: 'sparkles-outline', activeIcon: 'sparkles' },
@@ -77,20 +79,20 @@ type SubView =
   | 'partner_console'
   | 'profile'
   | 'redemption'
-  | 'deposit_flow'
+  | 'demands'
+  | 'negotiation'
   | null;
 
 export function AppShell() {
   const { session, restoreState, restoreError, authMode, setAuthMode, logout, retryRestore, clearAndRestart } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [subView, setSubView] = useState<SubView>(null);
+  const [activeNegotiationThreadId, setActiveNegotiationThreadId] = useState<string | null>(null);
   const [listingPrefill, setListingPrefill] = useState<ListingPrefill | null>(null);
   const [messagesTarget, setMessagesTarget] = useState<MessagesTarget | null>(null);
   const [browseCategory, setBrowseCategory] = useState<FeedFilter | null>(null);
-  const [depositZone, setDepositZone] = useState<DropZone | null>(null);
-  const [depositQrToken, setDepositQrToken] = useState<string>('');
 
-  const partnerQuery = usePartnerMe();
+  const partnerQuery = usePartnerMe(Boolean(session));
   const { data: profileData } = useProfile(Boolean(session));
 
   const role = session?.user.role ?? 'INDIVIDUAL';
@@ -284,30 +286,30 @@ export function AppShell() {
               selectTab('scan');
             }}
             onOpenStatus={() => setSubView('partner_status')}
+            onOpenDemands={() => setSubView('demands')}
           />
         ) : subView === 'redemption' ? (
           <RedemptionRequestScreen
             onBack={() => setSubView(null)}
             onSuccess={() => setSubView(null)}
           />
-        ) : subView === 'deposit_flow' ? depositZone ? (
-          <DepositFlowScreen
-            zoneId={depositZone.id}
-            zoneName={depositZone.name}
-            acceptedCategories={depositZone.acceptedCategories}
-            qrToken={depositQrToken}
-            onComplete={() => {
-              setSubView(null);
-              setDepositZone(null);
-              setDepositQrToken('');
-            }}
-            onCancel={() => {
-              setSubView(null);
-              setDepositZone(null);
-              setDepositQrToken('');
+        ) : subView === 'demands' ? (
+          <DemandsScreen
+            onBack={() => setSubView(null)}
+            onOpenNegotiation={(threadId) => {
+              setActiveNegotiationThreadId(threadId);
+              setSubView('negotiation');
             }}
           />
-        ) : null : (
+        ) : subView === 'negotiation' && activeNegotiationThreadId ? (
+          <NegotiationThreadScreen
+            threadId={activeNegotiationThreadId}
+            onBack={() => {
+              setActiveNegotiationThreadId(null);
+              setSubView(null);
+            }}
+          />
+        ) : (
           <>
             {activeTab === 'browse' && (
               <FeedScreen
@@ -332,6 +334,14 @@ export function AppShell() {
                 onTargetHandled={() => setMessagesTarget(null)}
               />
             )}
+            {activeTab === 'demands' && (
+              <DemandsScreen
+                onOpenNegotiation={(threadId) => {
+                  setActiveNegotiationThreadId(threadId);
+                  setSubView('negotiation');
+                }}
+              />
+            )}
             {activeTab === 'pickup' && <PickupScreen />}
             {activeTab === 'auctions' && <AuctionsScreen />}
             {activeTab === 'rates' && <RateCardScreen />}
@@ -352,15 +362,7 @@ export function AppShell() {
                 }}
               />
             )}
-            {activeTab === 'scan' && (
-              <QRScannerScreen
-                onZoneConfirmed={(zone, qrToken) => {
-                  setDepositZone(zone);
-                  setDepositQrToken(qrToken);
-                  setSubView('deposit_flow');
-                }}
-              />
-            )}
+            {activeTab === 'scan' && <QRScannerScreen />}
             {activeTab === 'console' && (
               <PartnerConsoleScreen
                 onOpenScanner={() => {
@@ -368,6 +370,7 @@ export function AppShell() {
                   selectTab('scan');
                 }}
                 onOpenStatus={() => setSubView('partner_status')}
+                onOpenDemands={() => setSubView('demands')}
               />
             )}
           </>
@@ -375,29 +378,47 @@ export function AppShell() {
       </View>
 
       {/* Bottom tab bar */}
-      <View className="min-h-[72px] flex-row px-2 pt-1.5 pb-1 bg-surface border-t border-border" accessibilityRole="tablist">
-        {visibleTabs.map((key) => {
-          const tab = TAB_META[key];
-          if (!tab) return null;
-          const active = activeTab === key && subView === null;
-          return (
-            <Pressable
-              key={key}
-              accessibilityRole="tab"
-              accessibilityLabel={tab.label}
-              accessibilityState={{ selected: active }}
-              className={`flex-1 min-h-[56px] items-center justify-center rounded-2xl gap-[2px] active:opacity-[0.72] ${active ? 'bg-leaf-soft' : ''}`}
-              onPress={() => selectTab(key)}
-            >
-              <Ionicons
-                name={active ? tab.activeIcon : tab.icon}
-                size={22}
-                color={active ? colors.leafDark : colors.muted}
-              />
-              <Text className={`text-[10px] font-bold ${active ? 'text-leaf-dark' : 'text-muted'}`}>{tab.label}</Text>
-            </Pressable>
-          );
-        })}
+      <View className="min-h-[72px] bg-surface border-t border-border" accessibilityRole="tablist">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            minWidth: '100%',
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+            paddingHorizontal: 8,
+            paddingVertical: 6,
+          }}
+        >
+          {visibleTabs.map((key) => {
+            const tab = TAB_META[key];
+            if (!tab) return null;
+            const active = activeTab === key && subView === null;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                accessibilityLabel={tab.label}
+                accessibilityState={{ selected: active }}
+                className={`min-w-[64px] px-2 py-1.5 items-center justify-center rounded-2xl gap-[2px] active:opacity-[0.72] ${active ? 'bg-leaf-soft' : ''}`}
+                onPress={() => selectTab(key)}
+              >
+                <Ionicons
+                  name={active ? tab.activeIcon : tab.icon}
+                  size={22}
+                  color={active ? colors.leafDark : colors.muted}
+                />
+                <Text
+                  className={`text-[10px] font-bold ${active ? 'text-leaf-dark' : 'text-muted'}`}
+                  numberOfLines={1}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
       <StatusBar style="dark" />
     </SafeAreaView>
