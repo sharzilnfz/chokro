@@ -1,6 +1,6 @@
 import "./global.css";
 import React, { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 import { QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/context/AuthContext';
@@ -16,11 +16,24 @@ export default function App() {
     return () => subscription.remove();
   }, []);
 
-  return (
+  const content = (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppShell />
       </AuthProvider>
     </QueryClientProvider>
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      <View className="flex-1 w-full min-h-screen bg-slate-950 items-center justify-center">
+        <View className="w-full max-w-[430px] h-screen bg-background overflow-hidden flex flex-col shadow-2xl">
+          {content}
+        </View>
+      </View>
+    );
+  }
+
+  return content;
 }
+
