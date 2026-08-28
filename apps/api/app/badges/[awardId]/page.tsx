@@ -4,6 +4,8 @@ import { BadgeDomain } from '@/lib/domain/BadgeDomain';
 import { userRepo } from '@/lib/repos/users';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: Promise<{ awardId: string }>;
 }
