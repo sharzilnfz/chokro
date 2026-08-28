@@ -75,11 +75,12 @@ const chooseCategory = (next: FeedFilter) => {
 
   // The feed list, with filters in the header and bespoke empty/footer states.
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background" style={{ flex: 1, minHeight: 0 }}>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         renderItem={renderCard}
+        style={{ flex: 1 }}
         contentContainerStyle={[{ padding: 20, paddingBottom: 32 }, items.length === 0 && { flexGrow: 1 }]}
         refreshControl={
           <RefreshControl

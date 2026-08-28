@@ -202,9 +202,15 @@ export function AppShell() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView
+      className="flex-1 bg-background h-full min-h-0 overflow-hidden"
+      style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Header bar */}
-      <View className="min-h-[66px] flex-row items-center justify-between px-[18px] border-b border-border bg-background">
+      <View
+        className="min-h-[66px] shrink-0 flex-row items-center justify-between px-[18px] border-b border-border bg-background"
+        style={{ flexShrink: 0 }}
+      >
         <View className="flex-1 flex-row items-center gap-2.5">
           <View className="w-9 h-9 rounded-xl bg-leaf items-center justify-center" accessibilityElementsHidden>
             <Ionicons name="leaf" size={18} color={colors.surface} />
@@ -254,7 +260,10 @@ export function AppShell() {
       </View>
 
       {/* Screen container */}
-      <View className="flex-1">
+      <View
+        className="flex-1 min-h-0 overflow-hidden"
+        style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+      >
         {subView === 'profile' ? (
           <ProfileScreen onBack={() => setSubView(null)} />
         ) : subView === 'leaderboard' ? (
@@ -378,10 +387,15 @@ export function AppShell() {
       </View>
 
       {/* Bottom tab bar */}
-      <View className="min-h-[72px] bg-surface border-t border-border" accessibilityRole="tablist">
+      <View
+        className="min-h-[72px] shrink-0 bg-surface border-t border-border"
+        style={{ flexShrink: 0, zIndex: 50 }}
+        accessibilityRole="tablist"
+      >
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
           contentContainerStyle={{
             minWidth: '100%',
             flexDirection: 'row',
