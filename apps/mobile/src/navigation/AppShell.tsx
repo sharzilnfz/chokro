@@ -43,6 +43,8 @@ type SignedInScreens = {
   ProfileScreen: typeof import('@/screens/ProfileScreen').ProfileScreen;
   RedemptionRequestScreen: typeof import('@/screens/RedemptionRequestScreen').RedemptionRequestScreen;
   DepositFlowScreen: typeof import('@/screens/DepositFlowScreen').DepositFlowScreen;
+  ImpactDashboardScreen: typeof import('@/screens/ImpactDashboardScreen').ImpactDashboardScreen;
+  CertificateViewScreen: typeof import('@/screens/CertificateViewScreen').CertificateViewScreen;
 };
 
 let signedInScreensCache: SignedInScreens | null = null;
@@ -67,6 +69,8 @@ function loadSignedInScreens(): SignedInScreens {
       ProfileScreen: require('@/screens/ProfileScreen').ProfileScreen,
       RedemptionRequestScreen: require('@/screens/RedemptionRequestScreen').RedemptionRequestScreen,
       DepositFlowScreen: require('@/screens/DepositFlowScreen').DepositFlowScreen,
+      ImpactDashboardScreen: require('@/screens/ImpactDashboardScreen').ImpactDashboardScreen,
+      CertificateViewScreen: require('@/screens/CertificateViewScreen').CertificateViewScreen,
     };
   }
   return signedInScreensCache;
@@ -109,6 +113,8 @@ type SubView =
   | 'profile'
   | 'redemption'
   | 'deposit_flow'
+  | 'impact'
+  | 'certificate'
   | null;
 
 export function AppShell() {
@@ -120,6 +126,7 @@ export function AppShell() {
   const [browseCategory, setBrowseCategory] = useState<FeedFilter | null>(null);
   const [depositZone, setDepositZone] = useState<DropZone | null>(null);
   const [depositQrToken, setDepositQrToken] = useState<string>('');
+  const [certificateRef, setCertificateRef] = useState<string | null>(null);
 
   const partnerQuery = usePartnerMe();
   const { data: profileData } = useProfile(Boolean(session));
@@ -323,6 +330,19 @@ export function AppShell() {
             onBack={() => setSubView(null)}
             onSuccess={() => setSubView(null)}
           />
+        ) : subView === 'impact' ? (
+          <screens.ImpactDashboardScreen
+            onBack={() => setSubView(null)}
+            onOpenCertificate={(ref) => {
+              setCertificateRef(ref);
+              setSubView('certificate');
+            }}
+          />
+        ) : subView === 'certificate' && certificateRef ? (
+          <screens.CertificateViewScreen
+            certificateRef={certificateRef}
+            onBack={() => setSubView('impact')}
+          />
         ) : subView === 'deposit_flow' ? depositZone ? (
           <screens.DepositFlowScreen
             zoneId={depositZone.id}
@@ -374,6 +394,7 @@ export function AppShell() {
                 onOpenBadges={() => setSubView('badges')}
                 onOpenPartner={() => setSubView(isVerifiedPartner ? 'partner_console' : 'partner_status')}
                 onOpenRedemption={() => setSubView('redemption')}
+                onOpenImpact={() => setSubView('impact')}
               />
             )}
 

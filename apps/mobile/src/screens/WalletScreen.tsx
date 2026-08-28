@@ -19,13 +19,24 @@ import { useStreaks } from '@/hooks/useStreaks';
 import { usePartner } from '@/hooks/usePartner';
 
 interface WalletScreenProps {
+//   onOpenLeaderboard?: () => void;
+//   onOpenBadges?: () => void;
+//   onOpenPartner?: () => void;
+//   onOpenRedemption?: () => void;
+// }
+
+// export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner, onOpenRedemption }: WalletScreenProps) {
+
   onOpenLeaderboard?: () => void;
   onOpenBadges?: () => void;
   onOpenPartner?: () => void;
   onOpenRedemption?: () => void;
-}
+  onOpenImpact?: () => void;
+};
 
-export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner, onOpenRedemption }: WalletScreenProps) {
+export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner, onOpenRedemption, onOpenImpact }: WalletScreenProps) {  
+
+
   const { data, isLoading, error, refetch, isRefetching } = useWallet();
   const { data: streakData, refetch: refetchStreak } = useStreaks();
   const { data: partnerData, refetch: refetchPartner } = usePartner();
@@ -172,6 +183,27 @@ export function WalletScreen({ onOpenLeaderboard, onOpenBadges, onOpenPartner, o
                   </View>
                 </View>
               </View>
+            )}
+
+            {/* Environmental Impact Quick Entry */}
+            {onOpenImpact && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="View my environmental impact"
+                className="flex-row items-center justify-between p-4 rounded-2xl border border-leaf/40 bg-leaf-soft mb-4 active:opacity-75"
+                onPress={onOpenImpact}
+              >
+                <View className="flex-row items-center gap-3">
+                  <View className="w-9 h-9 rounded-xl bg-leaf items-center justify-center">
+                    <Ionicons name="leaf" size={18} color={colors.surface} />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-extrabold text-ink">My Impact</Text>
+                    <Text className="text-[11px] text-muted">Verified waste diverted & CO₂e avoided</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              </Pressable>
             )}
 
             {/* Partner Portal Quick Entry */}
